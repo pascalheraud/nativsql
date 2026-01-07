@@ -15,7 +15,7 @@ import java.util.List;
  * Repository for User entities.
  */
 @Repository
-public class UserRepository extends GenericRepository<User> {
+public class UserRepository extends GenericRepository<User, Long> {
     
     @Autowired
     public UserRepository(NamedParameterJdbcTemplate jdbcTemplate,
@@ -51,6 +51,21 @@ public class UserRepository extends GenericRepository<User> {
     public List<User> findByCity(String city, String... columns) {
         // Using (address).city to access composite type field
         return findAllByPropertyExpression("(address).city", "city", city, columns);
+    }
+
+    /**
+     * Finds a user by ID and loads their contact information.
+     *
+     * @param userId the user ID
+     * @param contactColumns the columns to load for contact information
+     * @param userColumns the columns to load for the user
+     * @return the user with contact information, or null if not found
+     */
+    public User findByIdWithContactInfos(Long userId, String[] contactColumns, String... userColumns) {
+        List<AssociationConfig> associations = List.of(
+            AssociationConfig.of("contacts", contactColumns)
+        );
+        return findByIdWithAssociations(userId, associations, userColumns);
     }
 
 }

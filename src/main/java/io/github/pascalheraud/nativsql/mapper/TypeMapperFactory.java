@@ -19,7 +19,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  * Supports custom mappers, enums, JSON types, and composite value objects.
  */
 @Component
-public class TypeMapperFactory {
+public class TypeMapperFactory implements INativSQLMapper {
     
     private final Map<Class<?>, TypeMapper<?>> customMappers = new ConcurrentHashMap<>();
     private final Set<Class<?>> jsonTypes = ConcurrentHashMap.newKeySet();

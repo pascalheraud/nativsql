@@ -4,67 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace;
-import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
-import org.springframework.context.annotation.Import;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.postgresql.PostgreSQLContainer;
-import org.testcontainers.utility.DockerImageName;
 
-import io.github.pascalheraud.nativsql.config.NativSqlConfig;
 import io.github.pascalheraud.nativsql.domain.Address;
+import io.github.pascalheraud.nativsql.domain.ContactInfo;
+import io.github.pascalheraud.nativsql.domain.ContactType;
 import io.github.pascalheraud.nativsql.domain.Preferences;
 import io.github.pascalheraud.nativsql.domain.User;
 import io.github.pascalheraud.nativsql.domain.UserStatus;
-import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
 
 /**
  * Integration tests for UserRepository using Testcontainers.
  */
-@JdbcTest
-@AutoConfigureTestDatabase(replace = Replace.NONE)
-@Testcontainers
-@Import({ NativSqlConfig.class, RowMapperFactory.class, UserRepository.class })
-class UserRepositoryTest {
-    // Déclare l'image comme compatible avec postgres
-    static DockerImageName postgisImage = DockerImageName
-            .parse("postgis/postgis:15-3.3")
-            .asCompatibleSubstituteFor("postgres");
-
-    @SuppressWarnings("resource")
-    @Container
-    static PostgreSQLContainer postgres = new PostgreSQLContainer(postgisImage)
-            .withDatabaseName("testdb")
-            .withUsername("test")
-            .withPassword("test")
-            .withInitScript("test-schema.sql");
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", postgres::getJdbcUrl);
-        registry.add("spring.datasource.username", postgres::getUsername);
-        registry.add("spring.datasource.password", postgres::getPassword);
-    }
-
-    @Autowired
-    private NamedParameterJdbcTemplate jdbcTemplate;
-
-    @Autowired
-    private UserRepository userRepository;
-
-    @BeforeEach
-    void setUp() {
-        // Clean up before each test
-        jdbcTemplate.getJdbcTemplate().execute("TRUNCATE users CASCADE");
-    }
+class UserRepositoryTest extends CommonUserTest {
 
     @Test
     void testInsertUser() {
@@ -251,5 +203,61 @@ class UserRepositoryTest {
         // Then
         assertThat(found1.getStatus()).isEqualTo(UserStatus.ACTIVE);
         assertThat(found2.getStatus()).isEqualTo(UserStatus.SUSPENDED);
+    }
+
+    @Test
+    void testOneToManyAssociation() {
+        // Given - Create a user
+        User user = new User();
+        user.setFirstName("John");
+        user.setLastName("Doe");
+        user.setEmail("john@example.com");
+        user.setStatus(UserStatus.ACTIVE);
+        userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+        User foundUser = userRepository.findByEmail("john@example.com", "id");
+        Long userId = foundUser.getId();
+
+        // Create contact information for this user
+        ContactInfo email1 = new ContactInfo();
+        email1.setUserId(userId);
+        email1.setContactType(ContactType.EMAIL);
+        email1.setContactValue("john@work.com");
+        email1.setIsPrimary(true);
+
+        ContactInfo phone = new ContactInfo();
+        phone.setUserId(userId);
+        phone.setContactType(ContactType.PHONE);
+        phone.setContactValue("+33612345678");
+        phone.setIsPrimary(false);
+
+        ContactInfo linkedin = new ContactInfo();
+        linkedin.setUserId(userId);
+        linkedin.setContactType(ContactType.LINKEDIN);
+        linkedin.setContactValue("linkedin.com/in/johndoe");
+        linkedin.setIsPrimary(false);
+
+        contactInfoRepository.insert(email1, "userId", "contactType", "contactValue", "isPrimary");
+        contactInfoRepository.insert(phone, "userId", "contactType", "contactValue", "isPrimary");
+        contactInfoRepository.insert(linkedin, "userId", "contactType", "contactValue", "isPrimary");
+
+        // When - Load user with contact information
+        User userWithContacts = userRepository.findByIdWithContactInfos(
+            userId,
+            new String[]{"id", "contactType", "contactValue", "isPrimary"},
+            "id", "firstName", "lastName", "email", "status"
+        );
+
+        // Then
+        assertThat(userWithContacts).isNotNull();
+        assertThat(userWithContacts.getContacts()).isNotNull();
+        assertThat(userWithContacts.getContacts()).hasSize(3);
+        assertThat(userWithContacts.getContacts())
+            .extracting(ContactInfo::getContactType)
+            .containsExactlyInAnyOrder(
+                ContactType.EMAIL,
+                ContactType.PHONE,
+                ContactType.LINKEDIN
+            );
     }
 }

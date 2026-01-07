@@ -1,5 +1,6 @@
 plugins {
     id 'java'
+    id 'java-test-fixtures'
     id 'org.springframework.boot' version '3.2.2'
     id 'io.spring.dependency-management' version '1.1.6'
 }
@@ -35,14 +36,27 @@ dependencies {
     // Lombok (optional, for reducing boilerplate)
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
+    testCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 
     // Test dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.assertj:assertj-core'
     testImplementation 'org.testcontainers:testcontainers:2.0.2'
     testImplementation 'org.testcontainers:testcontainers-postgresql:2.0.2'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter:2.0.2'
+
+    // Test fixtures dependencies (reusable test classes)
+    testFixturesImplementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    testFixturesImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testFixturesImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testFixturesImplementation 'org.testcontainers:testcontainers:2.0.2'
+    testFixturesImplementation 'org.testcontainers:testcontainers-postgresql:2.0.2'
+    testFixturesImplementation 'org.testcontainers:testcontainers-junit-jupiter:2.0.2'
+    testFixturesCompileOnly 'org.projectlombok:lombok:1.18.30'
+    testFixturesAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
 }
 
 tasks.named('test') {
