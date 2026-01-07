@@ -1,0 +1,100 @@
+nativsql/
+├── build.gradle
+├── settings.gradle
+├── docker-compose.yml
+├── init-db.sql
+├── README.md
+├── src/
+│   ├── main/
+│   │   ├── java/
+│   │   │   └── io/
+│   │   │       └── github/
+│   │   │           └── pascalheraud/
+│   │   │               └── nativsql/
+│   │   │                   ├── config/
+│   │   │                   │   └── NativSqlConfig.java
+│   │   │                   ├── domain/
+│   │   │                   │   ├── User.java
+│   │   │                   │   ├── UserStatus.java
+│   │   │                   │   ├── Address.java
+│   │   │                   │   ├── Preferences.java
+│   │   │                   │   ├── AddressEntity.java
+│   │   │                   │   └── UserWithAddressEntity.java
+│   │   │                   ├── mapper/
+│   │   │                   │   ├── TypeMapper.java
+│   │   │                   │   ├── TypeMapperFactory.java
+│   │   │                   │   ├── RowMapperFactory.java
+│   │   │                   │   ├── GenericRowMapper.java
+│   │   │                   │   ├── PropertyMetadata.java
+│   │   │                   │   ├── NestedPropertyMetadata.java
+│   │   │                   │   └── PrefixedResultSet.java
+│   │   │                   └── repository/
+│   │   │                       ├── GenericRepository.java
+│   │   │                       └── UserRepository.java
+│   │   └── resources/
+│   │       └── application.properties
+│   └── test/
+│       ├── java/
+│       │   └── io/
+│       │       └── github/
+│       │           └── pascalheraud/
+│       │               └── nativsql/
+│       │                   └── repository/
+│       │                       └── UserRepositoryTest.java
+│       └── resources/
+│           └── test-schema.sql
+└── gradle/
+    └── wrapper/
+        ├── gradle-wrapper.jar
+        └── gradle-wrapper.properties
+
+Files to create:
+================
+
+1. build.gradle - Gradle build configuration
+2. settings.gradle - Project name
+3. docker-compose.yml - PostgreSQL with PostGIS
+4. init-db.sql - Database initialization script
+5. README.md - Documentation
+
+Java Source Files:
+==================
+
+Core Mapper Components:
+- TypeMapper.java - Interface for type mapping
+- TypeMapperFactory.java - Factory for creating type mappers
+- RowMapperFactory.java - Factory for creating row mappers
+- GenericRowMapper.java - Generic row mapper implementation
+- PropertyMetadata.java - Metadata for simple properties
+- NestedPropertyMetadata.java - Metadata for nested properties
+- PrefixedResultSet.java - ResultSet wrapper for nested mapping
+
+Repository:
+- GenericRepository.java - Abstract base repository
+- UserRepository.java - Concrete user repository
+
+Domain:
+- User.java - User entity
+- UserStatus.java - User status enum
+- Address.java - Address value object (JSON)
+- Preferences.java - Preferences value object (JSON)
+- AddressEntity.java - Address entity (table)
+- UserWithAddressEntity.java - User with nested address
+
+Configuration:
+- NativSqlConfig.java - Spring configuration
+- application.properties - Database configuration
+
+Tests:
+- UserRepositoryTest.java - Integration tests
+- test-schema.sql - Test database schema
+
+Gradle Wrapper:
+===============
+Run: gradle wrapper --gradle-version 8.5
+
+This will generate:
+- gradlew (Unix script)
+- gradlew.bat (Windows script)
+- gradle/wrapper/gradle-wrapper.jar
+- gradle/wrapper/gradle-wrapper.properties
