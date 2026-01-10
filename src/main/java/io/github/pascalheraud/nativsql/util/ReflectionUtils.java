@@ -3,56 +3,26 @@ package io.github.pascalheraud.nativsql.util;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 
 import io.github.pascalheraud.nativsql.exception.SQLException;
 
 /**
  * Utility class for reflection operations.
- * Provides caching mechanisms for getters and setters to improve performance.
  */
 public final class ReflectionUtils {
-
-    // Cache for getters: "ClassName:propertyName" -> Method
-    private static final Map<String, Method> getterCache = new ConcurrentHashMap<>();
-
-    // Cache for setters: "ClassName:propertyName:ParameterType" -> Method
-    private static final Map<String, Method> setterCache = new ConcurrentHashMap<>();
 
     private ReflectionUtils() {
         // Utility class - prevent instantiation
     }
 
     /**
-     * Gets the getter method for a property (with caching).
+     * Finds a getter method for a property.
      *
      * @param clazz the class containing the property
      * @param propertyName the property name (camelCase)
      * @return the getter method
      * @throws SQLException if no getter is found
-     */
-    private static Method getGetter(Class<?> clazz, String propertyName) {
-        String cacheKey = clazz.getName() + ":" + propertyName;
-        return getterCache.computeIfAbsent(cacheKey, key -> findGetter(clazz, propertyName));
-    }
-
-    /**
-     * Gets the setter method for a property (with caching).
-     *
-     * @param clazz the class containing the property
-     * @param propertyName the property name (camelCase)
-     * @param parameterType the parameter type of the setter
-     * @return the setter method
-     * @throws SQLException if no setter is found
-     */
-    private static Method getSetter(Class<?> clazz, String propertyName, Class<?> parameterType) {
-        String cacheKey = clazz.getName() + ":" + propertyName + ":" + parameterType.getName();
-        return setterCache.computeIfAbsent(cacheKey, key -> findSetter(clazz, propertyName, parameterType));
-    }
-
-    /**
-     * Finds a getter method for a property.
      */
     private static Method findGetter(Class<?> clazz, String propertyName) {
         // Try getXxx()
@@ -72,6 +42,12 @@ public final class ReflectionUtils {
 
     /**
      * Finds a setter method for a property.
+     *
+     * @param clazz the class containing the property
+     * @param propertyName the property name (camelCase)
+     * @param parameterType the parameter type of the setter
+     * @return the setter method
+     * @throws SQLException if no setter is found
      */
     private static Method findSetter(Class<?> clazz, String propertyName, Class<?> parameterType) {
         String setterName = "set" + capitalize(propertyName);
@@ -91,7 +67,7 @@ public final class ReflectionUtils {
      * @throws RuntimeException if invocation fails
      */
     public static Object invokeGetter(Object object, String propertyName) {
-        Method getter = getGetter(object.getClass(), propertyName);
+        Method getter = findGetter(object.getClass(), propertyName);
         try {
             return getter.invoke(object);
         } catch (IllegalAccessException | InvocationTargetException e) {
@@ -109,7 +85,7 @@ public final class ReflectionUtils {
      */
     public static void invokeSetter(Object object, String propertyName, Object value) {
         Class<?> parameterType = value != null ? value.getClass() : Object.class;
-        Method setter = getSetter(object.getClass(), propertyName, parameterType);
+        Method setter = findSetter(object.getClass(), propertyName, parameterType);
         try {
             setter.invoke(object, value);
         } catch (IllegalAccessException | InvocationTargetException e) {
@@ -132,32 +108,58 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Creates FieldAccessors for all declared fields of an object instance.
+     * Creates a Fields wrapper with all declared fields of a class.
+     * Provides fast lookup by field name via a map.
      *
-     * @param instance the object instance
-     * @return array of FieldAccessors
+     * @param clazz the class to get fields from
+     * @return Fields wrapper with all field accessors
      */
+    public static Fields getFields(Class<?> clazz) {
+        Field[] fields = clazz.getDeclaredFields();
+        List<FieldAccessor> accessors = new java.util.ArrayList<>(fields.length);
+        for (Field field : fields) {
+            accessors.add(new FieldAccessor(field));
+        }
+        return new Fields(accessors);
+    }
+
+    /**
+     * Creates a Fields wrapper with all declared fields of an instance.
+     * Provides fast lookup by field name via a map.
+     *
+     * @param instance the instance to get fields from
+     * @return Fields wrapper with all field accessors
+     */
+    private static Fields getFields(Object instance) {
+        return getFields(instance.getClass());
+    }
+
+    /**
+     * @deprecated Use {@link #getFields(Class)} instead
+     */
+    @Deprecated
     public static FieldAccessor[] getFieldAccessors(Object instance) {
         Field[] fields = instance.getClass().getDeclaredFields();
         FieldAccessor[] accessors = new FieldAccessor[fields.length];
         for (int i = 0; i < fields.length; i++) {
-            accessors[i] = new FieldAccessor(fields[i], instance);
+            accessors[i] = new FieldAccessor(fields[i]);
         }
         return accessors;
     }
 
     /**
-     * Creates FieldAccessors for all declared fields of a class (without instance).
-     * The FieldAccessors will have null as instance.
+     * @deprecated Use {@link #getFields(Class)} instead
+     * Creates FieldAccessors for all declared fields of a class.
      *
      * @param clazz the class to get fields from
      * @return array of FieldAccessors
      */
+    @Deprecated
     public static FieldAccessor[] getFieldAccessors(Class<?> clazz) {
         Field[] fields = clazz.getDeclaredFields();
         FieldAccessor[] accessors = new FieldAccessor[fields.length];
         for (int i = 0; i < fields.length; i++) {
-            accessors[i] = new FieldAccessor(fields[i], null);
+            accessors[i] = new FieldAccessor(fields[i]);
         }
         return accessors;
     }

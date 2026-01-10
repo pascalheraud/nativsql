@@ -24,7 +24,6 @@ public class User implements Entity<Long> {
 
     @OneToMany(
         mappedBy = "userId",
-        targetEntity = ContactInfo.class,
         repository = ContactInfoRepository.class
     )
     private List<ContactInfo> contacts;

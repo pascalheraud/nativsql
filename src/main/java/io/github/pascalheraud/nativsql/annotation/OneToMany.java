@@ -17,7 +17,6 @@ import java.lang.annotation.Target;
  *
  *     @OneToMany(
  *         mappedBy = "userId",
- *         targetEntity = ContactInfo.class,
  *         repository = ContactInfoRepository.class
  *     )
  *     private List<ContactInfo> contacts;
@@ -35,13 +34,6 @@ public @interface OneToMany {
      * @return the foreign key field name (e.g., "userId")
      */
     String mappedBy();
-
-    /**
-     * The target entity class of the relationship.
-     *
-     * @return the target entity class
-     */
-    Class<?> targetEntity();
 
     /**
      * The repository class to use for loading the associated entities.

@@ -28,7 +28,8 @@ public class OrderBy {
 
     /**
      * Builds the SQL ORDER BY clause.
-     * Returns empty string if no orders have been specified.
+     * Returns "ORDER BY xxx" or empty string if no orders have been specified.
+     * Example: "ORDER BY name ASC, created_at DESC"
      */
     public String build() {
         if (orders.isEmpty()) {

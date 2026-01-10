@@ -85,7 +85,17 @@ public class FindQuery {
      */
     public FindQuery orderBy(OrderBy orderBy) {
         // Copy the order conditions from the provided orderBy to this query's orderBy
-        for (String orderClause : orderBy.build().split(",")) {
+        String orderByClause = orderBy.build();
+        if (orderByClause.isEmpty()) {
+            return this;
+        }
+
+        // Remove "ORDER BY " prefix
+        if (orderByClause.toUpperCase().startsWith("ORDER BY ")) {
+            orderByClause = orderByClause.substring(9);
+        }
+
+        for (String orderClause : orderByClause.split(",")) {
             String trimmed = orderClause.trim();
             if (trimmed.toUpperCase().endsWith("ASC")) {
                 String column = trimmed.substring(0, trimmed.length() - 3).trim();
@@ -280,28 +290,4 @@ public class FindQuery {
         Object convert(Object value);
     }
 
-    /**
-     * Inner class representing an association to load.
-     */
-    public static class Association {
-        private final String name;
-        private final List<String> columns;
-
-        public Association(String name, List<String> columns) {
-            this.name = name;
-            this.columns = new ArrayList<>(columns);
-        }
-
-        public String getName() {
-            return name;
-        }
-
-        public List<String> getColumns() {
-            return new ArrayList<>(columns);
-        }
-
-        public String[] getColumnsArray() {
-            return columns.toArray(new String[0]);
-        }
-    }
 }

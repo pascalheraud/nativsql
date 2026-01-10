@@ -16,12 +16,13 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.lang.NonNull;
 
-import io.github.pascalheraud.nativsql.annotation.OneToMany;
 import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.exception.SQLException;
 import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
 import io.github.pascalheraud.nativsql.mapper.TypeMapperFactory;
+import io.github.pascalheraud.nativsql.util.Association;
 import io.github.pascalheraud.nativsql.util.FieldAccessor;
+import io.github.pascalheraud.nativsql.util.Fields;
 import io.github.pascalheraud.nativsql.util.FindQuery;
 import io.github.pascalheraud.nativsql.util.OrderBy;
 import io.github.pascalheraud.nativsql.util.ReflectionUtils;
@@ -54,8 +55,11 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     @Autowired(required = false)
     protected ApplicationContext applicationContext;
 
+    private Fields entityFields;
+
     protected GenericRepository() {
         this.entityClass = getEntityClass();
+        this.entityFields = ReflectionUtils.getFields(entityClass);
     }
 
     abstract protected Class<T> getEntityClass();
@@ -113,13 +117,14 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Updates an entity with specified columns (assumes ID column is named "id").
      *
-     * @param entity   the entity to update
-     * @param columns  the property names (camelCase) to update
+     * @param entity  the entity to update
+     * @param columns the property names (camelCase) to update
      * @return the number of rows updated
      */
     public int update(T entity, String... columns) {
         Map<String, Object> params = extractValues(entity, columns);
-        Object id = extractValue(entity, ID_COLUMN);
+        FieldAccessor idField = entityFields.get(ID_COLUMN);
+        Object id = idField != null ? idField.getValue(entity) : null;
         params.put(ID_COLUMN, id);
 
         Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
@@ -133,7 +138,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         return executeUpdate(sql, params);
     }
-
 
     @SuppressWarnings("null")
     @NonNull
@@ -161,7 +165,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the number of rows deleted
      */
     public int delete(T entity) {
-        Object id = extractValue(entity, ID_COLUMN);
+        FieldAccessor idField = entityFields.get(ID_COLUMN);
+        Object id = idField != null ? idField.getValue(entity) : null;
         return deleteById(id);
     }
 
@@ -169,18 +174,16 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * Finds an entity by ID with specified columns (assumes ID column is named
      * "id").
      *
-     * @param id the ID value
+     * @param id      the ID value
      * @param columns the property names (camelCase) to retrieve
      * @return the entity or null if not found
      */
     public T findById(Object id, String... columns) {
         return find(
-            newFindQuery()
-                .select(columns)
-                .whereAndEquals(ID_COLUMN, id)
-        );
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals(ID_COLUMN, id));
     }
-
 
     /**
      * Finds an entity by a property value with specified columns.
@@ -211,7 +214,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
-     * Finds all entities by a list of property values (for batch loading with IN clause).
+     * Finds all entities by a list of property values (for batch loading with IN
+     * clause).
      *
      * @param property the property name (camelCase) to filter by
      * @param values   the list of values to search for (uses IN clause)
@@ -235,7 +239,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
             params.put(paramName, values.get(i));
         }
 
-        String sql = "SELECT " + columnList + " FROM " + getTableName() + " WHERE " + propertySnake + " IN (" + String.join(",", placeholders) + ")";
+        String sql = "SELECT " + columnList + " FROM " + getTableName() + " WHERE " + propertySnake + " IN ("
+                + String.join(",", placeholders) + ")";
 
         return jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass));
     }
@@ -278,20 +283,18 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     protected List<T> findAllByPropertyExpression(String propertyExpression, String paramName, Object value,
             String... columns) {
         return findAll(
-            newFindQuery()
-                .select(columns)
-                .whereExpression(propertyExpression, paramName, value)
-        );
+                newFindQuery()
+                        .select(columns)
+                        .whereExpression(propertyExpression, paramName, value));
     }
 
     protected List<T> findAllByPropertyExpression(String propertyExpression, String paramName, Object value,
             OrderBy orderBy, String... columns) {
         return findAll(
-            newFindQuery()
-                .select(columns)
-                .whereExpression(propertyExpression, paramName, value)
-                .orderBy(orderBy)
-        );
+                newFindQuery()
+                        .select(columns)
+                        .whereExpression(propertyExpression, paramName, value)
+                        .orderBy(orderBy));
     }
 
     /**
@@ -307,6 +310,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Finds a single entity using a complex FindQuery builder.
      * Loads associations if specified in the query using batch loading.
+     * 
      * @param query the FindQuery builder with search criteria
      * @return the first matching entity or null if not found
      */
@@ -330,10 +334,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         // Load associations for single entity using batch loading
         if (query.hasAssociations()) {
-            List<AssociationConfig> associations = query.getAssociations().stream()
-                    .map(assoc -> AssociationConfig.of(assoc.getName(), assoc.getColumnsArray()))
-                    .toList();
-            loadAssociationsInBatch(List.of(entity), associations);
+            loadAssociationsInBatch(List.of(entity), query.getAssociations());
         }
 
         return entity;
@@ -357,13 +358,17 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
-     * Finds entities using a complex FindQuery builder and loads associations using batch loading.
-     * Uses IN clause to load all associations in a single query per association (no N+1).
-     * @param query the FindQuery builder with search criteria
-     * @param associations list of associations to load with their column configurations
+     * Finds entities using a complex FindQuery builder and loads associations using
+     * batch loading.
+     * Uses IN clause to load all associations in a single query per association (no
+     * N+1).
+     * 
+     * @param query        the FindQuery builder with search criteria
+     * @param associations list of associations to load with their column
+     *                     configurations
      * @return list of entities with loaded associations
      */
-    protected List<T> findAll(FindQuery query, List<AssociationConfig> associations) {
+    protected List<T> findAll(FindQuery query, List<Association> associations) {
         // Execute the main query
         List<T> entities = findAll(query);
 
@@ -381,6 +386,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Creates a new FindQuery builder for this repository's table.
+     * 
      * @return a new FindQuery instance preconfigured with this table name
      */
     protected FindQuery newFindQuery() {
@@ -399,9 +405,9 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         Set<String> propertySet = new HashSet<>(Arrays.asList(properties));
 
         // Get all field accessors and filter by requested properties
-        for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entity)) {
+        for (FieldAccessor fieldAccessor : entityFields.list()) {
             if (propertySet.contains(fieldAccessor.getName())) {
-                Object value = fieldAccessor.getValue();
+                Object value = fieldAccessor.getValue(entity);
                 value = convertToSqlValue(value);
                 params.put(fieldAccessor.getName(), value);
             }
@@ -420,9 +426,9 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         Set<String> propertySet = new HashSet<>(Arrays.asList(properties));
 
         // Get all field accessors and filter by requested properties
-        for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entity)) {
+        for (FieldAccessor fieldAccessor : entityFields.list()) {
             if (propertySet.contains(fieldAccessor.getName())) {
-                Object value = fieldAccessor.getValue();
+                Object value = fieldAccessor.getValue(entity);
                 if (value != null) {
                     types.put(fieldAccessor.getName(), value.getClass());
                 }
@@ -454,13 +460,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         }
 
         return ":" + paramName;
-    }
-
-    /**
-     * Extracts a single value.
-     */
-    private Object extractValue(T entity, String property) {
-        return ReflectionUtils.invokeGetter(entity, property);
     }
 
     /**
@@ -570,139 +569,147 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      *                     configurations.
      *                     If null or empty, no associations are loaded.
      */
-    protected void loadOneToManyAssociations(Entity<ID> entity, List<AssociationConfig> associations) {
+    protected void loadOneToManyAssociations(Entity<ID> entity, List<Association> associations) {
         if (applicationContext == null || associations == null || associations.isEmpty()) {
             return; // Cannot load associations without ApplicationContext or if no associations
                     // specified
         }
 
-        // Build a map for quick lookup
-        Map<String, AssociationConfig> associationMap = new HashMap<>();
-        for (AssociationConfig config : associations) {
-            associationMap.put(config.getAssociationField(), config);
-        }
-
-        for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entity)) {
-            OneToMany annotation = fieldAccessor.getAnnotation(OneToMany.class);
-
-            if (annotation != null) {
-                // Check if this association should be loaded
-                AssociationConfig config = associationMap.get(fieldAccessor.getName());
-                if (config == null) {
-                    continue; // Skip this association
-                }
-
-                try {
-                    // Get the repository bean and cast to GenericRepository
-                    GenericRepository<?, ?> repository = (GenericRepository<?, ?>) applicationContext
-                            .getBean(annotation.repository());
-
-                    // Get the foreign key value (entity's ID)
-                    ID entityId = entity.getId();
-
-                    // Get columns to load
-                    String[] columns = config.getColumns();
-                    if (columns == null || columns.length == 0) {
-                        // Load all columns if not specified
-                        columns = SqlUtils.getEntityColumns(annotation.targetEntity());
-                    }
-
-                    // Call findAllByProperty directly on the GenericRepository
-                    List<?> associatedEntities = repository.findAllByProperty(
-                            annotation.mappedBy(),
-                            entityId,
-                            columns);
-
-                    // Set the field value using FieldAccessor
-                    fieldAccessor.setValue(associatedEntities);
-
-                } catch (SQLException e) {
-                    throw e; // Re-throw SQL exceptions as-is
-                } catch (Exception e) {
-                    throw new SQLException(
-                            "Failed to load OneToMany association for field: " + fieldAccessor.getName(), e);
-                }
-            }
+        for (Association config : associations) {
+            loadOneToManyAssociation(entity, config);
         }
     }
 
     /**
-     * Loads associations for multiple entities using batch loading (IN clause).
-     * Loads all associations in a single query per association instead of N queries.
+     * Loads a single OneToMany association for an entity.
      *
-     * @param entities      the list of entities to load associations for
-     * @param associations  list of associations to load with their column configurations
+     * @param entity the entity to load the association for
+     * @param config the association configuration
      */
-    private void loadAssociationsInBatch(List<T> entities, List<AssociationConfig> associations) {
+    private void loadOneToManyAssociation(Entity<ID> entity, Association config) {
+        @SuppressWarnings("unchecked")
+        List<T> entities = (List<T>) (List<?>) List.of(entity);
+        loadAssociationInBatch(entities, config);
+    }
+
+    /**
+     * Loads associations for multiple entities using batch loading (IN clause).
+     * Loads all associations in a single query per association instead of N
+     * queries.
+     *
+     * @param entities     the list of entities to load associations for
+     * @param associations list of associations to load with their column
+     *                     configurations
+     */
+    private void loadAssociationsInBatch(List<T> entities, List<Association> associations) {
         if (applicationContext == null || entities.isEmpty() || associations.isEmpty()) {
             return;
         }
 
-        for (AssociationConfig config : associations) {
-            try {
-                // Get the first entity to find the OneToMany annotation
-                OneToMany annotation = null;
-                FieldAccessor associationField = null;
+        for (Association config : associations) {
+            loadAssociationInBatch(entities, config);
+        }
+    }
 
-                for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entities.get(0))) {
-                    OneToMany ann = fieldAccessor.getAnnotation(OneToMany.class);
-                    if (ann != null && fieldAccessor.getName().equals(config.getAssociationField())) {
-                        annotation = ann;
-                        associationField = fieldAccessor;
-                        break;
-                    }
-                }
+    /**
+     * Loads a single association for multiple entities using batch loading.
+     *
+     * @param entities the list of entities to load the association for
+     * @param config   the association configuration
+     */
+    private <SUBT extends Entity<ID>> void loadAssociationInBatch(List<T> entities, Association config) {
+        FieldAccessor fieldAccessor = entityFields.get(config.getAssociationField());
+        if (fieldAccessor == null) {
+            throw new SQLException("Association field not found: " + config.getAssociationField());
+        }
 
-                if (annotation == null) {
-                    continue; // Skip if annotation not found
-                }
+        try {
+            FieldAccessor.OneToManyAssociation association = fieldAccessor.getOneToMany();
+            if (association == null) {
+                throw new SQLException("Field is not a @OneToMany association: " + fieldAccessor.getName());
+            }
 
-                // Get the repository for the associated entity
-                GenericRepository<?, ?> repository = (GenericRepository<?, ?>) applicationContext
-                        .getBean(annotation.repository());
+            // Get the repository for the associated entity
+            @SuppressWarnings("unchecked")
+            GenericRepository<SUBT, ID> repository = (GenericRepository<SUBT, ID>) applicationContext
+                    .getBean(association.getRepositoryClass());
 
-                // Extract all parent IDs
-                List<ID> parentIds = entities.stream()
-                        .map(Entity::getId)
-                        .distinct()
-                        .toList();
+            // Create a map of entities by their ID for direct access
+            Map<ID, T> entitiesById = entities.stream()
+                    .collect(Collectors.toMap(Entity::getId, e -> e));
 
-                // Get columns to load
-                String[] columns = config.getColumns();
-                if (columns == null || columns.length == 0) {
-                    columns = SqlUtils.getEntityColumns(annotation.targetEntity());
-                }
-
-                // Load all associated entities in a single query using IN clause
-                String mappedByField = annotation.mappedBy();
-                List<?> allAssociatedEntities = repository.findAllByProperty(
-                        mappedByField,
-                        parentIds, // Pass list of IDs instead of single ID
-                        columns);
-
-                // Group associated entities by parent ID for mapping
-                Map<ID, List<Object>> associationsByParentId = new HashMap<>();
-                for (Object associated : allAssociatedEntities) {
-                    Object parentIdValue = ReflectionUtils.invokeGetter(associated, mappedByField);
-                    @SuppressWarnings("unchecked")
-                    ID parentId = (ID) parentIdValue;
-                    associationsByParentId.computeIfAbsent(parentId, k -> new ArrayList<>()).add(associated);
-                }
-
-                // Set associations on each entity
-                final FieldAccessor finalAssociationField = associationField;
-                for (T entity : entities) {
-                    List<Object> associatedList = associationsByParentId.getOrDefault(entity.getId(), new ArrayList<>());
-                    finalAssociationField.setValue(associatedList);
-                }
-
-            } catch (SQLException e) {
-                throw e; // Re-throw SQL exceptions as-is
-            } catch (Exception e) {
+            // Get columns to load
+            String[] columns = config.getColumnsArray();
+            if (columns == null || columns.length == 0) {
                 throw new SQLException(
-                        "Failed to load association batch for: " + config.getAssociationField(), e);
+                        "Association configuration must specify columns for: " + config.getAssociationField());
+            }
+
+            // Ensure foreign key field is included in columns for proper grouping
+            String foreignKeyField = association.getForeignKey();
+            columns = ensureForeignKeyInColumns(columns, foreignKeyField);
+
+            List<SUBT> allAssociatedEntities = repository.findAllByProperty(
+                    foreignKeyField,
+                    entitiesById.keySet().stream().distinct().toList(), // Use Map keys directly
+                    columns);
+
+            // Initialize associations on each entity
+            for (T entity : entities) {
+                fieldAccessor.setValue(entity, new ArrayList<>());
+            }
+
+            // Add associated entities directly to their parent
+            for (SUBT associated : allAssociatedEntities) {
+                ID parentIdValue = repository.getFieldValue(associated, foreignKeyField);
+                T parentEntity = entitiesById.get(parentIdValue);
+                if (parentEntity != null) {
+                    List<SUBT> associatedList = fieldAccessor.getValue(parentEntity);
+                    associatedList.add(associated);
+                }
+            }
+        } catch (SQLException e) {
+            throw e;
+        }
+    }
+
+    /**
+     * Ensures the foreign key field is included in the columns array.
+     * If not present, adds it to the end of the array.
+     *
+     * @param columns         the original columns array
+     * @param foreignKeyField the foreign key field to ensure is included
+     * @return the columns array with foreign key field included
+     */
+    private String[] ensureForeignKeyInColumns(String[] columns, String foreignKeyField) {
+        for (String col : columns) {
+            if (col.equals(foreignKeyField)) {
+                return columns; // Already present
             }
         }
+        // Add foreign key field to the end
+        String[] newColumns = new String[columns.length + 1];
+        System.arraycopy(columns, 0, newColumns, 0, columns.length);
+        newColumns[columns.length] = foreignKeyField;
+        return newColumns;
+    }
+
+    /**
+     * Gets a field value from an entity using the repository's cached Fields.
+     *
+     * @param entity    the entity to get the value from
+     * @param fieldName the field name
+     * @return the field value with the correct type
+     * @throws SQLException if the field is not found
+     */
+    protected <V> V getFieldValue(Object entity, String fieldName) throws SQLException {
+        FieldAccessor accessor = entityFields.get(fieldName);
+        if (accessor == null) {
+            throw new SQLException("Field not found: " + fieldName);
+        }
+        @SuppressWarnings("unchecked")
+        V value = (V) accessor.getValue(entity);
+        return value;
     }
 
 }

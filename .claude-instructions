@@ -1,0 +1,52 @@
+# NativeSQL Code Guidelines
+
+## Exception Handling
+- Never use `catch(Exception e)` - be specific about exceptions you catch
+- Only catch exceptions you actually handle
+- Prefer letting unexpected exceptions propagate
+- Use specific exception types: `SQLException`, `IllegalArgumentException`, etc.
+- For checked exceptions, either handle them or declare them in `throws`
+
+## Visibility & Encapsulation
+- Make methods `private` by default, only use `protected` or `public` when necessary
+- Make fields `private` - use getters if external access is needed
+- Methods that are only used internally should not be public
+- Package-private methods should only be used within the same package
+
+## Field Accessor Pattern
+- `FieldAccessor` should be stateless - instance context must be passed as method parameters
+- Use `getValue(Object instance)` and `setValue(Object instance, Object value)` signatures
+- Instance-specific state should never be stored in the accessor itself
+
+## Repository & Caching
+- Cache field metadata per repository instance using a `Fields` object
+- Initialize `Fields entityFields` in the repository constructor: `this.entityFields = ReflectionUtils.getFields(entityClass)`
+- Do not use static/global caches for field metadata
+- Field lookups should use the cached `entityFields` object for O(1) access
+
+## Association Loading
+- Use batch loading with IN clauses instead of N+1 queries
+- Consolidate single-entity and batch-entity loading paths into one method
+- Validate configuration early (fail-fast):
+  - Throw exception if `Association` configuration is missing required columns
+  - Throw exception if annotation is missing or field doesn't exist
+  - Never silently skip with `continue`
+
+## OneToMany Annotation
+- Only specify `mappedBy()` and `repository()` in the annotation
+- Derive target entity from repository's generic type parameter using reflection
+- Never require redundant `targetEntity()` configuration
+- Repository access must be explicit via `association.getRepositoryClass()`
+
+## Code Simplification
+- Extract helper methods to reduce complexity in main logic
+- Separate concerns into dedicated methods (e.g., `ensureForeignKeyInColumns()`)
+- Avoid intermediate variable assignments when possible
+- Use streams and functional APIs where they improve readability
+
+## Overengineering Avoidance
+- Don't add features beyond what's explicitly requested
+- Don't refactor surrounding code unless necessary
+- Don't add error handling for impossible scenarios
+- Trust internal code and framework guarantees
+- Validate only at system boundaries (user input, external APIs)

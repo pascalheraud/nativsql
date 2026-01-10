@@ -2,27 +2,27 @@ package io.github.pascalheraud.nativsql.util;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
+import io.github.pascalheraud.nativsql.annotation.OneToMany;
 import io.github.pascalheraud.nativsql.exception.SQLException;
 
 /**
- * Wrapper class that provides convenient access to a field on a specific object instance.
- * Combines a Field with its target object for easier manipulation.
+ * Wrapper class that provides convenient access to a field.
+ * Operates on any object instance passed to its methods.
  */
 public class FieldAccessor {
 
     private final Field field;
-    private final Object instance;
 
     /**
      * Creates a new FieldAccessor.
      *
      * @param field the field to access
-     * @param instance the object instance containing the field
      */
-    public FieldAccessor(Field field, Object instance) {
+    public FieldAccessor(Field field) {
         this.field = field;
-        this.instance = instance;
         this.field.setAccessible(true); // Allow access to private fields
     }
 
@@ -47,12 +47,14 @@ public class FieldAccessor {
     /**
      * Gets the value of the field on the instance.
      *
+     * @param instance the object instance to get the value from
      * @return the field value
      * @throws RuntimeException if access fails
      */
-    public Object getValue() {
+    @SuppressWarnings("unchecked")
+    public <T> T getValue(Object instance) {
         try {
-            return field.get(instance);
+            return (T)field.get(instance);
         } catch (IllegalAccessException e) {
             throw new SQLException("Failed to get value of field: " + field.getName(), e);
         }
@@ -61,10 +63,11 @@ public class FieldAccessor {
     /**
      * Sets the value of the field on the instance.
      *
+     * @param instance the object instance to set the value on
      * @param value the value to set
      * @throws RuntimeException if access fails
      */
-    public void setValue(Object value) {
+    public void setValue(Object instance, Object value) {
         try {
             field.set(instance, value);
         } catch (IllegalAccessException e) {
@@ -103,12 +106,92 @@ public class FieldAccessor {
     }
 
     /**
-     * Gets the instance object.
+     * Gets the OneToMany association details.
      *
-     * @return the instance object
+     * @return a OneToManyAssociation object, or null if the annotation is not present
      */
-    public Object getInstance() {
-        return instance;
+    public OneToManyAssociation getOneToMany() {
+        OneToMany annotation = field.getAnnotation(OneToMany.class);
+        if (annotation == null) {
+            return null;
+        }
+        return new OneToManyAssociation(annotation.mappedBy(), annotation.repository());
+    }
+
+    /**
+     * Represents the details of a OneToMany association.
+     */
+    public static class OneToManyAssociation {
+        private final String foreignKey;
+        private final Class<?> repositoryClass;
+
+        /**
+         * Creates a new OneToManyAssociation.
+         *
+         * @param foreignKey the field name in the target entity that references this entity's ID
+         * @param repositoryClass the repository class to use
+         */
+        public OneToManyAssociation(String foreignKey, Class<?> repositoryClass) {
+            this.foreignKey = foreignKey;
+            this.repositoryClass = repositoryClass;
+        }
+
+        /**
+         * Gets the foreign key field name.
+         *
+         * @return the field name in the target entity that references this entity's ID
+         */
+        public String getForeignKey() {
+            return foreignKey;
+        }
+
+        /**
+         * Gets the target entity class by extracting it from the repository generic type.
+         *
+         * @return the target entity class
+         * @throws SQLException if the entity type cannot be extracted from the repository
+         */
+        public Class<?> getEntity() {
+            Type[] genericInterfaces = repositoryClass.getGenericInterfaces();
+            for (Type genericInterface : genericInterfaces) {
+                if (genericInterface instanceof ParameterizedType) {
+                    ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
+                    Type rawType = parameterizedType.getRawType();
+                    // Check if it's GenericRepository or a subclass
+                    if (rawType instanceof Class<?> && isGenericRepositoryClass((Class<?>) rawType)) {
+                        Type[] typeArguments = parameterizedType.getActualTypeArguments();
+                        if (typeArguments.length > 0 && typeArguments[0] instanceof Class<?>) {
+                            return (Class<?>) typeArguments[0];
+                        }
+                    }
+                }
+            }
+            throw new SQLException("Cannot extract entity type from repository: " + repositoryClass.getName());
+        }
+
+        /**
+         * Checks if a class is GenericRepository or extends it.
+         */
+        private boolean isGenericRepositoryClass(Class<?> clazz) {
+            if (clazz.getName().contains("GenericRepository")) {
+                return true;
+            }
+            // Check superclass
+            Class<?> superclass = clazz.getSuperclass();
+            if (superclass != null && superclass != Object.class) {
+                return isGenericRepositoryClass(superclass);
+            }
+            return false;
+        }
+
+        /**
+         * Gets the repository class.
+         *
+         * @return the repository class
+         */
+        public Class<?> getRepositoryClass() {
+            return repositoryClass;
+        }
     }
 
     @Override
@@ -116,7 +199,6 @@ public class FieldAccessor {
         return "FieldAccessor{" +
                 "field=" + field.getName() +
                 ", type=" + field.getType().getSimpleName() +
-                ", instance=" + instance.getClass().getSimpleName() +
                 '}';
     }
 }
