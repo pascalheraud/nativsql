@@ -91,7 +91,7 @@ class UserRepositoryTest extends CommonUserTest {
         Address newAddress = new Address("456 Oak Ave", "Lyon", "69001", "France");
         found.setAddress(newAddress);
 
-        int rows = userRepository.update(found, "id", "firstName", "status", "address");
+        int rows = userRepository.update(found, "firstName", "status", "address");
 
         // Then
         assertThat(rows).isEqualTo(1);
@@ -120,7 +120,7 @@ class UserRepositoryTest extends CommonUserTest {
         found.setLastName("Davies");
         found.setStatus(UserStatus.INACTIVE);
 
-        int rows = userRepository.update(found, "id", "lastName", "status");
+        int rows = userRepository.update(found, "lastName", "status");
 
         // Then
         assertThat(rows).isEqualTo(1);
@@ -144,7 +144,7 @@ class UserRepositoryTest extends CommonUserTest {
         assertThat(found).isNotNull();
 
         // When
-        int rows = userRepository.delete(found.getId());
+        int rows = userRepository.delete(found);
 
         // Then
         assertThat(rows).isEqualTo(1);

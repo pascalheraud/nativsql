@@ -1,12 +1,13 @@
 package io.github.pascalheraud.nativsql.mapper;
 
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.lang.NonNull;
+
+import io.github.pascalheraud.nativsql.exception.SQLException;
 
 /**
  * Generic RowMapper that uses reflection and introspection to map ResultSet rows to Java objects.
@@ -29,7 +30,7 @@ public class GenericRowMapper<T> implements RowMapper<T> {
     }
     
     @Override
-    public T mapRow(@NonNull ResultSet rs, int rowNum) throws SQLException {
+    public T mapRow(@NonNull ResultSet rs, int rowNum) throws java.sql.SQLException {
         try {
             T instance = null;
             
@@ -55,8 +56,8 @@ public class GenericRowMapper<T> implements RowMapper<T> {
                             instance = rootClass.getDeclaredConstructor().newInstance();
                         }
                     }
-                } catch (SQLException e) {
-                    // Column mapping failed, skip
+                } catch (java.sql.SQLException e) {
+                    throw new SQLException("Failed to map column: " + prop.getColumnName(), e);
                 }
             }
             
@@ -65,33 +66,33 @@ public class GenericRowMapper<T> implements RowMapper<T> {
                 try {
                     ResultSet prefixedRs = new PrefixedResultSet(rs, nested.getPropertyName() + ".");
                     Object nestedObj = nested.getDelegateMapper().mapRow(prefixedRs, rowNum);
-                    
+
                     if (nestedObj != null) {
                         if (instance == null) {
                             instance = rootClass.getDeclaredConstructor().newInstance();
                         }
                         nested.getSetter().invoke(instance, nestedObj);
                     }
-                } catch (SQLException e) {
-                    // No columns with this prefix, skip
+                } catch (java.sql.SQLException e) {
+                    throw new SQLException("Failed to map nested property: " + nested.getPropertyName(), e);
                 }
             }
             
             return instance;
             
         } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to map row to " + rootClass.getSimpleName(), e);
+            throw new SQLException("Failed to map row to " + rootClass.getSimpleName(), e);
         }
     }
     
     /**
-     * Checks if a column exists in the ResultSet (doesn't throw SQLException).
+     * Checks if a column exists in the ResultSet.
      */
     private boolean columnExists(ResultSet rs, String columnName) {
         try {
             rs.findColumn(columnName);
             return true;
-        } catch (SQLException e) {
+        } catch (java.sql.SQLException e) {
             return false;
         }
     }

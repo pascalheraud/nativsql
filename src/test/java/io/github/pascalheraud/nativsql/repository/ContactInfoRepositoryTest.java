@@ -166,10 +166,9 @@ class ContactInfoRepositoryTest extends CommonUserTest {
 
         List<ContactInfo> contacts = contactInfoRepository.findByUserId(testUserId, "id");
         assertThat(contacts).hasSize(1);
-        Long contactId = contacts.get(0).getId();
 
         // When
-        int rows = contactInfoRepository.delete(contactId);
+        int rows = contactInfoRepository.delete(contacts.get(0));
 
         // Then
         assertThat(rows).isEqualTo(1);

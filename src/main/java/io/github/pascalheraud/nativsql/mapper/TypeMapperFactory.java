@@ -1,6 +1,5 @@
 package io.github.pascalheraud.nativsql.mapper;
 
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -13,6 +12,8 @@ import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.github.pascalheraud.nativsql.exception.SQLException;
 
 /**
  * Factory for creating and managing TypeMappers for different Java types.
@@ -52,14 +53,14 @@ public class TypeMapperFactory implements INativSQLMapper {
             try {
                 Object value = rs.getObject(col);
                 if (value == null) return null;
-                
+
                 S sourceValue = sourceType.cast(value);
                 return converter.apply(sourceValue);
-                
-            } catch (SQLException e) {
-                return null;
+
+            } catch (java.sql.SQLException e) {
+                throw new SQLException("Failed to get column value: " + col, e);
             } catch (ClassCastException e) {
-                throw new RuntimeException(
+                throw new SQLException(
                     "Cannot convert column value to " + sourceType.getSimpleName(), e);
             }
         };
@@ -97,8 +98,8 @@ public class TypeMapperFactory implements INativSQLMapper {
                 
                 return objectMapper.readValue(json, type);
                 
-            } catch (SQLException | JsonProcessingException e) {
-                throw new RuntimeException(
+            } catch (java.sql.SQLException | JsonProcessingException e) {
+                throw new SQLException(
                     "Failed to deserialize JSON to " + type.getSimpleName(), e);
             }
         };
@@ -149,7 +150,7 @@ public class TypeMapperFactory implements INativSQLMapper {
 
                 return null;
             } catch (Exception e) {
-                throw new RuntimeException(
+                throw new SQLException(
                     "Failed to deserialize composite type " + compositeType.getSimpleName(), e);
             }
         };
@@ -194,10 +195,10 @@ public class TypeMapperFactory implements INativSQLMapper {
                 }
             }
 
-            throw new RuntimeException("No suitable constructor found for " + targetType.getSimpleName());
+            throw new SQLException("No suitable constructor found for " + targetType.getSimpleName());
 
         } catch (Exception e) {
-            throw new RuntimeException("Failed to parse composite type", e);
+            throw new SQLException("Failed to parse composite type", e);
         }
     }
 
@@ -265,8 +266,8 @@ public class TypeMapperFactory implements INativSQLMapper {
             pgObject.setValue(json);
             
             return pgObject;
-        } catch (JsonProcessingException | SQLException e) {
-            throw new RuntimeException("Failed to serialize to " + type.toUpperCase(), e);
+        } catch (JsonProcessingException | java.sql.SQLException e) {
+            throw new SQLException("Failed to serialize to " + type.toUpperCase(), e);
         }
     }
     
@@ -291,8 +292,8 @@ public class TypeMapperFactory implements INativSQLMapper {
             try {
                 int colIndex = rs.findColumn(col);
                 return (T) JdbcUtils.getResultSetValue(rs, colIndex, targetType);
-            } catch (SQLException e) {
-                return null;
+            } catch (java.sql.SQLException e) {
+                throw new SQLException("Failed to get value for column: " + col, e);
             }
         };
     }
@@ -302,21 +303,21 @@ public class TypeMapperFactory implements INativSQLMapper {
             try {
                 Object value = rs.getObject(col);
                 if (value == null) return null;
-                
+
                 // PostgreSQL enum types return PGobject
                 if (value instanceof PGobject) {
                     String enumValue = ((PGobject) value).getValue();
                     return Enum.valueOf(enumClass, enumValue);
                 }
-                
+
                 // Standard String
                 String enumValue = value.toString();
                 return Enum.valueOf(enumClass, enumValue);
-                
-            } catch (SQLException e) {
-                return null;
+
+            } catch (java.sql.SQLException e) {
+                throw new SQLException("Failed to get enum value for column: " + col, e);
             } catch (IllegalArgumentException e) {
-                throw new RuntimeException(
+                throw new SQLException(
                     "Invalid enum value for " + enumClass.getSimpleName() + ": " + e.getMessage(), e);
             }
         };

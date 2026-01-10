@@ -5,56 +5,60 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.lang.NonNull;
 
-import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
-import io.github.pascalheraud.nativsql.mapper.TypeMapperFactory;
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
 import io.github.pascalheraud.nativsql.domain.Entity;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-
-import java.lang.reflect.Field;
+import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
+import io.github.pascalheraud.nativsql.mapper.TypeMapperFactory;
+import io.github.pascalheraud.nativsql.util.FieldAccessor;
+import io.github.pascalheraud.nativsql.util.FindQuery;
+import io.github.pascalheraud.nativsql.util.OrderBy;
+import io.github.pascalheraud.nativsql.util.ReflectionUtils;
+import io.github.pascalheraud.nativsql.util.SqlUtils;
+import io.github.pascalheraud.nativsql.util.StringUtils;
 
 /**
  * Generic repository base class that provides insert and update operations
  * using reflection.
  * Subclasses must implement getTableName() to specify the database table.
  *
- * @param <T> the entity type
+ * @param <T>  the entity type
  * @param <ID> the entity identifier type
  */
 public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
-    protected final NamedParameterJdbcTemplate jdbcTemplate;
-    protected final RowMapperFactory rowMapperFactory;
-    protected final TypeMapperFactory typeMapperFactory;
-    protected final Class<T> entityClass;
+    private static final String ID_COLUMN = "id";
+
+    @Autowired
+    private NamedParameterJdbcTemplate jdbcTemplate;
+
+    @Autowired
+    private RowMapperFactory rowMapperFactory;
+
+    @Autowired
+    private TypeMapperFactory typeMapperFactory;
+
+    private final Class<T> entityClass;
 
     @Autowired(required = false)
     protected ApplicationContext applicationContext;
 
-    // Cache for getters
-    private final Map<String, Method> getterCache = new ConcurrentHashMap<>();
-
-    // Cache for setters
-    private final Map<String, Method> setterCache = new ConcurrentHashMap<>();
-
-    protected GenericRepository(NamedParameterJdbcTemplate jdbcTemplate,
-            RowMapperFactory rowMapperFactory,
-            TypeMapperFactory typeMapperFactory,
-            Class<T> entityClass) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.rowMapperFactory = rowMapperFactory;
-        this.typeMapperFactory = typeMapperFactory;
-        this.entityClass = entityClass;
+    protected GenericRepository() {
+        this.entityClass = getEntityClass();
     }
+
+    abstract protected Class<T> getEntityClass();
 
     /**
      * Returns the name of the database table.
@@ -71,26 +75,19 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @throws IllegalArgumentException if columns array is empty
      */
     public int insert(T entity, String... columns) {
-        if (columns.length == 0) {
-            throw new IllegalArgumentException(
-                    "At least one column must be specified for insert. " +
-                            "Provide the property names to insert, e.g., insert(user, \"firstName\", \"email\")");
-        }
+        String columnList = SqlUtils.getColumnsList(columns);
+
         Map<String, Object> params = extractValues(entity, columns);
         Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
 
-        String columnList = params.keySet().stream()
-                .map(this::camelToSnake)
-                .collect(Collectors.joining(", "));
-
-        String paramList = params.keySet().stream()
+        String paramList = Arrays.stream(columns)
                 .map(col -> formatParameter(col, propertyTypes.get(col)))
                 .collect(Collectors.joining(", "));
 
         String sql = formatQuery("INSERT INTO %s (%s) VALUES (%s)",
                 getTableName(), columnList, paramList);
 
-        return jdbcTemplate.update(sql, params);
+        return executeUpdate(sql, params);
     }
 
     @SuppressWarnings("null")
@@ -103,87 +100,87 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
-     * Updates an entity with specified columns.
+     * Executes an UPDATE, INSERT or DELETE SQL statement.
      *
-     * @param entity   the entity to update
-     * @param idColumn the ID property name (camelCase)
-     * @param columns  the property names (camelCase) to update
-     * @return the number of rows updated
+     * @param sql    the SQL statement to execute
+     * @param params the query parameters
+     * @return the number of rows affected
      */
-    public int update(T entity, String idColumn, String... columns) {
-        Map<String, Object> params = extractValues(entity, columns);
-        Object idValue = extractValue(entity, idColumn);
-        params.put(idColumn, idValue);
-
-        Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
-
-        String setClause = Arrays.stream(columns)
-                .map(col -> camelToSnake(col) + " = " + formatParameter(col, propertyTypes.get(col)))
-                .collect(Collectors.joining(", "));
-
-        String sql = formatQuery("UPDATE %s SET %s WHERE %s = :%s",
-                getTableName(), setClause, camelToSnake(idColumn), idColumn);
-
+    protected int executeUpdate(@NonNull String sql, @NonNull Map<String, Object> params) {
         return jdbcTemplate.update(sql, params);
     }
 
     /**
-     * Deletes an entity by ID.
+     * Updates an entity with specified columns (assumes ID column is named "id").
      *
-     * @param idColumn the ID property name (camelCase)
-     * @param idValue  the ID value
-     * @return the number of rows deleted
+     * @param entity   the entity to update
+     * @param columns  the property names (camelCase) to update
+     * @return the number of rows updated
      */
-    public int delete(String idColumn, Object idValue) {
-        String sql = formatQuery("DELETE FROM %s WHERE %s = :%s",
-                getTableName(), camelToSnake(idColumn), idColumn);
+    public int update(T entity, String... columns) {
+        Map<String, Object> params = extractValues(entity, columns);
+        Object id = extractValue(entity, ID_COLUMN);
+        params.put(ID_COLUMN, id);
 
-        return jdbcTemplate.update(sql, getMap(idColumn, idValue));
+        Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
+
+        String setClause = Arrays.stream(columns)
+                .map(col -> StringUtils.camelToSnake(col) + " = " + formatParameter(col, propertyTypes.get(col)))
+                .collect(Collectors.joining(", "));
+
+        String idColumnSnake = StringUtils.camelToSnake(ID_COLUMN);
+        String sql = "UPDATE " + getTableName() + " SET " + setClause + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
+
+        return executeUpdate(sql, params);
     }
+
 
     @SuppressWarnings("null")
     @NonNull
-    private Map<String, Object> getMap(String idColumn, Object idValue) {
-        return Map.of(idColumn, idValue);
+    private Map<String, Object> getMap(String idColumn, Object id) {
+        return Map.of(idColumn, id);
     }
 
     /**
      * Deletes an entity by ID (assumes ID column is named "id").
      *
-     * @param idValue the ID value
+     * @param id the ID value
      * @return the number of rows deleted
      */
-    public int delete(Object idValue) {
-        return delete("id", idValue);
+    public int deleteById(Object id) {
+        String idColumnSnake = StringUtils.camelToSnake(ID_COLUMN);
+        String sql = "DELETE FROM " + getTableName() + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
+
+        return executeUpdate(sql, getMap(ID_COLUMN, id));
+    }
+
+    /**
+     * Deletes an entity by its ID (assumes ID column is named "id").
+     *
+     * @param entity the entity to delete
+     * @return the number of rows deleted
+     */
+    public int delete(T entity) {
+        Object id = extractValue(entity, ID_COLUMN);
+        return deleteById(id);
     }
 
     /**
      * Finds an entity by ID with specified columns (assumes ID column is named
      * "id").
      *
-     * @param idValue the ID value
+     * @param id the ID value
      * @param columns the property names (camelCase) to retrieve
      * @return the entity or null if not found
      */
-    public T findById(Object idValue, String... columns) {
-        return findByProperty("id", idValue, columns);
+    public T findById(Object id, String... columns) {
+        return find(
+            newFindQuery()
+                .select(columns)
+                .whereAndEquals(ID_COLUMN, id)
+        );
     }
 
-    /**
-     * Finds an entity by ID with specified columns and loads OneToMany associations.
-     *
-     * @param idValue the ID value
-     * @param associations list of associations to load with their column configurations
-     * @param columns the property names (camelCase) to retrieve for the main entity
-     * @return the entity or null if not found
-     */
-    protected T findByIdWithAssociations(Object idValue, List<AssociationConfig> associations, String... columns) {
-        T entity = findById(idValue, columns);
-        if (entity != null) {
-            loadOneToManyAssociations(entity, associations);
-        }
-        return entity;
-    }
 
     /**
      * Finds an entity by a property value with specified columns.
@@ -194,9 +191,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the entity or null if not found
      */
     protected T findByProperty(String property, Object value, String... columns) {
-        return findByPropertyExpression(camelToSnake(property), property, value, columns);
+        return findByPropertyExpression(StringUtils.camelToSnake(property), property, value, columns);
     }
-
 
     /**
      * Finds all entities by a property value with specified columns.
@@ -207,7 +203,41 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return list of matching entities
      */
     protected List<T> findAllByProperty(String property, Object value, String... columns) {
-        return findAllByPropertyExpression(camelToSnake(property), property, value, columns);
+        return findAllByProperty(property, value, new OrderBy().asc(ID_COLUMN), columns);
+    }
+
+    protected List<T> findAllByProperty(String property, Object value, OrderBy orderBy, String... columns) {
+        return findAllByPropertyExpression(StringUtils.camelToSnake(property), property, value, orderBy, columns);
+    }
+
+    /**
+     * Finds all entities by a list of property values (for batch loading with IN clause).
+     *
+     * @param property the property name (camelCase) to filter by
+     * @param values   the list of values to search for (uses IN clause)
+     * @param columns  the property names (camelCase) to retrieve
+     * @return list of matching entities
+     */
+    protected List<T> findAllByProperty(String property, List<?> values, String... columns) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+
+        String columnList = SqlUtils.getColumnsList(columns);
+        String propertySnake = StringUtils.camelToSnake(property);
+
+        // Create indexed parameter names and placeholders
+        List<String> placeholders = new ArrayList<>();
+        Map<String, Object> params = new HashMap<>();
+        for (int i = 0; i < values.size(); i++) {
+            String paramName = property + i;
+            placeholders.add(":" + paramName);
+            params.put(paramName, values.get(i));
+        }
+
+        String sql = "SELECT " + columnList + " FROM " + getTableName() + " WHERE " + propertySnake + " IN (" + String.join(",", placeholders) + ")";
+
+        return jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass));
     }
 
     /**
@@ -222,13 +252,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the entity or null if not found
      */
     protected T findByPropertyExpression(String propertyExpression, String paramName, Object value, String... columns) {
-        if (columns == null || columns.length == 0) {
-            throw new IllegalArgumentException("At least one column must be specified");
-        }
-
-        String columnList = Arrays.stream(columns)
-                .map(this::camelToSnake)
-                .collect(Collectors.joining(", "));
+        String columnList = SqlUtils.getColumnsList(columns);
 
         String sql = formatQuery("SELECT %s FROM %s WHERE %s = :%s",
                 columnList, getTableName(), propertyExpression, paramName);
@@ -253,40 +277,114 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      */
     protected List<T> findAllByPropertyExpression(String propertyExpression, String paramName, Object value,
             String... columns) {
-        if (columns == null || columns.length == 0) {
-            throw new IllegalArgumentException("At least one column must be specified");
-        }
+        return findAll(
+            newFindQuery()
+                .select(columns)
+                .whereExpression(propertyExpression, paramName, value)
+        );
+    }
 
-        String columnList = Arrays.stream(columns)
-                .map(this::camelToSnake)
-                .collect(Collectors.joining(", "));
-
-        String sql = formatQuery("SELECT %s FROM %s WHERE %s = :%s",
-                columnList, getTableName(), propertyExpression, paramName);
-
-        return jdbcTemplate.query(sql,
-                getMap(paramName, value),
-                rowMapperFactory.getRowMapper(entityClass));
+    protected List<T> findAllByPropertyExpression(String propertyExpression, String paramName, Object value,
+            OrderBy orderBy, String... columns) {
+        return findAll(
+            newFindQuery()
+                .select(columns)
+                .whereExpression(propertyExpression, paramName, value)
+                .orderBy(orderBy)
+        );
     }
 
     /**
-     * Finds all entities with specified columns, ordered by ID.
+     * Finds all entities with specified columns.
      *
      * @param columns the property names (camelCase) to retrieve
      * @return list of all entities
      */
     public List<T> findAll(String... columns) {
-        if (columns == null || columns.length == 0) {
-            throw new IllegalArgumentException("At least one column must be specified");
+        return findAll(newFindQuery().select(columns));
+    }
+
+    /**
+     * Finds a single entity using a complex FindQuery builder.
+     * Loads associations if specified in the query using batch loading.
+     * @param query the FindQuery builder with search criteria
+     * @return the first matching entity or null if not found
+     */
+    protected T find(FindQuery query) {
+        // Build SQL query using FindQuery
+        String sql = query.buildSql();
+
+        // Get parameters with SQL conversion
+        Map<String, Object> params = query.getParameters(this::convertToSqlValue);
+
+        // Execute query
+        List<T> results = params.isEmpty()
+                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass))
+                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass));
+
+        if (results.isEmpty()) {
+            return null;
         }
 
-        String columnList = Arrays.stream(columns)
-                .map(this::camelToSnake)
-                .collect(Collectors.joining(", "));
+        T entity = results.get(0);
 
-        String sql = formatQuery("SELECT %s FROM %s ORDER BY id", columnList, getTableName());
+        // Load associations for single entity using batch loading
+        if (query.hasAssociations()) {
+            List<AssociationConfig> associations = query.getAssociations().stream()
+                    .map(assoc -> AssociationConfig.of(assoc.getName(), assoc.getColumnsArray()))
+                    .toList();
+            loadAssociationsInBatch(List.of(entity), associations);
+        }
 
-        return jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass));
+        return entity;
+    }
+
+    /**
+     * Finds entities using a complex FindQuery builder.
+     * Does NOT load associations to avoid N+1 queries.
+     */
+    protected List<T> findAll(FindQuery query) {
+        // Build SQL query using FindQuery
+        String sql = query.buildSql();
+
+        // Get parameters with SQL conversion
+        Map<String, Object> params = query.getParameters(this::convertToSqlValue);
+
+        // Execute query (no association loading to avoid N+1)
+        return params.isEmpty()
+                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass))
+                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass));
+    }
+
+    /**
+     * Finds entities using a complex FindQuery builder and loads associations using batch loading.
+     * Uses IN clause to load all associations in a single query per association (no N+1).
+     * @param query the FindQuery builder with search criteria
+     * @param associations list of associations to load with their column configurations
+     * @return list of entities with loaded associations
+     */
+    protected List<T> findAll(FindQuery query, List<AssociationConfig> associations) {
+        // Execute the main query
+        List<T> entities = findAll(query);
+
+        if (entities.isEmpty() || associations == null || associations.isEmpty()) {
+            return entities;
+        }
+
+        // Load associations using batch loading (IN clause)
+        loadAssociationsInBatch(entities, associations);
+
+        return entities;
+    }
+
+    // ==================== Protected Helper Methods ====================
+
+    /**
+     * Creates a new FindQuery builder for this repository's table.
+     * @return a new FindQuery instance preconfigured with this table name
+     */
+    protected FindQuery newFindQuery() {
+        return FindQuery.of(getTableName());
     }
 
     // ==================== Private Helper Methods ====================
@@ -297,14 +395,15 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     private Map<String, Object> extractValues(T entity, String... properties) {
         Map<String, Object> params = new HashMap<>();
 
-        for (String property : properties) {
-            Method getter = getGetter(property);
-            try {
-                Object value = getter.invoke(entity);
+        // Create a set of property names for quick lookup
+        Set<String> propertySet = new HashSet<>(Arrays.asList(properties));
+
+        // Get all field accessors and filter by requested properties
+        for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entity)) {
+            if (propertySet.contains(fieldAccessor.getName())) {
+                Object value = fieldAccessor.getValue();
                 value = convertToSqlValue(value);
-                params.put(property, value);
-            } catch (IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException("Failed to invoke getter for property: " + property, e);
+                params.put(fieldAccessor.getName(), value);
             }
         }
 
@@ -317,15 +416,16 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     private Map<String, Class<?>> getPropertyTypes(T entity, String... properties) {
         Map<String, Class<?>> types = new HashMap<>();
 
-        for (String property : properties) {
-            Method getter = getGetter(property);
-            try {
-                Object value = getter.invoke(entity);
+        // Create a set of property names for quick lookup
+        Set<String> propertySet = new HashSet<>(Arrays.asList(properties));
+
+        // Get all field accessors and filter by requested properties
+        for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entity)) {
+            if (propertySet.contains(fieldAccessor.getName())) {
+                Object value = fieldAccessor.getValue();
                 if (value != null) {
-                    types.put(property, value.getClass());
+                    types.put(fieldAccessor.getName(), value.getClass());
                 }
-            } catch (IllegalAccessException | InvocationTargetException e) {
-                throw new RuntimeException("Failed to invoke getter for property: " + property, e);
             }
         }
 
@@ -342,7 +442,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
             String enumTypeName = typeMapperFactory.getEnumPgType(type);
             if (enumTypeName == null) {
                 // Fallback: convert class name to snake_case
-                enumTypeName = camelToSnake(type.getSimpleName());
+                enumTypeName = StringUtils.camelToSnake(type.getSimpleName());
             }
             return "(:" + paramName + ")::" + enumTypeName;
         }
@@ -360,12 +460,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * Extracts a single value.
      */
     private Object extractValue(T entity, String property) {
-        Method getter = getGetter(property);
-        try {
-            return getter.invoke(entity);
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new RuntimeException("Failed to invoke getter for property: " + property, e);
-        }
+        return ReflectionUtils.invokeGetter(entity, property);
     }
 
     /**
@@ -384,9 +479,9 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
             return ((Enum<?>) value).name();
         }
 
-        // Composite types → String representation
+        // Composite types → PGobject
         if (typeMapperFactory.isCompositeType(valueClass)) {
-            return convertToCompositeString(value);
+            return convertToCompositePGObject(value, valueClass);
         }
 
         // JSON types → PGobject
@@ -395,13 +490,15 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         }
 
         // Value objects with getValue() method
-        if (hasGetValueMethod(valueClass)) {
-            try {
-                Method getValue = valueClass.getMethod("getValue");
+        try {
+            Method getValue = valueClass.getMethod("getValue");
+            if (getValue.getReturnType() != void.class) {
                 return getValue.invoke(value);
-            } catch (Exception e) {
-                // Continue
             }
+        } catch (NoSuchMethodException e) {
+            // No getValue() method, continue to default behavior
+        } catch (IllegalAccessException | InvocationTargetException e) {
+            throw new SQLException("Failed to invoke getValue() on value object: " + valueClass.getSimpleName(), e);
         }
 
         // Default: return as-is
@@ -409,123 +506,74 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
-     * Converts a Java object to PostgreSQL composite type format.
-     * Example: Address("123 St", "Paris", "75001", "France") → "(123
-     * St,Paris,75001,France)"
-     * Note: Values are NOT quoted - PostgreSQL driver handles the quoting.
+     * Converts a Java object to PostgreSQL composite type using PGobject.
+     * This is safer than manual string construction as PostgreSQL driver handles
+     * escaping.
+     * Example: Address("123 St", "Paris", "75001", "France") → PGobject with type
+     * "address_type"
      */
-    private String convertToCompositeString(Object value) {
-        List<String> fieldValues = new ArrayList<>();
+    private org.postgresql.util.PGobject convertToCompositePGObject(Object value, Class<?> valueClass) {
+        try {
+            // Get the PostgreSQL type name from the factory
+            String pgTypeName = typeMapperFactory.getCompositePgType(valueClass);
+            if (pgTypeName == null) {
+                throw new SQLException("Composite type not registered: " + valueClass.getSimpleName());
+            }
 
-        for (Method method : value.getClass().getMethods()) {
-            if (isGetter(method)) {
-                try {
+            // Build the composite value string (PostgreSQL record format)
+            List<String> fieldValues = new ArrayList<>();
+            for (Method method : value.getClass().getMethods()) {
+                if (ReflectionUtils.isGetter(method)) {
                     Object fieldValue = method.invoke(value);
                     if (fieldValue == null) {
-                        fieldValues.add("");
+                        fieldValues.add("NULL");
                     } else {
-                        // Escape special characters: quotes and backslashes
-                        String strValue = fieldValue.toString()
-                                .replace("\\", "\\\\")
-                                .replace("\"", "\\\"")
-                                .replace(",", "\\,");
-                        fieldValues.add(strValue);
+                        // Use PostgreSQL's quoting function for proper escaping
+                        fieldValues.add(quoteCompositeValue(fieldValue.toString()));
                     }
-                } catch (IllegalAccessException | InvocationTargetException e) {
-                    // Skip this field
                 }
             }
-        }
 
-        return "(" + String.join(",", fieldValues) + ")";
-    }
+            // Create PGobject with the composite type
+            org.postgresql.util.PGobject pgObject = new org.postgresql.util.PGobject();
+            pgObject.setType(pgTypeName);
+            pgObject.setValue("(" + String.join(",", fieldValues) + ")");
 
-    /**
-     * Checks if a class has a getValue() method.
-     */
-    private boolean hasGetValueMethod(Class<?> clazz) {
-        try {
-            Method method = clazz.getMethod("getValue");
-            return method.getReturnType() != void.class;
-        } catch (NoSuchMethodException e) {
-            return false;
+            return pgObject;
+
+        } catch (IllegalAccessException | InvocationTargetException | java.sql.SQLException e) {
+            throw new SQLException("Failed to convert to composite type: " + valueClass.getSimpleName(), e);
         }
     }
 
     /**
-     * Gets the getter method for a property (with caching).
+     * Quotes a value for use in PostgreSQL composite type.
+     * Follows PostgreSQL's composite value quoting rules.
      */
-    private Method getGetter(String propertyName) {
-        return getterCache.computeIfAbsent(propertyName, prop -> {
-            // Try getXxx()
-            String getterName = "get" + capitalize(prop);
-            try {
-                return entityClass.getMethod(getterName);
-            } catch (NoSuchMethodException e) {
-                // Try isXxx() for booleans
-                String booleanGetterName = "is" + capitalize(prop);
-                try {
-                    return entityClass.getMethod(booleanGetterName);
-                } catch (NoSuchMethodException ex) {
-                    throw new RuntimeException("No getter found for property: " + prop, ex);
-                }
-            }
-        });
-    }
-
-    /**
-     * Checks if a method is a getter.
-     */
-    private boolean isGetter(Method method) {
-        String name = method.getName();
-        return (name.startsWith("get") || name.startsWith("is"))
-                && method.getParameterCount() == 0
-                && !method.getReturnType().equals(void.class)
-                && !name.equals("getClass");
-    }
-
-    /**
-     * Converts camelCase to snake_case.
-     */
-    private String camelToSnake(String camelCase) {
-        return camelCase.replaceAll("([a-z])([A-Z])", "$1_$2").toLowerCase();
-    }
-
-    /**
-     * Capitalizes the first letter.
-     */
-    private String capitalize(String str) {
-        if (str == null || str.isEmpty())
-            return str;
-        return str.substring(0, 1).toUpperCase() + str.substring(1);
-    }
-
-    /**
-     * Gets the setter method for a property (with caching).
-     */
-    private Method getSetter(String propertyName, Class<?> parameterType) {
-        String cacheKey = propertyName + ":" + parameterType.getName();
-        return setterCache.computeIfAbsent(cacheKey, key -> {
-            String setterName = "set" + capitalize(propertyName);
-            try {
-                return entityClass.getMethod(setterName, parameterType);
-            } catch (NoSuchMethodException e) {
-                throw new RuntimeException("No setter found for property: " + propertyName, e);
-            }
-        });
+    private String quoteCompositeValue(String value) {
+        // If value contains special characters, quote it
+        if (value.contains(",") || value.contains("(") || value.contains(")") ||
+                value.contains("\"") || value.contains("\\") || value.trim().isEmpty()) {
+            // Escape backslashes and quotes, then wrap in quotes
+            String escaped = value.replace("\\", "\\\\").replace("\"", "\\\"");
+            return "\"" + escaped + "\"";
+        }
+        return value;
     }
 
     /**
      * Loads OneToMany associations for an entity.
      * Scans for fields annotated with @OneToMany and populates them.
      *
-     * @param entity the entity to load associations for
-     * @param associations list of associations to load with their column configurations.
+     * @param entity       the entity to load associations for
+     * @param associations list of associations to load with their column
+     *                     configurations.
      *                     If null or empty, no associations are loaded.
      */
     protected void loadOneToManyAssociations(Entity<ID> entity, List<AssociationConfig> associations) {
         if (applicationContext == null || associations == null || associations.isEmpty()) {
-            return; // Cannot load associations without ApplicationContext or if no associations specified
+            return; // Cannot load associations without ApplicationContext or if no associations
+                    // specified
         }
 
         // Build a map for quick lookup
@@ -534,19 +582,20 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
             associationMap.put(config.getAssociationField(), config);
         }
 
-        for (Field field : entityClass.getDeclaredFields()) {
-            OneToMany annotation = field.getAnnotation(OneToMany.class);
+        for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entity)) {
+            OneToMany annotation = fieldAccessor.getAnnotation(OneToMany.class);
+
             if (annotation != null) {
                 // Check if this association should be loaded
-                AssociationConfig config = associationMap.get(field.getName());
+                AssociationConfig config = associationMap.get(fieldAccessor.getName());
                 if (config == null) {
                     continue; // Skip this association
                 }
 
                 try {
                     // Get the repository bean and cast to GenericRepository
-                    GenericRepository<?, ?> repository = (GenericRepository<?, ?>)
-                        applicationContext.getBean(annotation.repository());
+                    GenericRepository<?, ?> repository = (GenericRepository<?, ?>) applicationContext
+                            .getBean(annotation.repository());
 
                     // Get the foreign key value (entity's ID)
                     ID entityId = entity.getId();
@@ -555,39 +604,105 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
                     String[] columns = config.getColumns();
                     if (columns == null || columns.length == 0) {
                         // Load all columns if not specified
-                        columns = getEntityColumns(annotation.targetEntity());
+                        columns = SqlUtils.getEntityColumns(annotation.targetEntity());
                     }
 
                     // Call findAllByProperty directly on the GenericRepository
                     List<?> associatedEntities = repository.findAllByProperty(
-                        annotation.mappedBy(),
-                        entityId,
-                        columns
-                    );
+                            annotation.mappedBy(),
+                            entityId,
+                            columns);
 
-                    // Set the field value using setter
-                    Method setter = getSetter(field.getName(), List.class);
-                    setter.invoke(entity, associatedEntities);
+                    // Set the field value using FieldAccessor
+                    fieldAccessor.setValue(associatedEntities);
 
+                } catch (SQLException e) {
+                    throw e; // Re-throw SQL exceptions as-is
                 } catch (Exception e) {
-                    throw new RuntimeException(
-                        "Failed to load OneToMany association for field: " + field.getName(), e);
+                    throw new SQLException(
+                            "Failed to load OneToMany association for field: " + fieldAccessor.getName(), e);
                 }
             }
         }
     }
 
     /**
-     * Gets all column names for an entity class.
+     * Loads associations for multiple entities using batch loading (IN clause).
+     * Loads all associations in a single query per association instead of N queries.
+     *
+     * @param entities      the list of entities to load associations for
+     * @param associations  list of associations to load with their column configurations
      */
-    private String[] getEntityColumns(Class<?> entityClass) {
-        List<String> columns = new ArrayList<>();
-        for (Field field : entityClass.getDeclaredFields()) {
-            // Skip fields annotated with @OneToMany
-            if (field.getAnnotation(OneToMany.class) == null) {
-                columns.add(field.getName());
+    private void loadAssociationsInBatch(List<T> entities, List<AssociationConfig> associations) {
+        if (applicationContext == null || entities.isEmpty() || associations.isEmpty()) {
+            return;
+        }
+
+        for (AssociationConfig config : associations) {
+            try {
+                // Get the first entity to find the OneToMany annotation
+                OneToMany annotation = null;
+                FieldAccessor associationField = null;
+
+                for (FieldAccessor fieldAccessor : ReflectionUtils.getFieldAccessors(entities.get(0))) {
+                    OneToMany ann = fieldAccessor.getAnnotation(OneToMany.class);
+                    if (ann != null && fieldAccessor.getName().equals(config.getAssociationField())) {
+                        annotation = ann;
+                        associationField = fieldAccessor;
+                        break;
+                    }
+                }
+
+                if (annotation == null) {
+                    continue; // Skip if annotation not found
+                }
+
+                // Get the repository for the associated entity
+                GenericRepository<?, ?> repository = (GenericRepository<?, ?>) applicationContext
+                        .getBean(annotation.repository());
+
+                // Extract all parent IDs
+                List<ID> parentIds = entities.stream()
+                        .map(Entity::getId)
+                        .distinct()
+                        .toList();
+
+                // Get columns to load
+                String[] columns = config.getColumns();
+                if (columns == null || columns.length == 0) {
+                    columns = SqlUtils.getEntityColumns(annotation.targetEntity());
+                }
+
+                // Load all associated entities in a single query using IN clause
+                String mappedByField = annotation.mappedBy();
+                List<?> allAssociatedEntities = repository.findAllByProperty(
+                        mappedByField,
+                        parentIds, // Pass list of IDs instead of single ID
+                        columns);
+
+                // Group associated entities by parent ID for mapping
+                Map<ID, List<Object>> associationsByParentId = new HashMap<>();
+                for (Object associated : allAssociatedEntities) {
+                    Object parentIdValue = ReflectionUtils.invokeGetter(associated, mappedByField);
+                    @SuppressWarnings("unchecked")
+                    ID parentId = (ID) parentIdValue;
+                    associationsByParentId.computeIfAbsent(parentId, k -> new ArrayList<>()).add(associated);
+                }
+
+                // Set associations on each entity
+                final FieldAccessor finalAssociationField = associationField;
+                for (T entity : entities) {
+                    List<Object> associatedList = associationsByParentId.getOrDefault(entity.getId(), new ArrayList<>());
+                    finalAssociationField.setValue(associatedList);
+                }
+
+            } catch (SQLException e) {
+                throw e; // Re-throw SQL exceptions as-is
+            } catch (Exception e) {
+                throw new SQLException(
+                        "Failed to load association batch for: " + config.getAssociationField(), e);
             }
         }
-        return columns.toArray(new String[0]);
     }
+
 }
