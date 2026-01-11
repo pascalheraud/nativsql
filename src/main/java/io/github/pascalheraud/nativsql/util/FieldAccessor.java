@@ -2,13 +2,10 @@ package io.github.pascalheraud.nativsql.util;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
-
-import jakarta.annotation.Nonnull;
 
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
 import io.github.pascalheraud.nativsql.exception.SQLException;
+import org.springframework.lang.NonNull;
 
 /**
  * Wrapper class that provides convenient access to a field.
@@ -56,7 +53,7 @@ public class FieldAccessor {
     @SuppressWarnings("unchecked")
     public <T> T getValue(Object instance) {
         try {
-            return (T)field.get(instance);
+            return (T) field.get(instance);
         } catch (IllegalAccessException e) {
             throw new SQLException("Failed to get value of field: " + field.getName(), e);
         }
@@ -66,7 +63,7 @@ public class FieldAccessor {
      * Sets the value of the field on the instance.
      *
      * @param instance the object instance to set the value on
-     * @param value the value to set
+     * @param value    the value to set
      * @throws RuntimeException if access fails
      */
     public void setValue(Object instance, Object value) {
@@ -80,7 +77,7 @@ public class FieldAccessor {
     /**
      * Gets an annotation from the field.
      *
-     * @param <T> the annotation type
+     * @param <T>             the annotation type
      * @param annotationClass the annotation class
      * @return the annotation if present, null otherwise
      */
@@ -111,91 +108,16 @@ public class FieldAccessor {
      * Gets the OneToMany association details.
      *
      * @return a non-null OneToManyAssociation object
-     * @throws SQLException if the @OneToMany annotation is not present on this field
+     * @throws SQLException if the @OneToMany annotation is not present on this
+     *                      field
      */
-    @Nonnull
+    @NonNull
     public OneToManyAssociation getOneToMany() {
         OneToMany annotation = field.getAnnotation(OneToMany.class);
         if (annotation == null) {
             throw new SQLException("Field is not annotated with @OneToMany: " + field.getName());
         }
         return new OneToManyAssociation(annotation.mappedBy(), annotation.repository());
-    }
-
-    /**
-     * Represents the details of a OneToMany association.
-     */
-    public static class OneToManyAssociation {
-        private final String foreignKey;
-        private final Class<?> repositoryClass;
-
-        /**
-         * Creates a new OneToManyAssociation.
-         *
-         * @param foreignKey the field name in the target entity that references this entity's ID
-         * @param repositoryClass the repository class to use
-         */
-        public OneToManyAssociation(String foreignKey, Class<?> repositoryClass) {
-            this.foreignKey = foreignKey;
-            this.repositoryClass = repositoryClass;
-        }
-
-        /**
-         * Gets the foreign key field name.
-         *
-         * @return the field name in the target entity that references this entity's ID
-         */
-        public String getForeignKey() {
-            return foreignKey;
-        }
-
-        /**
-         * Gets the target entity class by extracting it from the repository generic type.
-         *
-         * @return the target entity class
-         * @throws SQLException if the entity type cannot be extracted from the repository
-         */
-        public Class<?> getEntity() {
-            Type[] genericInterfaces = repositoryClass.getGenericInterfaces();
-            for (Type genericInterface : genericInterfaces) {
-                if (genericInterface instanceof ParameterizedType) {
-                    ParameterizedType parameterizedType = (ParameterizedType) genericInterface;
-                    Type rawType = parameterizedType.getRawType();
-                    // Check if it's GenericRepository or a subclass
-                    if (rawType instanceof Class<?> && isGenericRepositoryClass((Class<?>) rawType)) {
-                        Type[] typeArguments = parameterizedType.getActualTypeArguments();
-                        if (typeArguments.length > 0 && typeArguments[0] instanceof Class<?>) {
-                            return (Class<?>) typeArguments[0];
-                        }
-                    }
-                }
-            }
-            throw new SQLException("Cannot extract entity type from repository: " + repositoryClass.getName());
-        }
-
-        /**
-         * Checks if a class is GenericRepository or extends it.
-         */
-        private boolean isGenericRepositoryClass(Class<?> clazz) {
-            if (clazz.getName().contains("GenericRepository")) {
-                return true;
-            }
-            // Check superclass
-            Class<?> superclass = clazz.getSuperclass();
-            if (superclass != null && superclass != Object.class) {
-                return isGenericRepositoryClass(superclass);
-            }
-            return false;
-        }
-
-        /**
-         * Gets the repository class.
-         *
-         * @return the repository class
-         */
-        public Class<?> getRepositoryClass() {
-            return repositoryClass;
-        }
     }
 
     @Override

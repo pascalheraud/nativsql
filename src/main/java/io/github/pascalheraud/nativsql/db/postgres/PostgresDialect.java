@@ -5,13 +5,10 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.postgresql.util.PGobject;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.github.pascalheraud.nativsql.db.DatabaseDialect;
 import io.github.pascalheraud.nativsql.db.TypeRegistry;
-import io.github.pascalheraud.nativsql.util.ReflectionUtils;
+import org.postgresql.util.PGobject;
 
 /**
  * PostgreSQL-specific implementation of DatabaseDialect.

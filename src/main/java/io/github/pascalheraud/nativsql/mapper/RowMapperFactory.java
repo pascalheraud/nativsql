@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
-import jakarta.annotation.Nonnull;
 
 import io.github.pascalheraud.nativsql.exception.SQLException;
 
@@ -34,7 +34,7 @@ public class RowMapperFactory {
      * Gets or creates a GenericRowMapper for the specified class.
      */
     @SuppressWarnings({ "unchecked", "null" })
-    @Nonnull
+    @NonNull
     public <T> GenericRowMapper<T> getRowMapper(Class<T> clazz) {
         return (GenericRowMapper<T>) cache.computeIfAbsent(clazz, this::createRowMapper);
     }
@@ -42,7 +42,7 @@ public class RowMapperFactory {
     /**
      * Creates a new GenericRowMapper by introspecting the class.
      */
-    @Nonnull
+    @NonNull
     private <T> GenericRowMapper<T> createRowMapper(Class<T> clazz) {
         List<PropertyMetadata> simpleProperties = new ArrayList<>();
         Map<String, NestedPropertyMetadata> nestedProperties = new HashMap<>();

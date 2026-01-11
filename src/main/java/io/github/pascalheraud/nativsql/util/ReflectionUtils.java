@@ -124,17 +124,6 @@ public final class ReflectionUtils {
     }
 
     /**
-     * Creates a Fields wrapper with all declared fields of an instance.
-     * Provides fast lookup by field name via a map.
-     *
-     * @param instance the instance to get fields from
-     * @return Fields wrapper with all field accessors
-     */
-    private static Fields getFields(Object instance) {
-        return getFields(instance.getClass());
-    }
-
-    /**
      * @deprecated Use {@link #getFields(Class)} instead
      */
     @Deprecated

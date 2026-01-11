@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 
 import io.github.pascalheraud.nativsql.domain.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.ContactType;
@@ -14,7 +16,13 @@ import io.github.pascalheraud.nativsql.domain.UserStatus;
 /**
  * Integration tests for ContactInfoRepository using Testcontainers.
  */
-class ContactInfoRepositoryTest extends CommonUserTest {
+@Import({ UserRepository.class, ContactInfoRepository.class })
+class ContactInfoRepositoryTest  extends CommonUserTest{
+    @Autowired
+    private ContactInfoRepository contactInfoRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     private Long createTestUser() {
         User user = new User();
@@ -45,8 +53,8 @@ class ContactInfoRepositoryTest extends CommonUserTest {
         // Then
         assertThat(rows).isEqualTo(1);
 
-        List<ContactInfo> contacts = contactInfoRepository.findByUserId(testUserId,
-                "id", "userId", "contactType", "contactValue", "isPrimary");
+        List<ContactInfo> contacts = contactInfoRepository.findByUserId(testUserId, "id", "userId", "contactType",
+                "contactValue", "isPrimary");
         assertThat(contacts).hasSize(1);
         assertThat(contacts.get(0).getContactType()).isEqualTo(ContactType.EMAIL);
         assertThat(contacts.get(0).getContactValue()).isEqualTo("john@work.com");
@@ -82,8 +90,8 @@ class ContactInfoRepositoryTest extends CommonUserTest {
         contactInfoRepository.insert(linkedin, "userId", "contactType", "contactValue", "isPrimary");
 
         // Then
-        List<ContactInfo> allContacts = contactInfoRepository.findByUserId(testUserId,
-                "id", "contactType", "contactValue", "isPrimary");
+        List<ContactInfo> allContacts = contactInfoRepository.findByUserId(testUserId, "id", "contactType",
+                "contactValue", "isPrimary");
         assertThat(allContacts).hasSize(3);
     }
 
@@ -115,8 +123,8 @@ class ContactInfoRepositoryTest extends CommonUserTest {
         contactInfoRepository.insert(phone, "userId", "contactType", "contactValue", "isPrimary");
 
         // When
-        List<ContactInfo> emails = contactInfoRepository.findByUserIdAndType(testUserId, ContactType.EMAIL,
-                "id", "contactType", "contactValue", "isPrimary");
+        List<ContactInfo> emails = contactInfoRepository.findByUserIdAndType(testUserId, ContactType.EMAIL, "id",
+                "contactType", "contactValue", "isPrimary");
 
         // Then
         assertThat(emails).hasSize(2);
@@ -144,8 +152,8 @@ class ContactInfoRepositoryTest extends CommonUserTest {
         contactInfoRepository.insert(email2, "userId", "contactType", "contactValue", "isPrimary");
 
         // When
-        ContactInfo primaryEmail = contactInfoRepository.findPrimaryByUserIdAndType(testUserId, ContactType.EMAIL,
-                "id", "contactType", "contactValue", "isPrimary");
+        ContactInfo primaryEmail = contactInfoRepository.findPrimaryByUserIdAndType(testUserId, ContactType.EMAIL, "id",
+                "contactType", "contactValue", "isPrimary");
 
         // Then
         assertThat(primaryEmail).isNotNull();

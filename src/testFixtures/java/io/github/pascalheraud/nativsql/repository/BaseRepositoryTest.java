@@ -8,10 +8,14 @@ import java.sql.Statement;
 import java.util.stream.Collectors;
 
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
+
+import io.github.pascalheraud.nativsql.config.NativSqlConfig;
+import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
 
 /**
  * Base class for repository integration tests using Testcontainers.
@@ -21,6 +25,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SuppressWarnings("resource")
 @SpringBootTest
+@Import({ NativSqlConfig.class, RowMapperFactory.class })
 public abstract class BaseRepositoryTest {
 
     /**

@@ -7,8 +7,6 @@ import java.util.function.Function;
 
 import org.springframework.jdbc.support.JdbcUtils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import io.github.pascalheraud.nativsql.db.DatabaseDialect;
 import io.github.pascalheraud.nativsql.db.TypeRegistry;
 import io.github.pascalheraud.nativsql.exception.SQLException;
@@ -25,12 +23,10 @@ public class TypeMapperFactory implements INativSQLMapper {
     private final Set<Class<?>> jsonTypes = ConcurrentHashMap.newKeySet();
     private final Map<Class<?>, String> enumDbTypes = new ConcurrentHashMap<>();
     private final Map<Class<?>, String> compositeDbTypes = new ConcurrentHashMap<>();
-    private final ObjectMapper objectMapper;
     private final DatabaseDialect dialect;
     private final TypeRegistry typeRegistry;
 
-    public TypeMapperFactory(ObjectMapper objectMapper, DatabaseDialect dialect, TypeRegistry typeRegistry) {
-        this.objectMapper = objectMapper;
+    public TypeMapperFactory(DatabaseDialect dialect, TypeRegistry typeRegistry) {
         this.dialect = dialect;
         this.typeRegistry = typeRegistry;
     }

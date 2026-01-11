@@ -5,20 +5,22 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.springframework.lang.NonNull;
+
 /**
  * Annotation to mark a field as a one-to-many relationship.
  *
- * <p>Example usage:</p>
+ * <p>
+ * Example usage:
+ * </p>
+ * 
  * <pre>
  * {@code
  * @Data
  * public class User implements Entity<Long> {
  *     private Long id;
  *
- *     @OneToMany(
- *         mappedBy = "userId",
- *         repository = ContactInfoRepository.class
- *     )
+ *     @OneToMany(mappedBy = "userId", repository = ContactInfoRepository.class)
  *     private List<ContactInfo> contacts;
  * }
  * }
@@ -33,6 +35,7 @@ public @interface OneToMany {
      *
      * @return the foreign key field name (e.g., "userId")
      */
+    @NonNull
     String mappedBy();
 
     /**
@@ -40,5 +43,6 @@ public @interface OneToMany {
      *
      * @return the repository class
      */
+    @NonNull
     Class<?> repository();
 }

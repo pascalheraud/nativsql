@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Repository;
 
-import jakarta.annotation.Nonnull;
+import org.springframework.lang.NonNull;
 
 import io.github.pascalheraud.nativsql.domain.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.ContactType;
@@ -16,7 +16,7 @@ import io.github.pascalheraud.nativsql.domain.ContactType;
 public class ContactInfoRepository extends GenericRepository<ContactInfo, Long> {
 
     @Override
-    @Nonnull
+    @NonNull
     protected String getTableName() {
         return "contact_info";
     }
@@ -38,35 +38,35 @@ public class ContactInfoRepository extends GenericRepository<ContactInfo, Long> 
     }
 
     /**
-     * Finds contacts for a user by contact type.
+     * Finds contacts for a user by contact type using SQL.
      *
      * @param userId      the user ID
      * @param contactType the contact type
      * @param columns     the property names (camelCase) to retrieve
      * @return list of matching contacts
      */
-    // TODO Pascal à refactorer pour ne pas avoir de recherche java mais une req SQL
     public List<ContactInfo> findByUserIdAndType(Long userId, ContactType contactType, String... columns) {
-        // Filter by userId first, then filter in memory by contactType
-        return findByUserId(userId, columns).stream()
-                .filter(contact -> contact.getContactType() == contactType)
-                .toList();
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals("userId", userId)
+                        .whereAndEquals("contactType", contactType));
     }
 
     /**
-     * Finds the primary contact for a user by contact type.
+     * Finds the primary contact for a user by contact type using SQL.
      *
      * @param userId      the user ID
      * @param contactType the contact type
      * @param columns     the property names (camelCase) to retrieve
      * @return the primary contact or null if not found
      */
-    // TODO Pascal à refactorer pour ne pas avoir de recherche java mais une req SQL
     public ContactInfo findPrimaryByUserIdAndType(Long userId, ContactType contactType, String... columns) {
-        return findByUserId(userId, columns).stream()
-                .filter(contact -> contact.getContactType() == contactType)
-                .filter(contact -> Boolean.TRUE.equals(contact.getIsPrimary()))
-                .findFirst()
-                .orElse(null);
+        return find(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals("userId", userId)
+                        .whereAndEquals("contactType", contactType)
+                        .whereAndEquals("isPrimary", true));
     }
 }

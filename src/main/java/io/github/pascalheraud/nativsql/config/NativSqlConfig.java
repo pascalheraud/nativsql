@@ -60,12 +60,11 @@ public class NativSqlConfig {
 
     @Bean
     public TypeMapperFactory typeMapperFactory(
-            ObjectMapper objectMapper,
             io.github.pascalheraud.nativsql.db.DatabaseDialect dialect,
             io.github.pascalheraud.nativsql.db.TypeRegistry typeRegistry,
             @Autowired(required = false) List<INativSQLConfiguration> configurations,
             @Value("${nativsql.enum-mapping.scan-packages:}") String scanPackages) {
-        TypeMapperFactory factory = new TypeMapperFactory(objectMapper, dialect, typeRegistry);
+        TypeMapperFactory factory = new TypeMapperFactory(dialect, typeRegistry);
 
         // Scan for @EnumMapping annotated enums
         if (scanPackages != null && !scanPackages.isEmpty()) {

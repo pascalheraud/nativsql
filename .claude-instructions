@@ -68,8 +68,8 @@ if (condition) statement;
 ### 2. Jakarta Annotations ONLY
 
 // ✅ CORRECT
-import jakarta.annotation.Nonnull;
-@Nonnull public String getValue() { ... }
+import org.springframework.lang.NonNull;
+@NonNull public String getValue() { ... }
 
 // ❌ WRONG
 import org.springframework.lang.NonNull;

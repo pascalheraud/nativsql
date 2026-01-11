@@ -8,15 +8,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-
-import jakarta.annotation.Nonnull;
-
+import org.springframework.lang.NonNull;
 import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.exception.SQLException;
 import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
@@ -25,6 +24,7 @@ import io.github.pascalheraud.nativsql.util.Association;
 import io.github.pascalheraud.nativsql.util.FieldAccessor;
 import io.github.pascalheraud.nativsql.util.Fields;
 import io.github.pascalheraud.nativsql.util.FindQuery;
+import io.github.pascalheraud.nativsql.util.OneToManyAssociation;
 import io.github.pascalheraud.nativsql.util.OrderBy;
 import io.github.pascalheraud.nativsql.util.ReflectionUtils;
 import io.github.pascalheraud.nativsql.util.SqlUtils;
@@ -46,6 +46,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     private NamedParameterJdbcTemplate jdbcTemplate;
 
     @Autowired
+    @NonNull
     private RowMapperFactory rowMapperFactory;
 
     @Autowired
@@ -71,7 +72,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Returns the name of the database table.
      */
-    @Nonnull
+    @NonNull/*  */
     protected abstract String getTableName();
 
     /**
@@ -98,13 +99,12 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         return executeUpdate(sql, params);
     }
 
-    @SuppressWarnings("null")
-    @Nonnull
+    @NonNull
     private String formatQuery(String sql, Object... params) {
         if (params == null || params.length == 0) {
             throw new IllegalArgumentException("At least one column must be specified");
         }
-        return String.format(sql, params);
+        return Objects.requireNonNull(String.format(sql, params));
     }
 
     /**
@@ -114,7 +114,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param params the query parameters
      * @return the number of rows affected
      */
-    protected int executeUpdate(@Nonnull String sql, @Nonnull Map<String, Object> params) {
+    protected int executeUpdate(@NonNull String sql, @NonNull Map<String, Object> params) {
         return jdbcTemplate.update(sql, params);
     }
 
@@ -144,7 +144,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     @SuppressWarnings("null")
-    @Nonnull
+    @NonNull
     private Map<String, Object> getMap(String idColumn, Object id) {
         return Map.of(idColumn, id);
     }
@@ -402,6 +402,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Extracts values for specified properties.
      */
+    @NonNull
     private Map<String, Object> extractValues(T entity, String... properties) {
         Map<String, Object> params = new HashMap<>();
 
@@ -582,7 +583,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         }
 
         try {
-            FieldAccessor.OneToManyAssociation association = fieldAccessor.getOneToMany();
+            OneToManyAssociation association = fieldAccessor.getOneToMany();
 
             // Get the repository for the associated entity
             @SuppressWarnings("unchecked")

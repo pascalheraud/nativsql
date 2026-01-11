@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Repository;
 
-import jakarta.annotation.Nonnull;
+import org.springframework.lang.NonNull;
 
 import io.github.pascalheraud.nativsql.domain.User;
 
@@ -15,7 +15,7 @@ import io.github.pascalheraud.nativsql.domain.User;
 public class UserRepository extends GenericRepository<User, Long> {
 
     @Override
-    @Nonnull
+    @NonNull
     protected String getTableName() {
         return "users";
     }

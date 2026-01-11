@@ -1,14 +1,14 @@
 package io.github.pascalheraud.nativsql.config;
 
+import java.util.Set;
+
 import io.github.pascalheraud.nativsql.annotation.EnumMapping;
 import io.github.pascalheraud.nativsql.mapper.INativSQLMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.Set;
 
 /**
  * Scans the classpath for enum types annotated with {@link EnumMapping}
@@ -32,6 +32,7 @@ public class EnumMappingScanner {
         scanner.addIncludeFilter(new AnnotationTypeFilter(EnumMapping.class));
 
         for (String basePackage : basePackages) {
+            @SuppressWarnings("null")
             Set<BeanDefinition> candidates = scanner.findCandidateComponents(basePackage);
 
             for (BeanDefinition candidate : candidates) {

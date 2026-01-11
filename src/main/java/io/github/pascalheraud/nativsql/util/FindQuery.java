@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import jakarta.annotation.Nonnull;
+import org.springframework.lang.NonNull;
 
 /**
  * Builder for complex SELECT queries with filtering, ordering, and associations.
@@ -240,7 +240,7 @@ public class FindQuery {
      * Uses the columns and table name stored in this FindQuery.
      * @return the complete SQL query string
      */
-    @Nonnull
+    @NonNull
     public String buildSql() {
         // Build column list from stored columns using SqlUtils
         String columnList = SqlUtils.getColumnsList(columns.toArray(new String[0]));

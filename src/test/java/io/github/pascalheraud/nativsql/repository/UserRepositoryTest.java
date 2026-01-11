@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 
 import io.github.pascalheraud.nativsql.domain.Address;
 import io.github.pascalheraud.nativsql.domain.ContactInfo;
@@ -16,7 +18,13 @@ import io.github.pascalheraud.nativsql.domain.UserStatus;
 /**
  * Integration tests for UserRepository using Testcontainers.
  */
+@Import({ UserRepository.class, ContactInfoRepository.class })
 class UserRepositoryTest extends CommonUserTest {
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private ContactInfoRepository contactInfoRepository;
 
     @Test
     void testInsertUser() {
@@ -39,7 +47,8 @@ class UserRepositoryTest extends CommonUserTest {
         // Then
         assertThat(rows).isEqualTo(1);
 
-        User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status", "address", "preferences");
+        User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status",
+                "address", "preferences");
         assertThat(found).isNotNull();
         assertThat(found.getFirstName()).isEqualTo("Alice");
         assertThat(found.getLastName()).isEqualTo("Wonder");
@@ -81,7 +90,8 @@ class UserRepositoryTest extends CommonUserTest {
         user.setStatus(UserStatus.ACTIVE);
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
-        User found = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status", "address");
+        User found = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status",
+                "address");
         assertThat(found).isNotNull();
 
         // When - update the user
@@ -96,7 +106,8 @@ class UserRepositoryTest extends CommonUserTest {
         // Then
         assertThat(rows).isEqualTo(1);
 
-        User updated = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status", "address");
+        User updated = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email",
+                "status", "address");
         assertThat(updated.getFirstName()).isEqualTo("Charles");
         assertThat(updated.getLastName()).isEqualTo("Brown"); // Unchanged
         assertThat(updated.getStatus()).isEqualTo(UserStatus.SUSPENDED);
@@ -243,21 +254,19 @@ class UserRepositoryTest extends CommonUserTest {
 
         // When - Load user with contact information
         User userWithContacts = userRepository.findByIdWithContactInfos(
-            userId,
-            new String[]{"id", "contactType", "contactValue", "isPrimary"},
-            "id", "firstName", "lastName", "email", "status"
-        );
+                userId,
+                new String[] { "id", "contactType", "contactValue", "isPrimary" },
+                "id", "firstName", "lastName", "email", "status");
 
         // Then
         assertThat(userWithContacts).isNotNull();
         assertThat(userWithContacts.getContacts()).isNotNull();
         assertThat(userWithContacts.getContacts()).hasSize(3);
         assertThat(userWithContacts.getContacts())
-            .extracting(ContactInfo::getContactType)
-            .containsExactlyInAnyOrder(
-                ContactType.EMAIL,
-                ContactType.PHONE,
-                ContactType.LINKEDIN
-            );
+                .extracting(ContactInfo::getContactType)
+                .containsExactlyInAnyOrder(
+                        ContactType.EMAIL,
+                        ContactType.PHONE,
+                        ContactType.LINKEDIN);
     }
 }
