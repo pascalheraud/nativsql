@@ -1,4 +1,4 @@
-package io.github.pascalheraud.nativsql.repository;
+package io.github.pascalheraud.nativsql.repository.postgres;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,13 +16,13 @@ import io.github.pascalheraud.nativsql.domain.UserStatus;
 /**
  * Integration tests for ContactInfoRepository using Testcontainers.
  */
-@Import({ UserRepository.class, ContactInfoRepository.class })
-class ContactInfoRepositoryTest  extends CommonUserTest{
+@Import({ PGUserRepository.class, PGContactInfoRepository.class })
+class PGContactInfoRepositoryTest  extends PGRepositoryTest{
     @Autowired
-    private ContactInfoRepository contactInfoRepository;
+    private PGContactInfoRepository contactInfoRepository;
 
     @Autowired
-    private UserRepository userRepository;
+    private PGUserRepository userRepository;
 
     private Long createTestUser() {
         User user = new User();

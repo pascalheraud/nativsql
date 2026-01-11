@@ -1,19 +1,17 @@
-package io.github.pascalheraud.nativsql.repository;
+package io.github.pascalheraud.nativsql.repository.postgres;
 
 import java.util.List;
 
-import org.springframework.stereotype.Repository;
-
-import org.springframework.lang.NonNull;
-
 import io.github.pascalheraud.nativsql.domain.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.ContactType;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Repository;
 
 /**
  * Repository for ContactInfo entities.
  */
 @Repository
-public class ContactInfoRepository extends GenericRepository<ContactInfo, Long> {
+public class PGContactInfoRepository extends PGRepository<ContactInfo, Long> {
 
     @Override
     @NonNull

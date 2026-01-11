@@ -12,6 +12,10 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import javax.sql.DataSource;
+
+import jakarta.annotation.PostConstruct;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -42,7 +46,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     private static final String ID_COLUMN = "id";
 
-    @Autowired
     private NamedParameterJdbcTemplate jdbcTemplate;
 
     @Autowired
@@ -67,12 +70,20 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         this.entityFields = ReflectionUtils.getFields(entityClass);
     }
 
+    @PostConstruct
+    protected void initJdbcTemplate() {
+        this.jdbcTemplate = new NamedParameterJdbcTemplate(getDataSource());
+    }
+
+    @NonNull
+    protected abstract DataSource getDataSource();
+
     abstract protected Class<T> getEntityClass();
 
     /**
      * Returns the name of the database table.
      */
-    @NonNull/*  */
+    @NonNull /*  */
     protected abstract String getTableName();
 
     /**

@@ -1,18 +1,16 @@
-package io.github.pascalheraud.nativsql.repository;
+package io.github.pascalheraud.nativsql.repository.postgres;
 
 import java.util.List;
 
-import org.springframework.stereotype.Repository;
-
-import org.springframework.lang.NonNull;
-
 import io.github.pascalheraud.nativsql.domain.User;
+import org.springframework.lang.NonNull;
+import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities.
  */
 @Repository
-public class UserRepository extends GenericRepository<User, Long> {
+public class PGUserRepository extends PGRepository<User, Long> {
 
     @Override
     @NonNull
@@ -58,11 +56,10 @@ public class UserRepository extends GenericRepository<User, Long> {
      */
     public User findByIdWithContactInfos(Long userId, String[] contactColumns, String... userColumns) {
         return find(
-            newFindQuery()
-                .select(userColumns)
-                .whereAndEquals("id", userId)
-                .join("contacts", List.of(contactColumns))
-        );
+                newFindQuery()
+                        .select(userColumns)
+                        .whereAndEquals("id", userId)
+                        .join("contacts", List.of(contactColumns)));
     }
 
 }

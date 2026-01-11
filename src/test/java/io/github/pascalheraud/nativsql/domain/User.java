@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
-import io.github.pascalheraud.nativsql.repository.ContactInfoRepository;
+import io.github.pascalheraud.nativsql.repository.postgres.PGContactInfoRepository;
 import lombok.Data;
 
 /**
@@ -24,7 +24,7 @@ public class User implements Entity<Long> {
 
     @OneToMany(
         mappedBy = "userId",
-        repository = ContactInfoRepository.class
+        repository = PGContactInfoRepository.class
     )
     private List<ContactInfo> contacts;
 }
