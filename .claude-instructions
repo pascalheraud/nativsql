@@ -50,3 +50,37 @@
 - Don't add error handling for impossible scenarios
 - Trust internal code and framework guarantees
 - Validate only at system boundaries (user input, external APIs)
+
+# NativeSQL Coding Standards
+
+## CRITICAL RULES (Non-negotiable)
+
+### 1. Explicit Braces ALWAYS
+```java
+// ✅ REQUIRED
+if (condition) {
+    statement;
+}
+
+// ❌ NEVER
+if (condition) statement;
+
+### 2. Jakarta Annotations ONLY
+
+// ✅ CORRECT
+import jakarta.annotation.Nonnull;
+@Nonnull public String getValue() { ... }
+
+// ❌ WRONG
+import org.springframework.lang.NonNull;
+@NonNull public String getValue() { ... }
+
+### 3. Database-Agnostic Names
+Use dbTypeName not pgTypeName
+Use "database" not "PostgreSQL" in comments
+Use DatabaseDialect interface (generic code)
+Use PostgresDialect implementation (only in db/postgres/ package)
+4. PGobject ONLY in db/postgres/ Package
+❌ Never import org.postgresql.util.PGobject outside postgres/
+❌ Never use :: casting syntax outside PostgresDialect
+✅ Always delegate through DatabaseDialect interface

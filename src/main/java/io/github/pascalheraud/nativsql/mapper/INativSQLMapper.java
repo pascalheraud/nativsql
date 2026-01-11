@@ -5,7 +5,7 @@ import java.util.function.Function;
 /**
  * Interface for configuring type mappings in NativSQL.
  *
- * <p>This interface provides methods to register custom type mappings for PostgreSQL types
+ * <p>This interface provides methods to register custom type mappings for database types
  * including JSON/JSONB, enums, composite types, and custom conversions.</p>
  */
 public interface INativSQLMapper {
@@ -39,7 +39,7 @@ public interface INativSQLMapper {
             Function<S, T> converter);
 
     /**
-     * Registers a type to be mapped to/from PostgreSQL JSON/JSONB.
+     * Registers a type to be mapped to/from database JSON/JSONB.
      *
      * <p>The type will be automatically serialized to JSON when writing to the database
      * and deserialized when reading from the database.</p>
@@ -50,7 +50,7 @@ public interface INativSQLMapper {
     <T> void registerJsonType(Class<T> type);
 
     /**
-     * Registers an enum type with its PostgreSQL type name.
+     * Registers an enum type with its database type name.
      *
      * <p>This enables automatic casting when inserting/updating enum values.</p>
      *
@@ -60,13 +60,13 @@ public interface INativSQLMapper {
      * </pre>
      *
      * @param enumType the Java enum class
-     * @param pgTypeName the PostgreSQL enum type name (e.g., "user_status")
+     * @param dbTypeName the database enum type name (e.g., "user_status")
      * @param <E> the enum type parameter
      */
-    <E extends Enum<E>> void registerEnumType(Class<E> enumType, String pgTypeName);
+    <E extends Enum<E>> void registerEnumType(Class<E> enumType, String dbTypeName);
 
     /**
-     * Registers a composite type with its PostgreSQL type name and creates a mapper for it.
+     * Registers a composite type with its database type name and creates a mapper for it.
      *
      * <p>This enables automatic casting when inserting/updating composite values.</p>
      *
@@ -76,8 +76,8 @@ public interface INativSQLMapper {
      * </pre>
      *
      * @param compositeType the Java class representing the composite
-     * @param pgTypeName the PostgreSQL composite type name (e.g., "address_type")
+     * @param dbTypeName the database composite type name (e.g., "address_type")
      * @param <T> the type parameter
      */
-    <T> void registerCompositeType(Class<T> compositeType, String pgTypeName);
+    <T> void registerCompositeType(Class<T> compositeType, String dbTypeName);
 }

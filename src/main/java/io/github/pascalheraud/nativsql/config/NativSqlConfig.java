@@ -49,11 +49,23 @@ public class NativSqlConfig {
      * @return the configured TypeMapperFactory
      */
     @Bean
+    public io.github.pascalheraud.nativsql.db.DatabaseDialect databaseDialect() {
+        return new io.github.pascalheraud.nativsql.db.postgres.PostgresDialect();
+    }
+
+    @Bean
+    public io.github.pascalheraud.nativsql.db.TypeRegistry typeRegistry() {
+        return new io.github.pascalheraud.nativsql.db.postgres.PostgresTypeRegistry();
+    }
+
+    @Bean
     public TypeMapperFactory typeMapperFactory(
             ObjectMapper objectMapper,
+            io.github.pascalheraud.nativsql.db.DatabaseDialect dialect,
+            io.github.pascalheraud.nativsql.db.TypeRegistry typeRegistry,
             @Autowired(required = false) List<INativSQLConfiguration> configurations,
             @Value("${nativsql.enum-mapping.scan-packages:}") String scanPackages) {
-        TypeMapperFactory factory = new TypeMapperFactory(objectMapper);
+        TypeMapperFactory factory = new TypeMapperFactory(objectMapper, dialect, typeRegistry);
 
         // Scan for @EnumMapping annotated enums
         if (scanPackages != null && !scanPackages.isEmpty()) {

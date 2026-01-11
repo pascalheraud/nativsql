@@ -5,7 +5,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.lang.NonNull;
+
+import jakarta.annotation.Nonnull;
 
 import io.github.pascalheraud.nativsql.exception.SQLException;
 
@@ -30,7 +31,7 @@ public class GenericRowMapper<T> implements RowMapper<T> {
     }
     
     @Override
-    public T mapRow(@NonNull ResultSet rs, int rowNum) throws java.sql.SQLException {
+    public T mapRow(@Nonnull ResultSet rs, int rowNum) throws java.sql.SQLException {
         try {
             T instance = null;
             

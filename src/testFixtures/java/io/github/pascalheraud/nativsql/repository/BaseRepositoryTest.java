@@ -1,9 +1,13 @@
 package io.github.pascalheraud.nativsql.repository;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.springframework.beans.factory.annotation.Autowired;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
+import java.util.stream.Collectors;
+
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -13,8 +17,7 @@ import org.testcontainers.utility.DockerImageName;
  * Base class for repository integration tests using Testcontainers.
  * Provides common PostgreSQL container setup and configuration.
  *
- * Subclasses must use @Sql annotation to specify their initialization script:
- * @Sql(scripts = "/test-schema.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
+ * Initializes the schema once per JVM before any tests run.
  */
 @SuppressWarnings("resource")
 @SpringBootTest
@@ -39,6 +42,31 @@ public abstract class BaseRepositoryTest {
                 .withUsername("test")
                 .withPassword("test");
         postgres.start();
+        initializeSchema();
+    }
+
+    /**
+     * Initializes the test schema once after the container starts.
+     */
+    private static void initializeSchema() {
+        try (Connection conn = DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(),
+                postgres.getPassword());
+                Statement stmt = conn.createStatement()) {
+
+            String sql = readSqlScript("test-schema-init.sql");
+            stmt.execute(sql);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("Schema init error", e);
+        }
+    }
+
+    private static String readSqlScript(String scriptName) throws Exception {
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(BaseRepositoryTest.class.getClassLoader().getResourceAsStream(scriptName)))) {
+            return reader.lines().collect(Collectors.joining("\n"));
+        }
     }
 
     @DynamicPropertySource
@@ -48,11 +76,4 @@ public abstract class BaseRepositoryTest {
         registry.add("spring.datasource.password", postgres::getPassword);
     }
 
-    @Autowired
-    protected NamedParameterJdbcTemplate jdbcTemplate;
-
-    @BeforeEach
-    void cleanupDatabase() {
-        jdbcTemplate.getJdbcTemplate().execute("TRUNCATE users CASCADE");
-    }
 }

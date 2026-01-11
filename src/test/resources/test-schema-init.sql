@@ -1,24 +1,11 @@
+-- Test schema initialization
+-- Creates all necessary types and tables for testing
+
 CREATE EXTENSION IF NOT EXISTS postgis;
 
--- Drop and recreate enum types to make script idempotent
-DROP TYPE IF EXISTS user_status CASCADE;
 CREATE TYPE user_status AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
-
-DROP TYPE IF EXISTS contact_type CASCADE;
 CREATE TYPE contact_type AS ENUM ('EMAIL', 'PHONE', 'FACEBOOK', 'TWITTER', 'LINKEDIN', 'WEBSITE');
-
--- Drop and recreate composite type for address
-DROP TYPE IF EXISTS address_type CASCADE;
-CREATE TYPE address_type AS (
-    street VARCHAR(255),
-    city VARCHAR(100),
-    postal_code VARCHAR(20),
-    country VARCHAR(100)
-);
-
--- Drop and recreate tables
-DROP TABLE IF EXISTS contact_info CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
+CREATE TYPE address_type AS (street VARCHAR(255), city VARCHAR(100), postal_code VARCHAR(20), country VARCHAR(100));
 
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,

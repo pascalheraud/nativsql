@@ -2,8 +2,9 @@ package io.github.pascalheraud.nativsql.repository;
 
 import java.util.List;
 
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
+
+import jakarta.annotation.Nonnull;
 
 import io.github.pascalheraud.nativsql.domain.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.ContactType;
@@ -15,7 +16,7 @@ import io.github.pascalheraud.nativsql.domain.ContactType;
 public class ContactInfoRepository extends GenericRepository<ContactInfo, Long> {
 
     @Override
-    @NonNull
+    @Nonnull
     protected String getTableName() {
         return "contact_info";
     }

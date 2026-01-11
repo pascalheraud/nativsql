@@ -5,6 +5,9 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+
+import jakarta.annotation.Nonnull;
 
 /**
  * Builder for complex SELECT queries with filtering, ordering, and associations.
@@ -237,6 +240,7 @@ public class FindQuery {
      * Uses the columns and table name stored in this FindQuery.
      * @return the complete SQL query string
      */
+    @Nonnull
     public String buildSql() {
         // Build column list from stored columns using SqlUtils
         String columnList = SqlUtils.getColumnsList(columns.toArray(new String[0]));
@@ -265,7 +269,7 @@ public class FindQuery {
             sql.append(" ").append(orderBy.build());
         }
 
-        return sql.toString();
+        return Objects.requireNonNull(sql.toString());
     }
 
     /**

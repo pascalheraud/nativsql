@@ -22,13 +22,13 @@ public class TestNativSqlConfig implements INativSQLConfiguration {
      */
     @Override
     public void configure(INativSQLMapper mapper) {
-        // Register composite types with their PostgreSQL type names
+        // Register composite types with their database type names
         mapper.registerCompositeType(Address.class, "address_type");
 
         // Register JSON types
         mapper.registerJsonType(Preferences.class);
 
-        // Register enum types with their PostgreSQL type names
+        // Register enum types with their database type names
         mapper.registerEnumType(UserStatus.class, "user_status");
         // ContactType is registered via @EnumMapping annotation
     }

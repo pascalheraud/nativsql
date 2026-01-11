@@ -5,6 +5,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
+import jakarta.annotation.Nonnull;
+
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
 import io.github.pascalheraud.nativsql.exception.SQLException;
 
@@ -108,12 +110,14 @@ public class FieldAccessor {
     /**
      * Gets the OneToMany association details.
      *
-     * @return a OneToManyAssociation object, or null if the annotation is not present
+     * @return a non-null OneToManyAssociation object
+     * @throws SQLException if the @OneToMany annotation is not present on this field
      */
+    @Nonnull
     public OneToManyAssociation getOneToMany() {
         OneToMany annotation = field.getAnnotation(OneToMany.class);
         if (annotation == null) {
-            return null;
+            throw new SQLException("Field is not annotated with @OneToMany: " + field.getName());
         }
         return new OneToManyAssociation(annotation.mappedBy(), annotation.repository());
     }

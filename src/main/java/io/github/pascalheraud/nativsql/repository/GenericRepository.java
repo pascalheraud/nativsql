@@ -14,7 +14,8 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.lang.NonNull;
+
+import jakarta.annotation.Nonnull;
 
 import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.exception.SQLException;
@@ -50,6 +51,9 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     @Autowired
     private TypeMapperFactory typeMapperFactory;
 
+    @Autowired
+    private io.github.pascalheraud.nativsql.db.DatabaseDialect databaseDialect;
+
     private final Class<T> entityClass;
 
     @Autowired(required = false)
@@ -67,7 +71,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Returns the name of the database table.
      */
-    @NonNull
+    @Nonnull
     protected abstract String getTableName();
 
     /**
@@ -95,7 +99,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     @SuppressWarnings("null")
-    @NonNull
+    @Nonnull
     private String formatQuery(String sql, Object... params) {
         if (params == null || params.length == 0) {
             throw new IllegalArgumentException("At least one column must be specified");
@@ -110,7 +114,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param params the query parameters
      * @return the number of rows affected
      */
-    protected int executeUpdate(@NonNull String sql, @NonNull Map<String, Object> params) {
+    protected int executeUpdate(@Nonnull String sql, @Nonnull Map<String, Object> params) {
         return jdbcTemplate.update(sql, params);
     }
 
@@ -140,7 +144,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     @SuppressWarnings("null")
-    @NonNull
+    @Nonnull
     private Map<String, Object> getMap(String idColumn, Object id) {
         return Map.of(idColumn, id);
     }
@@ -247,7 +251,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Finds an entity by a property expression with specified columns.
-     * Allows using PostgreSQL expressions like (address).city for composite types.
+     * Allows using database expressions like (address).city for composite types.
      *
      * @param propertyExpression the SQL expression to filter by (e.g.,
      *                           "(address).city")
@@ -271,7 +275,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Finds all entities by a property expression with specified columns.
-     * Allows using PostgreSQL expressions like (address).city for composite types.
+     * Allows using database expressions like (address).city for composite types.
      *
      * @param propertyExpression the SQL expression to filter by (e.g.,
      *                           "(address).city")
@@ -444,19 +448,19 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      */
     private String formatParameter(String paramName, Class<?> type) {
         if (type != null && type.isEnum()) {
-            // Get the registered PostgreSQL type name from the factory
-            String enumTypeName = typeMapperFactory.getEnumPgType(type);
+            // Get the registered database type name from the factory
+            String enumTypeName = typeMapperFactory.getEnumDbType(type);
             if (enumTypeName == null) {
                 // Fallback: convert class name to snake_case
                 enumTypeName = StringUtils.camelToSnake(type.getSimpleName());
             }
-            return "(:" + paramName + ")::" + enumTypeName;
+            return databaseDialect.formatEnumParameter(paramName, enumTypeName);
         }
 
         if (type != null && typeMapperFactory.isCompositeType(type)) {
-            // Get the registered PostgreSQL composite type name
-            String compositeTypeName = typeMapperFactory.getCompositePgType(type);
-            return "(:" + paramName + ")::" + compositeTypeName;
+            // Get the registered database composite type name
+            String compositeTypeName = typeMapperFactory.getCompositeDbType(type);
+            return databaseDialect.formatCompositeParameter(paramName, compositeTypeName);
         }
 
         return ":" + paramName;
@@ -473,17 +477,27 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         Class<?> valueClass = value.getClass();
 
-        // Enums → String
+        // Enums → database object
         if (valueClass.isEnum()) {
-            return ((Enum<?>) value).name();
+            String enumDbType = typeMapperFactory.getEnumDbType(valueClass);
+            if (enumDbType == null) {
+                // Fallback to string representation
+                return ((Enum<?>) value).name();
+            }
+            return databaseDialect.convertEnumToSql((Enum<?>) value, enumDbType);
         }
 
-        // Composite types → PGobject
+        // Composite types → database object
         if (typeMapperFactory.isCompositeType(valueClass)) {
-            return convertToCompositePGObject(value, valueClass);
+            String compositeDbType = typeMapperFactory.getCompositeDbType(valueClass);
+            try {
+                return databaseDialect.convertCompositeToSql(value, valueClass, compositeDbType, null);
+            } catch (Exception e) {
+                throw new SQLException("Failed to convert composite type to SQL: " + valueClass.getSimpleName(), e);
+            }
         }
 
-        // JSON types → PGobject
+        // JSON types → database object
         if (typeMapperFactory.isJsonType(valueClass)) {
             return typeMapperFactory.toJsonb(value);
         }
@@ -501,62 +515,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         }
 
         // Default: return as-is
-        return value;
-    }
-
-    /**
-     * Converts a Java object to PostgreSQL composite type using PGobject.
-     * This is safer than manual string construction as PostgreSQL driver handles
-     * escaping.
-     * Example: Address("123 St", "Paris", "75001", "France") → PGobject with type
-     * "address_type"
-     */
-    private org.postgresql.util.PGobject convertToCompositePGObject(Object value, Class<?> valueClass) {
-        try {
-            // Get the PostgreSQL type name from the factory
-            String pgTypeName = typeMapperFactory.getCompositePgType(valueClass);
-            if (pgTypeName == null) {
-                throw new SQLException("Composite type not registered: " + valueClass.getSimpleName());
-            }
-
-            // Build the composite value string (PostgreSQL record format)
-            List<String> fieldValues = new ArrayList<>();
-            for (Method method : value.getClass().getMethods()) {
-                if (ReflectionUtils.isGetter(method)) {
-                    Object fieldValue = method.invoke(value);
-                    if (fieldValue == null) {
-                        fieldValues.add("NULL");
-                    } else {
-                        // Use PostgreSQL's quoting function for proper escaping
-                        fieldValues.add(quoteCompositeValue(fieldValue.toString()));
-                    }
-                }
-            }
-
-            // Create PGobject with the composite type
-            org.postgresql.util.PGobject pgObject = new org.postgresql.util.PGobject();
-            pgObject.setType(pgTypeName);
-            pgObject.setValue("(" + String.join(",", fieldValues) + ")");
-
-            return pgObject;
-
-        } catch (IllegalAccessException | InvocationTargetException | java.sql.SQLException e) {
-            throw new SQLException("Failed to convert to composite type: " + valueClass.getSimpleName(), e);
-        }
-    }
-
-    /**
-     * Quotes a value for use in PostgreSQL composite type.
-     * Follows PostgreSQL's composite value quoting rules.
-     */
-    private String quoteCompositeValue(String value) {
-        // If value contains special characters, quote it
-        if (value.contains(",") || value.contains("(") || value.contains(")") ||
-                value.contains("\"") || value.contains("\\") || value.trim().isEmpty()) {
-            // Escape backslashes and quotes, then wrap in quotes
-            String escaped = value.replace("\\", "\\\\").replace("\"", "\\\"");
-            return "\"" + escaped + "\"";
-        }
         return value;
     }
 
@@ -625,9 +583,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         try {
             FieldAccessor.OneToManyAssociation association = fieldAccessor.getOneToMany();
-            if (association == null) {
-                throw new SQLException("Field is not a @OneToMany association: " + fieldAccessor.getName());
-            }
 
             // Get the repository for the associated entity
             @SuppressWarnings("unchecked")

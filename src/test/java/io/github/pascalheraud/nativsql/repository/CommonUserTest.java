@@ -15,7 +15,7 @@ import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
  */
 @Import({ NativSqlConfig.class, TestNativSqlConfig.class, RowMapperFactory.class,
           UserRepository.class, ContactInfoRepository.class })
-@Sql(scripts = "/test-schema.sql", executionPhase = ExecutionPhase.BEFORE_TEST_CLASS)
+@Sql(scripts = "/test-schema-cleanup.sql", executionPhase = ExecutionPhase.BEFORE_TEST_METHOD)
 public abstract class CommonUserTest extends BaseRepositoryTest {
 
     @Autowired

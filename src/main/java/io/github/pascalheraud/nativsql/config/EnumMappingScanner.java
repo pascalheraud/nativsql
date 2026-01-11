@@ -41,11 +41,11 @@ public class EnumMappingScanner {
                     if (clazz.isEnum()) {
                         EnumMapping annotation = clazz.getAnnotation(EnumMapping.class);
                         if (annotation != null) {
-                            String pgTypeName = annotation.pgTypeName();
-                            registerEnum(mapper, clazz, pgTypeName);
+                            String dbTypeName = annotation.pgTypeName();
+                            registerEnum(mapper, clazz, dbTypeName);
 
-                            logger.info("Registered enum type {} with PostgreSQL type name '{}'",
-                                clazz.getSimpleName(), pgTypeName);
+                            logger.info("Registered enum type {} with database type name '{}'",
+                                clazz.getSimpleName(), dbTypeName);
                         }
                     }
                 } catch (ClassNotFoundException e) {
