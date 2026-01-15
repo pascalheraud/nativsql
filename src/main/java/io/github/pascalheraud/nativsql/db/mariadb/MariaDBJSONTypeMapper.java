@@ -1,4 +1,4 @@
-package io.github.pascalheraud.nativsql.db.mysql;
+package io.github.pascalheraud.nativsql.db.mariadb;
 
 import java.sql.ResultSet;
 
@@ -8,17 +8,17 @@ import io.github.pascalheraud.nativsql.exception.SQLException;
 import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
 
 /**
- * MySQL-specific TypeMapper for JSON types.
- * Handles reading from and writing to MySQL JSON columns.
+ * MariaDB-specific TypeMapper for JSON types.
+ * Handles reading from and writing to MariaDB JSON columns.
  *
  * @param <T> the Java type to map to/from JSON
  */
-public class MySQLJSONTypeMapper<T> implements ITypeMapper<T> {
+public class MariaDBJSONTypeMapper<T> implements ITypeMapper<T> {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private final Class<T> jsonClass;
 
-    public MySQLJSONTypeMapper(Class<T> jsonClass) {
+    public MariaDBJSONTypeMapper(Class<T> jsonClass) {
         this.jsonClass = jsonClass;
     }
 
@@ -31,7 +31,7 @@ public class MySQLJSONTypeMapper<T> implements ITypeMapper<T> {
             }
 
             String jsonStr = null;
-            // Handle String JSON (MySQL returns JSON as String)
+            // Handle String JSON (MariaDB returns JSON as String)
             if (dbValue instanceof String) {
                 jsonStr = (String) dbValue;
             } else {
@@ -65,7 +65,7 @@ public class MySQLJSONTypeMapper<T> implements ITypeMapper<T> {
 
     @Override
     public String formatParameter(String paramName) {
-        // MySQL JSON doesn't need special casting, just return the parameter
+        // MariaDB JSON doesn't need special casting, just return the parameter
         return ":" + paramName;
     }
 }

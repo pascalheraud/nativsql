@@ -1,14 +1,14 @@
-package io.github.pascalheraud.nativsql.repository.mysql;
+package io.github.pascalheraud.nativsql.repository.mariadb;
 
-import io.github.pascalheraud.nativsql.domain.mysql.User;
+import io.github.pascalheraud.nativsql.domain.mariadb.User;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**
- * Repository for User entities using MySQL.
+ * Repository for User entities using MariaDB.
  */
 @Repository
-public class MySQLUserRepository extends MySQLRepository<User, Long> {
+public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
 
     @Override
     @NonNull

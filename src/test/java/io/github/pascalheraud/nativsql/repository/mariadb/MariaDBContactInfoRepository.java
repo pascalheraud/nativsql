@@ -1,17 +1,17 @@
-package io.github.pascalheraud.nativsql.repository.mysql;
+package io.github.pascalheraud.nativsql.repository.mariadb;
 
 import java.util.List;
 
-import io.github.pascalheraud.nativsql.domain.mysql.ContactInfo;
-import io.github.pascalheraud.nativsql.domain.mysql.ContactType;
+import io.github.pascalheraud.nativsql.domain.mariadb.ContactInfo;
+import io.github.pascalheraud.nativsql.domain.mariadb.ContactType;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**
- * Repository for ContactInfo entities using MySQL.
+ * Repository for ContactInfo entities using MariaDB.
  */
 @Repository
-public class MySQLContactInfoRepository extends MySQLRepository<ContactInfo, Long> {
+public class MariaDBContactInfoRepository extends MariaDBRepository<ContactInfo, Long> {
 
     @Override
     @NonNull

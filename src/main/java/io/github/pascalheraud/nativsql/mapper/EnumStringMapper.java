@@ -17,7 +17,7 @@ public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
     }
 
     @Override
-    public E map(java.sql.ResultSet rs, String columnName) throws java.sql.SQLException {
+    public E map(java.sql.ResultSet rs, String columnName) throws SQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -35,10 +35,7 @@ public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
             throw new SQLException(
                     "Invalid enum value for " + enumClass.getSimpleName() + ": " + e.getMessage(), e);
         } catch (java.sql.SQLException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new SQLException(
-                    "Failed to parse enum value for " + enumClass.getSimpleName() + ": " + e.getMessage(), e);
+            throw new SQLException(e);
         }
     }
 

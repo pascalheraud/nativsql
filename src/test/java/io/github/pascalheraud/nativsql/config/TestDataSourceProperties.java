@@ -30,4 +30,13 @@ public class TestDataSourceProperties {
 
     @Value("${spring.datasource.mysql.password:}")
     private String mySQLPassword;
+
+    @Value("${spring.datasource.mariadb.url:}")
+    private String mariaDBUrl;
+
+    @Value("${spring.datasource.mariadb.username:}")
+    private String mariaDBUsername;
+
+    @Value("${spring.datasource.mariadb.password:}")
+    private String mariaDBPassword;
 }

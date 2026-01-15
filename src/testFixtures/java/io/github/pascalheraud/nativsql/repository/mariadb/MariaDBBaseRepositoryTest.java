@@ -1,4 +1,4 @@
-package io.github.pascalheraud.nativsql.repository.mysql;
+package io.github.pascalheraud.nativsql.repository.mariadb;
 
 import io.github.pascalheraud.nativsql.config.NativSqlConfig;
 import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
@@ -8,21 +8,21 @@ import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.JdbcDatabaseContainer;
-import org.testcontainers.mysql.MySQLContainer;
+import org.testcontainers.mariadb.MariaDBContainer;
 
 /**
  * Base class for repository integration tests using Testcontainers.
- * Provides common MySQL container setup and configuration.
+ * Provides common MariaDB container setup and configuration.
  *
  * Initializes the schema once per JVM before any tests run.
  */
 @SuppressWarnings("resource")
 @SpringBootTest
 @Import({ NativSqlConfig.class, RowMapperFactory.class })
-public abstract class MySQLBaseRepositoryTest extends BaseRepositoryTest {
+public abstract class MariaDBBaseRepositoryTest extends BaseRepositoryTest {
     protected abstract String getScriptPath();
 
-    static boolean mysqlSchemaLoaded = false;
+    static boolean mariadbSchemaLoaded = false;
     static JdbcDatabaseContainer<?> databaseContainer;
 
     @Override
@@ -32,17 +32,17 @@ public abstract class MySQLBaseRepositoryTest extends BaseRepositoryTest {
 
     @Override
     protected boolean isSchemaLoaded() {
-        return mysqlSchemaLoaded;
+        return mariadbSchemaLoaded;
     }
 
     @Override
     protected void markSchemaAsLoaded() {
-        mysqlSchemaLoaded = true;
+        mariadbSchemaLoaded = true;
     }
 
     protected static void init() {
         if (databaseContainer == null) {
-            databaseContainer = new MySQLContainer("mysql:8.0")
+            databaseContainer = new MariaDBContainer("mariadb:11.2")
                     .withDatabaseName("testdb")
                     .withUsername("test")
                     .withPassword("test");
@@ -54,10 +54,10 @@ public abstract class MySQLBaseRepositoryTest extends BaseRepositoryTest {
     static void configureProperties(DynamicPropertyRegistry registry) {
         init();
 
-        // MySQL datasource
-        registry.add("spring.datasource.mysql.url", databaseContainer::getJdbcUrl);
-        registry.add("spring.datasource.mysql.username", databaseContainer::getUsername);
-        registry.add("spring.datasource.mysql.password", databaseContainer::getPassword);
+        // MariaDB datasource
+        registry.add("spring.datasource.mariadb.url", databaseContainer::getJdbcUrl);
+        registry.add("spring.datasource.mariadb.username", databaseContainer::getUsername);
+        registry.add("spring.datasource.mariadb.password", databaseContainer::getPassword);
     }
 
 }

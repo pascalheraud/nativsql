@@ -1,0 +1,39 @@
+package io.github.pascalheraud.nativsql.repository.mariadb;
+
+import javax.sql.DataSource;
+
+import io.github.pascalheraud.nativsql.db.mariadb.MariaDBDialect;
+import io.github.pascalheraud.nativsql.domain.Entity;
+import io.github.pascalheraud.nativsql.repository.GenericRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.lang.NonNull;
+
+/**
+ * Base repository for MariaDB.
+ * All MariaDB repositories extend this class.
+ *
+ * @param <T> the entity type
+ * @param <ID> the id type
+ */
+public abstract class MariaDBRepository<T extends Entity<ID>, ID> extends GenericRepository<T, ID> {
+
+    @Autowired
+    @Qualifier("mariaDBDataSource")
+    @NonNull
+    private DataSource mariadbDataSource;
+
+    @Autowired
+    private MariaDBDialect mariadbDialect;
+
+    @Override
+    @NonNull
+    protected DataSource getDataSource() {
+        return mariadbDataSource;
+    }
+
+    @Override
+    protected io.github.pascalheraud.nativsql.db.DatabaseDialect getDatabaseDialectInstance() {
+        return mariadbDialect;
+    }
+}

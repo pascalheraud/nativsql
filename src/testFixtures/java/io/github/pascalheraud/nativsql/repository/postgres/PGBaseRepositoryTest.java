@@ -1,20 +1,6 @@
 package io.github.pascalheraud.nativsql.repository.postgres;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.stream.Collectors;
-
-import io.github.pascalheraud.nativsql.config.NativSqlConfig;
-import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
 import io.github.pascalheraud.nativsql.repository.BaseRepositoryTest;
-import org.junit.jupiter.api.BeforeEach;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.JdbcDatabaseContainer;

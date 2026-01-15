@@ -4,7 +4,6 @@ import java.sql.ResultSet;
 import java.util.List;
 import java.util.Map;
 
-import io.github.pascalheraud.nativsql.exception.SQLException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
@@ -44,51 +43,48 @@ public class GenericRowMapper<T> implements RowMapper<T> {
                     continue;
                 }
 
+                Object value;
                 try {
-                    Object value = prop.getTypeMapper().map(rs, prop.getColumnName());
+                    value = prop.getTypeMapper().map(rs, prop.getColumnName());
+                } catch (io.github.pascalheraud.nativsql.exception.SQLException e) {
+                    throw new java.sql.SQLException(e);
+                }
 
-                    // Lazy instantiation: create instance only if we have at least one value
-                    if (value != null) {
-                        if (instance == null) {
-                            instance = rootClass.getDeclaredConstructor().newInstance();
-                        }
-                        prop.getFieldAccessor().setValue(instance, value);
-                    } else {
-                        // Column exists but value is NULL
-                        if (instance == null) {
-                            instance = rootClass.getDeclaredConstructor().newInstance();
-                        }
+                // Lazy instantiation: create instance only if we have at least one value
+                if (value != null) {
+                    if (instance == null) {
+                        instance = rootClass.getDeclaredConstructor().newInstance();
                     }
-                } catch (java.sql.SQLException e) {
-                    throw new SQLException("Failed to map column: " + prop.getColumnName(), e);
+                    prop.getFieldAccessor().setValue(instance, value);
+                } else {
+                    // Column exists but value is NULL
+                    if (instance == null) {
+                        instance = rootClass.getDeclaredConstructor().newInstance();
+                    }
                 }
             }
 
             // Map nested properties
             for (NestedPropertyMetadata nested : nestedProperties.values()) {
-                try {
-                    ResultSet prefixedRs = new PrefixedResultSet(rs, nested.getPropertyName() + ".");
-                    Object nestedObj = nested.getDelegateMapper().mapRow(prefixedRs, rowNum);
+                ResultSet prefixedRs = new PrefixedResultSet(rs, nested.getPropertyName() + ".");
+                Object nestedObj = nested.getDelegateMapper().mapRow(prefixedRs, rowNum);
 
-                    if (nestedObj != null) {
-                        if (instance == null) {
-                            instance = rootClass.getDeclaredConstructor().newInstance();
-                        }
-                        nested.getSetter().invoke(instance, nestedObj);
+                if (nestedObj != null) {
+                    if (instance == null) {
+                        instance = rootClass.getDeclaredConstructor().newInstance();
                     }
-                } catch (java.sql.SQLException e) {
-                    throw new SQLException("Failed to map nested property: " + nested.getPropertyName(), e);
+                    nested.getSetter().invoke(instance, nestedObj);
                 }
             }
 
             return instance;
 
         } catch (ReflectiveOperationException e) {
-            throw new SQLException("Failed to map row to " + rootClass.getSimpleName(), e);
+            throw new java.sql.SQLException("Failed to map row to " + rootClass.getSimpleName(), e);
         }
     }
 
-        /**
+    /**
      * Checks if a column exists in the ResultSet.
      */
     private boolean columnExists(ResultSet rs, String columnName) {
