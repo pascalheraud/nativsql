@@ -20,6 +20,7 @@ public class MariaDBContactInfoRepository extends MariaDBRepository<ContactInfo,
     }
 
     @Override
+    @NonNull
     protected Class<ContactInfo> getEntityClass() {
         return ContactInfo.class;
     }

@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.pascalheraud.nativsql.domain.mariadb.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.mariadb.ContactType;
+import io.github.pascalheraud.nativsql.domain.mariadb.Preferences;
 import io.github.pascalheraud.nativsql.domain.mariadb.User;
+import io.github.pascalheraud.nativsql.domain.mariadb.UserReport;
 import io.github.pascalheraud.nativsql.domain.mariadb.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -151,23 +153,26 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         Long userId = foundUser.getId();
 
         // Create contact information for this user
-        ContactInfo email1 = new ContactInfo();
-        email1.setUserId(userId);
-        email1.setContactType(ContactType.EMAIL);
-        email1.setContactValue("john@work.com");
-        email1.setIsPrimary(true);
+        ContactInfo email1 = ContactInfo.builder()
+                .userId(userId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@work.com")
+                .isPrimary(true)
+                .build();
 
-        ContactInfo phone = new ContactInfo();
-        phone.setUserId(userId);
-        phone.setContactType(ContactType.PHONE);
-        phone.setContactValue("+33612345678");
-        phone.setIsPrimary(false);
+        ContactInfo phone = ContactInfo.builder()
+                .userId(userId)
+                .contactType(ContactType.PHONE)
+                .contactValue("+33612345678")
+                .isPrimary(false)
+                .build();
 
-        ContactInfo linkedin = new ContactInfo();
-        linkedin.setUserId(userId);
-        linkedin.setContactType(ContactType.LINKEDIN);
-        linkedin.setContactValue("linkedin.com/in/johndoe");
-        linkedin.setIsPrimary(false);
+        ContactInfo linkedin = ContactInfo.builder()
+                .userId(userId)
+                .contactType(ContactType.LINKEDIN)
+                .contactValue("linkedin.com/in/johndoe")
+                .isPrimary(false)
+                .build();
 
         contactInfoRepository.insert(email1, "userId", "contactType", "contactValue", "isPrimary");
         contactInfoRepository.insert(phone, "userId", "contactType", "contactValue", "isPrimary");
@@ -184,5 +189,59 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
 
         assertThat(found2).isNotNull();
         assertThat(found2.getContactType()).isEqualTo(ContactType.PHONE);
+    }
+
+    @Test
+    void testGetUserReport() {
+        // Given - Create users with different preferences
+        User user1 = User.builder()
+                .firstName("User1")
+                .email("user1@example.com")
+                .status(UserStatus.ACTIVE)
+                .preferences(Preferences.builder().language("fr").theme("dark").notifications(true).build())
+                .build();
+        userRepository.insert(user1, "firstName", "email", "status", "preferences");
+
+        User user2 = User.builder()
+                .firstName("User2")
+                .email("user2@example.com")
+                .status(UserStatus.ACTIVE)
+                .preferences(Preferences.builder().language("en").theme("light").notifications(false).build())
+                .build();
+        userRepository.insert(user2, "firstName", "email", "status", "preferences");
+
+        User user3 = User.builder()
+                .firstName("User3")
+                .email("user3@example.com")
+                .status(UserStatus.INACTIVE)
+                .preferences(Preferences.builder().language("fr").theme("auto").notifications(true).build())
+                .build();
+        userRepository.insert(user3, "firstName", "email", "status", "preferences");
+
+        // Add contact info for users
+        User foundUser1 = userRepository.findByEmail("user1@example.com", "id");
+        ContactInfo contact1 = ContactInfo.builder()
+                .userId(foundUser1.getId())
+                .contactType(ContactType.EMAIL)
+                .contactValue("user1@work.com")
+                .build();
+        contactInfoRepository.insert(contact1, "userId", "contactType", "contactValue");
+
+        User foundUser2 = userRepository.findByEmail("user2@example.com", "id");
+        ContactInfo contact2 = ContactInfo.builder()
+                .userId(foundUser2.getId())
+                .contactType(ContactType.PHONE)
+                .contactValue("+33612345678")
+                .build();
+        contactInfoRepository.insert(contact2, "userId", "contactType", "contactValue");
+
+        // When
+        UserReport report = userRepository.getUsersReport();
+
+        // Then
+        assertThat(report).isNotNull();
+        assertThat(report.getTotalUsers()).isEqualTo(3);
+        assertThat(report.getUsersWithEmailContact()).isEqualTo(1);
+        assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
     }
 }

@@ -20,6 +20,7 @@ public class MySQLContactInfoRepository extends MySQLRepository<ContactInfo, Lon
     }
 
     @Override
+    @NonNull
     protected Class<ContactInfo> getEntityClass() {
         return ContactInfo.class;
     }

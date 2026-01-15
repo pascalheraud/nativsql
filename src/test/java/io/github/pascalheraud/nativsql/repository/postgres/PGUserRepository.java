@@ -3,6 +3,7 @@ package io.github.pascalheraud.nativsql.repository.postgres;
 import java.util.List;
 
 import io.github.pascalheraud.nativsql.domain.postgres.User;
+import io.github.pascalheraud.nativsql.domain.postgres.UserReport;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
@@ -19,6 +20,7 @@ public class PGUserRepository extends PGRepository<User, Long> {
     }
 
     @Override
+    @NonNull
     protected Class<User> getEntityClass() {
         return User.class;
     }
@@ -60,6 +62,25 @@ public class PGUserRepository extends PGRepository<User, Long> {
                         .select(userColumns)
                         .whereAndEquals("id", userId)
                         .join("contacts", List.of(contactColumns)));
+    }
+
+    /**
+     * Generates a user statistics report.
+     *
+     * @return the user report with stats on total users, users with email contacts,
+     *         and users with French preferences
+     */
+    public UserReport getUsersReport() {
+        String sql = """
+                SELECT
+                    (SELECT COUNT(*) FROM users) as totalUsers,
+                    (SELECT COUNT(DISTINCT u.id) FROM users u
+                     INNER JOIN contact_info ci ON u.id = ci.user_id
+                     WHERE ci.contact_type = 'EMAIL'::contact_type) as usersWithEmailContact,
+                    (SELECT COUNT(*) FROM users u
+                     WHERE u.preferences->>'language' = 'fr') as usersWithFrenchPreference
+                """;
+        return findExternal(sql, UserReport.class);
     }
 
 }

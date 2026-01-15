@@ -9,6 +9,7 @@ import io.github.pascalheraud.nativsql.domain.postgres.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.postgres.ContactType;
 import io.github.pascalheraud.nativsql.domain.postgres.Preferences;
 import io.github.pascalheraud.nativsql.domain.postgres.User;
+import io.github.pascalheraud.nativsql.domain.postgres.UserReport;
 import io.github.pascalheraud.nativsql.domain.postgres.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,17 +29,14 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testInsertUser() {
         // Given
-        User user = new User();
-        user.setFirstName("Alice");
-        user.setLastName("Wonder");
-        user.setEmail("alice@example.com");
-        user.setStatus(UserStatus.ACTIVE);
-
-        Address address = new Address("123 Main St", "Paris", "75001", "France");
-        user.setAddress(address);
-
-        Preferences prefs = new Preferences("fr", "dark", true);
-        user.setPreferences(prefs);
+        User user = User.builder()
+                .firstName("Alice")
+                .lastName("Wonder")
+                .email("alice@example.com")
+                .status(UserStatus.ACTIVE)
+                .address(new Address("123 Main St", "Paris", "75001", "France"))
+                .preferences(Preferences.builder().language("fr").theme("dark").notifications(true).build())
+                .build();
 
         // When
         int rows = userRepository.insert(user, "firstName", "lastName", "email", "status", "address", "preferences");
@@ -61,11 +59,12 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testInsertUserWithAllFields() {
         // Given
-        User user = new User();
-        user.setFirstName("Bob");
-        user.setLastName("Builder");
-        user.setEmail("bob@example.com");
-        user.setStatus(UserStatus.INACTIVE);
+        User user = User.builder()
+                .firstName("Bob")
+                .lastName("Builder")
+                .email("bob@example.com")
+                .status(UserStatus.INACTIVE)
+                .build();
 
         // When - insert specified fields
         int rows = userRepository.insert(user, "firstName", "lastName", "email", "status");
@@ -82,11 +81,12 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testUpdateUser() {
         // Given - insert a user first
-        User user = new User();
-        user.setFirstName("Charlie");
-        user.setLastName("Brown");
-        user.setEmail("charlie@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+                .firstName("Charlie")
+                .lastName("Brown")
+                .email("charlie@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User found = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status",
@@ -117,11 +117,12 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testUpdateUserAllFields() {
         // Given
-        User user = new User();
-        user.setFirstName("Dave");
-        user.setLastName("Davidson");
-        user.setEmail("dave@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+                .firstName("Dave")
+                .lastName("Davidson")
+                .email("dave@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User found = userRepository.findByEmail("dave@example.com", "id", "firstName", "lastName", "email", "status");
@@ -143,11 +144,12 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testDeleteUser() {
         // Given
-        User user = new User();
-        user.setFirstName("Eve");
-        user.setLastName("Everton");
-        user.setEmail("eve@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+                .firstName("Eve")
+                .lastName("Everton")
+                .email("eve@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User found = userRepository.findByEmail("eve@example.com", "id", "email");
@@ -166,22 +168,25 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testFindByCity() {
         // Given
-        User user1 = new User();
-        user1.setFirstName("Frank");
-        user1.setEmail("frank@example.com");
-        user1.setAddress(new Address("123 St", "Paris", "75001", "France"));
+        User user1 = User.builder()
+                .firstName("Frank")
+                .email("frank@example.com")
+                .address(new Address("123 St", "Paris", "75001", "France"))
+                .build();
         userRepository.insert(user1, "firstName", "email", "address");
 
-        User user2 = new User();
-        user2.setFirstName("Grace");
-        user2.setEmail("grace@example.com");
-        user2.setAddress(new Address("456 Ave", "Lyon", "69001", "France"));
+        User user2 = User.builder()
+                .firstName("Grace")
+                .email("grace@example.com")
+                .address(new Address("456 Ave", "Lyon", "69001", "France"))
+                .build();
         userRepository.insert(user2, "firstName", "email", "address");
 
-        User user3 = new User();
-        user3.setFirstName("Henry");
-        user3.setEmail("henry@example.com");
-        user3.setAddress(new Address("789 Blvd", "Paris", "75002", "France"));
+        User user3 = User.builder()
+                .firstName("Henry")
+                .email("henry@example.com")
+                .address(new Address("789 Blvd", "Paris", "75002", "France"))
+                .build();
         userRepository.insert(user3, "firstName", "email", "address");
 
         // When
@@ -196,14 +201,16 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testEnumMapping() {
         // Given
-        User activeUser = new User();
-        activeUser.setEmail("active@example.com");
-        activeUser.setStatus(UserStatus.ACTIVE);
+        User activeUser = User.builder()
+                .email("active@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
         userRepository.insert(activeUser, "email", "status");
 
-        User suspendedUser = new User();
-        suspendedUser.setEmail("suspended@example.com");
-        suspendedUser.setStatus(UserStatus.SUSPENDED);
+        User suspendedUser = User.builder()
+                .email("suspended@example.com")
+                .status(UserStatus.SUSPENDED)
+                .build();
         userRepository.insert(suspendedUser, "email", "status");
 
         // When
@@ -218,34 +225,38 @@ class PGUserRepositoryTest extends PGRepositoryTest {
     @Test
     void testOneToManyAssociation() {
         // Given - Create a user
-        User user = new User();
-        user.setFirstName("John");
-        user.setLastName("Doe");
-        user.setEmail("john@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User foundUser = userRepository.findByEmail("john@example.com", "id");
         Long userId = foundUser.getId();
 
         // Create contact information for this user
-        ContactInfo email1 = new ContactInfo();
-        email1.setUserId(userId);
-        email1.setContactType(ContactType.EMAIL);
-        email1.setContactValue("john@work.com");
-        email1.setIsPrimary(true);
+        ContactInfo email1 = ContactInfo.builder()
+                .userId(userId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@work.com")
+                .isPrimary(true)
+                .build();
 
-        ContactInfo phone = new ContactInfo();
-        phone.setUserId(userId);
-        phone.setContactType(ContactType.PHONE);
-        phone.setContactValue("+33612345678");
-        phone.setIsPrimary(false);
+        ContactInfo phone = ContactInfo.builder()
+                .userId(userId)
+                .contactType(ContactType.PHONE)
+                .contactValue("+33612345678")
+                .isPrimary(false)
+                .build();
 
-        ContactInfo linkedin = new ContactInfo();
-        linkedin.setUserId(userId);
-        linkedin.setContactType(ContactType.LINKEDIN);
-        linkedin.setContactValue("linkedin.com/in/johndoe");
-        linkedin.setIsPrimary(false);
+        ContactInfo linkedin = ContactInfo.builder()
+                .userId(userId)
+                .contactType(ContactType.LINKEDIN)
+                .contactValue("linkedin.com/in/johndoe")
+                .isPrimary(false)
+                .build();
 
         contactInfoRepository.insert(email1, "userId", "contactType", "contactValue", "isPrimary");
         contactInfoRepository.insert(phone, "userId", "contactType", "contactValue", "isPrimary");
@@ -267,5 +278,59 @@ class PGUserRepositoryTest extends PGRepositoryTest {
                         ContactType.EMAIL,
                         ContactType.PHONE,
                         ContactType.LINKEDIN);
+    }
+
+    @Test
+    void testGetUserReport() {
+        // Given - Create users with different preferences
+        User user1 = User.builder()
+                .firstName("User1")
+                .email("user1@example.com")
+                .status(UserStatus.ACTIVE)
+                .preferences(Preferences.builder().language("fr").theme("dark").notifications(true).build())
+                .build();
+        userRepository.insert(user1, "firstName", "email", "status", "preferences");
+
+        User user2 = User.builder()
+                .firstName("User2")
+                .email("user2@example.com")
+                .status(UserStatus.ACTIVE)
+                .preferences(Preferences.builder().language("en").theme("light").notifications(false).build())
+                .build();
+        userRepository.insert(user2, "firstName", "email", "status", "preferences");
+
+        User user3 = User.builder()
+                .firstName("User3")
+                .email("user3@example.com")
+                .status(UserStatus.INACTIVE)
+                .preferences(Preferences.builder().language("fr").theme("auto").notifications(true).build())
+                .build();
+        userRepository.insert(user3, "firstName", "email", "status", "preferences");
+
+        // Add contact info for users
+        User foundUser1 = userRepository.findByEmail("user1@example.com", "id");
+        ContactInfo contact1 = ContactInfo.builder()
+                .userId(foundUser1.getId())
+                .contactType(ContactType.EMAIL)
+                .contactValue("user1@work.com")
+                .build();
+        contactInfoRepository.insert(contact1, "userId", "contactType", "contactValue");
+
+        User foundUser2 = userRepository.findByEmail("user2@example.com", "id");
+        ContactInfo contact2 = ContactInfo.builder()
+                .userId(foundUser2.getId())
+                .contactType(ContactType.PHONE)
+                .contactValue("+33612345678")
+                .build();
+        contactInfoRepository.insert(contact2, "userId", "contactType", "contactValue");
+
+        // When
+        UserReport report = userRepository.getUsersReport();
+
+        // Then
+        assertThat(report).isNotNull();
+        assertThat(report.getTotalUsers()).isEqualTo(3);
+        assertThat(report.getUsersWithEmailContact()).isEqualTo(1);
+        assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
     }
 }

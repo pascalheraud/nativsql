@@ -1,6 +1,7 @@
 package io.github.pascalheraud.nativsql.repository.mysql;
 
 import io.github.pascalheraud.nativsql.domain.mysql.User;
+import io.github.pascalheraud.nativsql.domain.mysql.UserReport;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 
@@ -17,6 +18,7 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
     }
 
     @Override
+    @NonNull
     protected Class<User> getEntityClass() {
         return User.class;
     }
@@ -30,6 +32,26 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
      */
     public User findByEmail(String email, String... columns) {
         return findByProperty("email", email, columns);
+    }
+
+    /**
+     * Generates a user statistics report.
+     *
+     * @return the user report with stats on total users, users with email contacts,
+     *         and users with French preferences
+     */
+    public UserReport getUsersReport() {
+        String sql = """
+                SELECT
+                    (SELECT COUNT(*) FROM users) as totalUsers,
+                    (SELECT COUNT(DISTINCT u.id) FROM users u
+                     INNER JOIN contact_info ci ON u.id = ci.user_id
+                     WHERE ci.contact_type = 'EMAIL') as usersWithEmailContact,
+                    (SELECT COUNT(*) FROM users u
+                     WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr') as usersWithFrenchPreference
+                FROM (SELECT 1) AS t
+                """;
+        return findExternal(sql, UserReport.class);
     }
 
 }

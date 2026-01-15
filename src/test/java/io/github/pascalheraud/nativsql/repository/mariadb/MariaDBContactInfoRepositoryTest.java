@@ -26,22 +26,24 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
     @Test
     void testInsertContactInfo() {
         // Given - Create a user first
-        User user = new User();
-        user.setFirstName("Alice");
-        user.setLastName("Wonder");
-        user.setEmail("alice@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+            .firstName("Alice")
+            .lastName("Wonder")
+            .email("alice@example.com")
+            .status(UserStatus.ACTIVE)
+            .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User foundUser = userRepository.findByEmail("alice@example.com", "id");
         Long userId = foundUser.getId();
 
         // Create contact info
-        ContactInfo contact = new ContactInfo();
-        contact.setUserId(userId);
-        contact.setContactType(ContactType.EMAIL);
-        contact.setContactValue("alice@work.com");
-        contact.setIsPrimary(true);
+        ContactInfo contact = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.EMAIL)
+            .contactValue("alice@work.com")
+            .isPrimary(true)
+            .build();
 
         // When
         int rows = contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
@@ -59,36 +61,40 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
     @Test
     void testFindByUserId() {
         // Given - Create a user with multiple contacts
-        User user = new User();
-        user.setFirstName("Bob");
-        user.setLastName("Builder");
-        user.setEmail("bob@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+            .firstName("Bob")
+            .lastName("Builder")
+            .email("bob@example.com")
+            .status(UserStatus.ACTIVE)
+            .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User foundUser = userRepository.findByEmail("bob@example.com", "id");
         Long userId = foundUser.getId();
 
         // Add multiple contacts
-        ContactInfo email = new ContactInfo();
-        email.setUserId(userId);
-        email.setContactType(ContactType.EMAIL);
-        email.setContactValue("bob@work.com");
-        email.setIsPrimary(true);
+        ContactInfo email = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.EMAIL)
+            .contactValue("bob@work.com")
+            .isPrimary(true)
+            .build();
         contactInfoRepository.insert(email, "userId", "contactType", "contactValue", "isPrimary");
 
-        ContactInfo phone = new ContactInfo();
-        phone.setUserId(userId);
-        phone.setContactType(ContactType.PHONE);
-        phone.setContactValue("+33612345678");
-        phone.setIsPrimary(false);
+        ContactInfo phone = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.PHONE)
+            .contactValue("+33612345678")
+            .isPrimary(false)
+            .build();
         contactInfoRepository.insert(phone, "userId", "contactType", "contactValue", "isPrimary");
 
-        ContactInfo linkedin = new ContactInfo();
-        linkedin.setUserId(userId);
-        linkedin.setContactType(ContactType.LINKEDIN);
-        linkedin.setContactValue("linkedin.com/in/bobbuilder");
-        linkedin.setIsPrimary(false);
+        ContactInfo linkedin = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.LINKEDIN)
+            .contactValue("linkedin.com/in/bobbuilder")
+            .isPrimary(false)
+            .build();
         contactInfoRepository.insert(linkedin, "userId", "contactType", "contactValue", "isPrimary");
 
         // When
@@ -104,36 +110,40 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
     @Test
     void testFindByUserIdAndType() {
         // Given - Create a user with contacts of different types
-        User user = new User();
-        user.setFirstName("Charlie");
-        user.setLastName("Brown");
-        user.setEmail("charlie@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+            .firstName("Charlie")
+            .lastName("Brown")
+            .email("charlie@example.com")
+            .status(UserStatus.ACTIVE)
+            .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User foundUser = userRepository.findByEmail("charlie@example.com", "id");
         Long userId = foundUser.getId();
 
         // Add multiple email contacts
-        ContactInfo email1 = new ContactInfo();
-        email1.setUserId(userId);
-        email1.setContactType(ContactType.EMAIL);
-        email1.setContactValue("charlie@work.com");
-        email1.setIsPrimary(true);
+        ContactInfo email1 = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.EMAIL)
+            .contactValue("charlie@work.com")
+            .isPrimary(true)
+            .build();
         contactInfoRepository.insert(email1, "userId", "contactType", "contactValue", "isPrimary");
 
-        ContactInfo email2 = new ContactInfo();
-        email2.setUserId(userId);
-        email2.setContactType(ContactType.EMAIL);
-        email2.setContactValue("charlie@personal.com");
-        email2.setIsPrimary(false);
+        ContactInfo email2 = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.EMAIL)
+            .contactValue("charlie@personal.com")
+            .isPrimary(false)
+            .build();
         contactInfoRepository.insert(email2, "userId", "contactType", "contactValue", "isPrimary");
 
-        ContactInfo phone = new ContactInfo();
-        phone.setUserId(userId);
-        phone.setContactType(ContactType.PHONE);
-        phone.setContactValue("+33987654321");
-        phone.setIsPrimary(false);
+        ContactInfo phone = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.PHONE)
+            .contactValue("+33987654321")
+            .isPrimary(false)
+            .build();
         contactInfoRepository.insert(phone, "userId", "contactType", "contactValue", "isPrimary");
 
         // When
@@ -149,29 +159,32 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
     @Test
     void testFindPrimaryByUserIdAndType() {
         // Given - Create a user with multiple contacts of same type
-        User user = new User();
-        user.setFirstName("Dave");
-        user.setLastName("Davidson");
-        user.setEmail("dave@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+            .firstName("Dave")
+            .lastName("Davidson")
+            .email("dave@example.com")
+            .status(UserStatus.ACTIVE)
+            .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User foundUser = userRepository.findByEmail("dave@example.com", "id");
         Long userId = foundUser.getId();
 
         // Add multiple phone contacts, only one is primary
-        ContactInfo phone1 = new ContactInfo();
-        phone1.setUserId(userId);
-        phone1.setContactType(ContactType.PHONE);
-        phone1.setContactValue("+33612345678");
-        phone1.setIsPrimary(true);
+        ContactInfo phone1 = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.PHONE)
+            .contactValue("+33612345678")
+            .isPrimary(true)
+            .build();
         contactInfoRepository.insert(phone1, "userId", "contactType", "contactValue", "isPrimary");
 
-        ContactInfo phone2 = new ContactInfo();
-        phone2.setUserId(userId);
-        phone2.setContactType(ContactType.PHONE);
-        phone2.setContactValue("+33687654321");
-        phone2.setIsPrimary(false);
+        ContactInfo phone2 = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.PHONE)
+            .contactValue("+33687654321")
+            .isPrimary(false)
+            .build();
         contactInfoRepository.insert(phone2, "userId", "contactType", "contactValue", "isPrimary");
 
         // When
@@ -187,21 +200,23 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
     @Test
     void testUpdateContactInfo() {
         // Given - Create a user and contact
-        User user = new User();
-        user.setFirstName("Eve");
-        user.setLastName("Everton");
-        user.setEmail("eve@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+            .firstName("Eve")
+            .lastName("Everton")
+            .email("eve@example.com")
+            .status(UserStatus.ACTIVE)
+            .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User foundUser = userRepository.findByEmail("eve@example.com", "id");
         Long userId = foundUser.getId();
 
-        ContactInfo contact = new ContactInfo();
-        contact.setUserId(userId);
-        contact.setContactType(ContactType.EMAIL);
-        contact.setContactValue("eve@old.com");
-        contact.setIsPrimary(false);
+        ContactInfo contact = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.EMAIL)
+            .contactValue("eve@old.com")
+            .isPrimary(false)
+            .build();
         contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
 
         ContactInfo found = contactInfoRepository.findByUserIdAndType(userId, ContactType.EMAIL, "id").get(0);
@@ -223,21 +238,23 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
     @Test
     void testDeleteContactInfo() {
         // Given - Create a user and contact
-        User user = new User();
-        user.setFirstName("Frank");
-        user.setLastName("Franklin");
-        user.setEmail("frank@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+            .firstName("Frank")
+            .lastName("Franklin")
+            .email("frank@example.com")
+            .status(UserStatus.ACTIVE)
+            .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User foundUser = userRepository.findByEmail("frank@example.com", "id");
         Long userId = foundUser.getId();
 
-        ContactInfo contact = new ContactInfo();
-        contact.setUserId(userId);
-        contact.setContactType(ContactType.TWITTER);
-        contact.setContactValue("@frank");
-        contact.setIsPrimary(false);
+        ContactInfo contact = ContactInfo.builder()
+            .userId(userId)
+            .contactType(ContactType.TWITTER)
+            .contactValue("@frank")
+            .isPrimary(false)
+            .build();
         contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
 
         ContactInfo found = contactInfoRepository.findByUserIdAndType(userId, ContactType.TWITTER, "id").get(0);

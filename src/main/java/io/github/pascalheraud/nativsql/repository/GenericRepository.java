@@ -53,6 +53,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     private DatabaseDialect databaseDialect;
 
+    @NonNull
     private final Class<T> entityClass;
 
     @Autowired(required = false)
@@ -74,6 +75,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     @NonNull
     protected abstract DataSource getDataSource();
 
+    @NonNull
     abstract protected Class<T> getEntityClass();
 
     protected abstract DatabaseDialect getDatabaseDialectInstance();
@@ -323,7 +325,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Finds a single entity using a complex FindQuery builder.
      * Loads associations if specified in the query using batch loading.
-     * 
+     *
      * @param query the FindQuery builder with search criteria
      * @return the first matching entity or null if not found
      */
@@ -334,19 +336,11 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         // Get parameters with SQL conversion
         Map<String, Object> params = query.getParameters(this::convertToSqlValue);
 
-        // Execute query
-        List<T> results = params.isEmpty()
-                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass, databaseDialect))
-                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass, databaseDialect));
-
-        if (results.isEmpty()) {
-            return null;
-        }
-
-        T entity = results.get(0);
+        // Execute query using findExternal
+        T entity = findExternal(sql, params, entityClass);
 
         // Load associations for single entity using batch loading
-        if (query.hasAssociations()) {
+        if (entity != null && query.hasAssociations()) {
             loadAssociationsInBatch(List.of(entity), query.getAssociations());
         }
 
@@ -365,9 +359,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         Map<String, Object> params = query.getParameters(this::convertToSqlValue);
 
         // Execute query (no association loading to avoid N+1)
-        return params.isEmpty()
-                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass, databaseDialect))
-                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass, databaseDialect));
+        return findAllExternal(sql, params, entityClass);
     }
 
     /**
@@ -617,6 +609,65 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         @SuppressWarnings("unchecked")
         V value = (V) accessor.getValue(entity);
         return value;
+    }
+
+    /**
+     * Executes a custom SQL query and returns a single external object.
+     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     *
+     * @param <EXT>       the type of the external object to return
+     * @param sql         the SQL query to execute
+     * @param resultClass the class of the external object to return
+     * @return the first result or null if not found
+     */
+    protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Class<EXT> resultClass) {
+        return findExternal(sql, new HashMap<>(), resultClass);
+    }
+
+    /**
+     * Executes a custom SQL query and returns a single external object.
+     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     *
+     * @param <EXT>       the type of the external object to return
+     * @param sql         the SQL query to execute
+     * @param params      the query parameters
+     * @param resultClass the class of the external object to return
+     * @return the first result or null if not found
+     */
+    protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
+            @NonNull Class<EXT> resultClass) {
+        List<EXT> results = jdbcTemplate.query(sql, params,
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect));
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    /**
+     * Executes a custom SQL query and returns a list of external objects.
+     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     *
+     * @param <EXT>       the type of the external objects to return
+     * @param sql         the SQL query to execute
+     * @param resultClass the class of the external objects to return
+     * @return a list of results
+     */
+    protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Class<EXT> resultClass) {
+        return findAllExternal(sql, new HashMap<>(), resultClass);
+    }
+
+    /**
+     * Executes a custom SQL query and returns a list of external objects.
+     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     *
+     * @param <EXT>       the type of the external objects to return
+     * @param sql         the SQL query to execute
+     * @param params      the query parameters
+     * @param resultClass the class of the external objects to return
+     * @return a list of results
+     */
+    protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Map<String, Object> params,
+            @NonNull Class<EXT> resultClass) {
+        return jdbcTemplate.query(sql, params,
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect));
     }
 
 }

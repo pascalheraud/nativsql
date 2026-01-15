@@ -277,6 +277,7 @@ public class FindQuery {
      * @param valueConverter a function to convert values to SQL format
      * @return a map of parameter names to SQL values
      */
+    @NonNull
     public Map<String, Object> getParameters(ValueConverter valueConverter) {
         Map<String, Object> params = new HashMap<>();
         for (Map.Entry<String, Object> entry : whereConditions.entrySet()) {

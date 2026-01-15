@@ -26,11 +26,12 @@ public class UserService {
         address.setCountry("France");
         user.setAddress(address);
         
-        // Preferences as JSON
-        Preferences prefs = new Preferences();
-        prefs.setLanguage("fr");
-        prefs.setTheme("dark");
-        prefs.setNotifications(true);
+        // Preferences as JSON - using builder pattern
+        Preferences prefs = Preferences.builder()
+            .language("fr")
+            .theme("dark")
+            .notifications(true)
+            .build();
         user.setPreferences(prefs);
         
         // Insert all non-null fields
@@ -433,6 +434,122 @@ class UserRepositoryTest {
         assertThat(found.getFirstName()).isEqualTo("Test");
     }
 }
+```
+
+## Database-Specific Examples
+
+### PostgreSQL
+
+```java
+@Repository
+public class PGUserRepository extends PGRepository<User, Long> {
+
+    public UserReport getUserReport() {
+        return findExternal("""
+            SELECT
+                COUNT(*) as totalUsers,
+                (SELECT COUNT(DISTINCT u.id) FROM users u
+                 INNER JOIN contact_info ci ON u.id = ci.user_id
+                 WHERE ci.contact_type = 'EMAIL'::contact_type) as usersWithEmailContact,
+                (SELECT COUNT(*) FROM users u
+                 WHERE u.preferences->>'language' = 'fr') as usersWithFrenchPreference
+            FROM users
+            LIMIT 1
+            """, UserReport.class);
+    }
+}
+
+// Creating User with builder pattern
+User user = User.builder()
+    .firstName("John")
+    .lastName("Doe")
+    .email("john@example.com")
+    .status(UserStatus.ACTIVE)
+    .build();
+
+// Creating Preferences with builder pattern
+Preferences prefs = Preferences.builder()
+    .language("fr")
+    .theme("dark")
+    .notifications(true)
+    .build();
+user.setPreferences(prefs);
+```
+
+### MySQL
+
+```java
+@Repository
+public class MySQLUserRepository extends MySQLRepository<User, Long> {
+
+    public UserReport getUserReport() {
+        return findExternal("""
+            SELECT
+                COUNT(*) as totalUsers,
+                (SELECT COUNT(DISTINCT u.id) FROM users u
+                 INNER JOIN contact_info ci ON u.id = ci.user_id
+                 WHERE ci.contact_type = 'EMAIL') as usersWithEmailContact,
+                (SELECT COUNT(*) FROM users u
+                 WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr') as usersWithFrenchPreference
+            FROM users
+            LIMIT 1
+            """, UserReport.class);
+    }
+}
+
+// Creating User with builder pattern
+User user = User.builder()
+    .firstName("Jane")
+    .lastName("Smith")
+    .email("jane@example.com")
+    .status(UserStatus.ACTIVE)
+    .build();
+
+// Creating Preferences with builder pattern
+Preferences prefs = Preferences.builder()
+    .language("en")
+    .theme("light")
+    .notifications(false)
+    .build();
+user.setPreferences(prefs);
+```
+
+### MariaDB
+
+```java
+@Repository
+public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
+
+    public UserReport getUserReport() {
+        return findExternal("""
+            SELECT
+                COUNT(*) as totalUsers,
+                (SELECT COUNT(DISTINCT u.id) FROM users u
+                 INNER JOIN contact_info ci ON u.id = ci.user_id
+                 WHERE ci.contact_type = 'EMAIL') as usersWithEmailContact,
+                (SELECT COUNT(*) FROM users u
+                 WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr') as usersWithFrenchPreference
+            FROM users
+            LIMIT 1
+            """, UserReport.class);
+    }
+}
+
+// Creating User with builder pattern
+User user = User.builder()
+    .firstName("Bob")
+    .lastName("Johnson")
+    .email("bob@example.com")
+    .status(UserStatus.ACTIVE)
+    .build();
+
+// Creating Preferences with builder pattern
+Preferences prefs = Preferences.builder()
+    .language("es")
+    .theme("auto")
+    .notifications(true)
+    .build();
+user.setPreferences(prefs);
 ```
 
 ## Performance Tips

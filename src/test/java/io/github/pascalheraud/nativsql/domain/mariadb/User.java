@@ -6,12 +6,18 @@ import java.util.List;
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
 import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.repository.mysql.MySQLContactInfoRepository;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * User entity.
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User implements Entity<Long> {
     private Long id;
     private String firstName;

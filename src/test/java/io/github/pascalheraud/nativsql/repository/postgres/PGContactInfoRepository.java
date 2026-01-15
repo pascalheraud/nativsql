@@ -20,6 +20,7 @@ public class PGContactInfoRepository extends PGRepository<ContactInfo, Long> {
     }
 
     @Override
+    @NonNull
     protected Class<ContactInfo> getEntityClass() {
         return ContactInfo.class;
     }

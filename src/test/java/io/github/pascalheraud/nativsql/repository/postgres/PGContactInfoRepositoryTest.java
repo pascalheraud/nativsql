@@ -24,11 +24,12 @@ class PGContactInfoRepositoryTest  extends PGRepositoryTest{
     private PGUserRepository userRepository;
 
     private Long createTestUser() {
-        User user = new User();
-        user.setFirstName("John");
-        user.setLastName("Doe");
-        user.setEmail("john@example.com");
-        user.setStatus(UserStatus.ACTIVE);
+        User user = User.builder()
+                .firstName("John")
+                .lastName("Doe")
+                .email("john@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         User found = userRepository.findByEmail("john@example.com", "id");
@@ -40,11 +41,12 @@ class PGContactInfoRepositoryTest  extends PGRepositoryTest{
         // Given
         Long testUserId = createTestUser();
 
-        ContactInfo contact = new ContactInfo();
-        contact.setUserId(testUserId);
-        contact.setContactType(ContactType.EMAIL);
-        contact.setContactValue("john@work.com");
-        contact.setIsPrimary(true);
+        ContactInfo contact = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@work.com")
+                .isPrimary(true)
+                .build();
 
         // When
         int rows = contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
@@ -65,23 +67,26 @@ class PGContactInfoRepositoryTest  extends PGRepositoryTest{
         // Given
         Long testUserId = createTestUser();
 
-        ContactInfo email = new ContactInfo();
-        email.setUserId(testUserId);
-        email.setContactType(ContactType.EMAIL);
-        email.setContactValue("john@work.com");
-        email.setIsPrimary(true);
+        ContactInfo email = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@work.com")
+                .isPrimary(true)
+                .build();
 
-        ContactInfo phone = new ContactInfo();
-        phone.setUserId(testUserId);
-        phone.setContactType(ContactType.PHONE);
-        phone.setContactValue("+33612345678");
-        phone.setIsPrimary(false);
+        ContactInfo phone = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.PHONE)
+                .contactValue("+33612345678")
+                .isPrimary(false)
+                .build();
 
-        ContactInfo linkedin = new ContactInfo();
-        linkedin.setUserId(testUserId);
-        linkedin.setContactType(ContactType.LINKEDIN);
-        linkedin.setContactValue("linkedin.com/in/johndoe");
-        linkedin.setIsPrimary(false);
+        ContactInfo linkedin = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.LINKEDIN)
+                .contactValue("linkedin.com/in/johndoe")
+                .isPrimary(false)
+                .build();
 
         // When
         contactInfoRepository.insert(email, "userId", "contactType", "contactValue", "isPrimary");
@@ -99,23 +104,26 @@ class PGContactInfoRepositoryTest  extends PGRepositoryTest{
         // Given
         Long testUserId = createTestUser();
 
-        ContactInfo email1 = new ContactInfo();
-        email1.setUserId(testUserId);
-        email1.setContactType(ContactType.EMAIL);
-        email1.setContactValue("john@work.com");
-        email1.setIsPrimary(true);
+        ContactInfo email1 = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@work.com")
+                .isPrimary(true)
+                .build();
 
-        ContactInfo email2 = new ContactInfo();
-        email2.setUserId(testUserId);
-        email2.setContactType(ContactType.EMAIL);
-        email2.setContactValue("john@personal.com");
-        email2.setIsPrimary(false);
+        ContactInfo email2 = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@personal.com")
+                .isPrimary(false)
+                .build();
 
-        ContactInfo phone = new ContactInfo();
-        phone.setUserId(testUserId);
-        phone.setContactType(ContactType.PHONE);
-        phone.setContactValue("+33612345678");
-        phone.setIsPrimary(false);
+        ContactInfo phone = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.PHONE)
+                .contactValue("+33612345678")
+                .isPrimary(false)
+                .build();
 
         contactInfoRepository.insert(email1, "userId", "contactType", "contactValue", "isPrimary");
         contactInfoRepository.insert(email2, "userId", "contactType", "contactValue", "isPrimary");
@@ -135,17 +143,19 @@ class PGContactInfoRepositoryTest  extends PGRepositoryTest{
         // Given
         Long testUserId = createTestUser();
 
-        ContactInfo email1 = new ContactInfo();
-        email1.setUserId(testUserId);
-        email1.setContactType(ContactType.EMAIL);
-        email1.setContactValue("john@work.com");
-        email1.setIsPrimary(true);
+        ContactInfo email1 = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@work.com")
+                .isPrimary(true)
+                .build();
 
-        ContactInfo email2 = new ContactInfo();
-        email2.setUserId(testUserId);
-        email2.setContactType(ContactType.EMAIL);
-        email2.setContactValue("john@personal.com");
-        email2.setIsPrimary(false);
+        ContactInfo email2 = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@personal.com")
+                .isPrimary(false)
+                .build();
 
         contactInfoRepository.insert(email1, "userId", "contactType", "contactValue", "isPrimary");
         contactInfoRepository.insert(email2, "userId", "contactType", "contactValue", "isPrimary");
@@ -165,10 +175,11 @@ class PGContactInfoRepositoryTest  extends PGRepositoryTest{
         // Given
         Long testUserId = createTestUser();
 
-        ContactInfo contact = new ContactInfo();
-        contact.setUserId(testUserId);
-        contact.setContactType(ContactType.EMAIL);
-        contact.setContactValue("john@work.com");
+        ContactInfo contact = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@work.com")
+                .build();
         contactInfoRepository.insert(contact, "userId", "contactType", "contactValue");
 
         List<ContactInfo> contacts = contactInfoRepository.findByUserId(testUserId, "id");

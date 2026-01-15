@@ -1,19 +1,17 @@
 package io.github.pascalheraud.nativsql.domain.mariadb;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * User preferences, stored as JSON in MariaDB.
+ * User statistics report.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
-public class Preferences {
-    private String language;
-    private String theme;
-    private boolean notifications;
+public class UserReport {
+    private long totalUsers;
+    private long usersWithEmailContact;
+    private long usersWithFrenchPreference;
 }

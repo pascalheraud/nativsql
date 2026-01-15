@@ -3,12 +3,18 @@ package io.github.pascalheraud.nativsql.domain.mariadb;
 import java.time.LocalDateTime;
 
 import io.github.pascalheraud.nativsql.domain.Entity;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Contact information entity.
  */
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ContactInfo implements Entity<Long> {
     private Long id;
     private Long userId;
