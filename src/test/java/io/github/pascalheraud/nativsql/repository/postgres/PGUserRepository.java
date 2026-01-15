@@ -2,7 +2,7 @@ package io.github.pascalheraud.nativsql.repository.postgres;
 
 import java.util.List;
 
-import io.github.pascalheraud.nativsql.domain.User;
+import io.github.pascalheraud.nativsql.domain.postgres.User;
 import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Repository;
 

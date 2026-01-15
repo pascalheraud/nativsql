@@ -1,7 +1,8 @@
-package io.github.pascalheraud.nativsql.domain;
+package io.github.pascalheraud.nativsql.domain.mysql;
 
 import java.time.LocalDateTime;
 
+import io.github.pascalheraud.nativsql.domain.Entity;
 import lombok.Data;
 
 /**

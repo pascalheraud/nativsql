@@ -1,20 +1,21 @@
-package io.github.pascalheraud.nativsql.repository.postgres;
+package io.github.pascalheraud.nativsql.repository.mysql;
 
 import java.util.List;
 
-import io.github.pascalheraud.nativsql.domain.postgres.ContactInfo;
-import io.github.pascalheraud.nativsql.domain.postgres.ContactType;
-import org.springframework.lang.NonNull;
+import jakarta.annotation.Nonnull;
+
+import io.github.pascalheraud.nativsql.domain.mysql.ContactInfo;
+import io.github.pascalheraud.nativsql.domain.mysql.ContactType;
 import org.springframework.stereotype.Repository;
 
 /**
- * Repository for ContactInfo entities.
+ * Repository for ContactInfo entities using MySQL.
  */
 @Repository
-public class PGContactInfoRepository extends PGRepository<ContactInfo, Long> {
+public class MySQLContactInfoRepository extends MySQLRepository<ContactInfo, Long> {
 
     @Override
-    @NonNull
+    @Nonnull
     protected String getTableName() {
         return "contact_info";
     }

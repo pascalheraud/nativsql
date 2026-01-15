@@ -1,4 +1,4 @@
-package io.github.pascalheraud.nativsql.domain;
+package io.github.pascalheraud.nativsql.domain.postgres;
 
 /**
  * User preferences, stored as JSONB in PostgreSQL.

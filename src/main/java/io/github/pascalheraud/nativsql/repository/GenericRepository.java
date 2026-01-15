@@ -1,7 +1,5 @@
 package io.github.pascalheraud.nativsql.repository;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -16,14 +14,11 @@ import javax.sql.DataSource;
 
 import jakarta.annotation.PostConstruct;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.lang.NonNull;
+import io.github.pascalheraud.nativsql.db.DatabaseDialect;
 import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
 import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
-import io.github.pascalheraud.nativsql.mapper.TypeMapperFactory;
 import io.github.pascalheraud.nativsql.util.Association;
 import io.github.pascalheraud.nativsql.util.FieldAccessor;
 import io.github.pascalheraud.nativsql.util.Fields;
@@ -33,6 +28,10 @@ import io.github.pascalheraud.nativsql.util.OrderBy;
 import io.github.pascalheraud.nativsql.util.ReflectionUtils;
 import io.github.pascalheraud.nativsql.util.SqlUtils;
 import io.github.pascalheraud.nativsql.util.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.lang.NonNull;
 
 /**
  * Generic repository base class that provides insert and update operations
@@ -52,11 +51,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     @NonNull
     private RowMapperFactory rowMapperFactory;
 
-    @Autowired
-    private TypeMapperFactory typeMapperFactory;
-
-    @Autowired
-    private io.github.pascalheraud.nativsql.db.DatabaseDialect databaseDialect;
+    private DatabaseDialect databaseDialect;
 
     private final Class<T> entityClass;
 
@@ -73,12 +68,15 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     @PostConstruct
     protected void initJdbcTemplate() {
         this.jdbcTemplate = new NamedParameterJdbcTemplate(getDataSource());
+        this.databaseDialect = getDatabaseDialectInstance();
     }
 
     @NonNull
     protected abstract DataSource getDataSource();
 
     abstract protected Class<T> getEntityClass();
+
+    protected abstract DatabaseDialect getDatabaseDialectInstance();
 
     /**
      * Returns the name of the database table.
@@ -257,7 +255,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         String sql = "SELECT " + columnList + " FROM " + getTableName() + " WHERE " + propertySnake + " IN ("
                 + String.join(",", placeholders) + ")";
 
-        return jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass));
+        return jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass, databaseDialect));
     }
 
     /**
@@ -279,7 +277,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         List<T> results = jdbcTemplate.query(sql,
                 getMap(paramName, value),
-                rowMapperFactory.getRowMapper(entityClass));
+                rowMapperFactory.getRowMapper(entityClass, databaseDialect));
 
         return results.isEmpty() ? null : results.get(0);
     }
@@ -338,8 +336,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         // Execute query
         List<T> results = params.isEmpty()
-                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass))
-                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass));
+                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass, databaseDialect))
+                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass, databaseDialect));
 
         if (results.isEmpty()) {
             return null;
@@ -368,8 +366,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         // Execute query (no association loading to avoid N+1)
         return params.isEmpty()
-                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass))
-                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass));
+                ? jdbcTemplate.query(sql, rowMapperFactory.getRowMapper(entityClass, databaseDialect))
+                : jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass, databaseDialect));
     }
 
     /**
@@ -456,78 +454,20 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Formats a parameter with appropriate SQL casting for enums and composite
-     * types.
+     * types using the TypeMapper.
      */
-    private String formatParameter(String paramName, Class<?> type) {
-        if (type != null && type.isEnum()) {
-            // Get the registered database type name from the factory
-            String enumTypeName = typeMapperFactory.getEnumDbType(type);
-            if (enumTypeName == null) {
-                // Fallback: convert class name to snake_case
-                enumTypeName = StringUtils.camelToSnake(type.getSimpleName());
-            }
-            return databaseDialect.formatEnumParameter(paramName, enumTypeName);
-        }
-
-        if (type != null && typeMapperFactory.isCompositeType(type)) {
-            // Get the registered database composite type name
-            String compositeTypeName = typeMapperFactory.getCompositeDbType(type);
-            return databaseDialect.formatCompositeParameter(paramName, compositeTypeName);
-        }
-
-        return ":" + paramName;
+    private <PARAM_T> String formatParameter(String paramName, Class<PARAM_T> type) {
+        return databaseDialect.getMapper(type).formatParameter(paramName);
     }
 
     /**
      * Converts a Java object to its SQL representation.
      * Handles enums, composite types, JSON types, and value objects.
      */
-    private Object convertToSqlValue(Object value) {
-        if (value == null) {
-            return null;
-        }
-
-        Class<?> valueClass = value.getClass();
-
-        // Enums → database object
-        if (valueClass.isEnum()) {
-            String enumDbType = typeMapperFactory.getEnumDbType(valueClass);
-            if (enumDbType == null) {
-                // Fallback to string representation
-                return ((Enum<?>) value).name();
-            }
-            return databaseDialect.convertEnumToSql((Enum<?>) value, enumDbType);
-        }
-
-        // Composite types → database object
-        if (typeMapperFactory.isCompositeType(valueClass)) {
-            String compositeDbType = typeMapperFactory.getCompositeDbType(valueClass);
-            try {
-                return databaseDialect.convertCompositeToSql(value, valueClass, compositeDbType, null);
-            } catch (Exception e) {
-                throw new SQLException("Failed to convert composite type to SQL: " + valueClass.getSimpleName(), e);
-            }
-        }
-
-        // JSON types → database object
-        if (typeMapperFactory.isJsonType(valueClass)) {
-            return typeMapperFactory.toJsonb(value);
-        }
-
-        // Value objects with getValue() method
-        try {
-            Method getValue = valueClass.getMethod("getValue");
-            if (getValue.getReturnType() != void.class) {
-                return getValue.invoke(value);
-            }
-        } catch (NoSuchMethodException e) {
-            // No getValue() method, continue to default behavior
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new SQLException("Failed to invoke getValue() on value object: " + valueClass.getSimpleName(), e);
-        }
-
-        // Default: return as-is
-        return value;
+    @SuppressWarnings("unchecked")
+    private <PARAM_T> Object convertToSqlValue(PARAM_T value) {
+        ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(value.getClass());
+        return mapper.toDatabase(value);
     }
 
     /**

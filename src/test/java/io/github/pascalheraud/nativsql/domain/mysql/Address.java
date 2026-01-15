@@ -1,4 +1,4 @@
-package io.github.pascalheraud.nativsql.domain;
+package io.github.pascalheraud.nativsql.domain.mysql;
 
 /**
  * Address value object, stored as JSONB in PostgreSQL.

@@ -1,0 +1,82 @@
+package io.github.pascalheraud.nativsql.db;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
+import io.github.pascalheraud.nativsql.mapper.DefaultTypeMapper;
+import io.github.pascalheraud.nativsql.mapper.EnumStringMapper;
+import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
+
+/**
+ * Base dialect with common behavior shared across all database implementations.
+ * Provides default implementations that can be overridden by specific dialects.
+ */
+public abstract class DefaultDialect implements DatabaseDialect {
+
+    protected final Map<Class<?>, String> jsonTypes = new HashMap<>();
+    protected final Map<Class<?>, String> enumDbTypes = new ConcurrentHashMap<>();
+    protected final Map<Class<?>, String> compositeDbTypes = new ConcurrentHashMap<>();
+
+    public <T> void registerJsonType(Class<T> jsonClass) {
+        jsonTypes.putIfAbsent(jsonClass, jsonClass.getSimpleName());
+    }
+
+    public <E extends Enum<E>> void registerEnumType(Class<E> enumClass, String dbTypeName) {
+        enumDbTypes.put(enumClass, dbTypeName);
+    }
+
+    public <T> void registerCompositeType(Class<T> compositeClass, String dbTypeName) {
+        compositeDbTypes.put(compositeClass, dbTypeName);
+    }
+
+    /**
+     * Gets the appropriate TypeMapper for the given class.
+     * Checks enum types first, then JSON types.
+     * Subclasses can override to add dialect-specific mappings.
+     */
+    @SuppressWarnings("unchecked")
+    @Override
+    public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
+        // Check if it's an enum
+        if (targetType.isEnum()) {
+            return (ITypeMapper<T>) getEnumMapperHelper((Class<?>) targetType);
+        }
+
+        // Check if it's a registered JSON type
+        if (jsonTypes.containsKey(targetType)) {
+            return (ITypeMapper<T>) getJsonMapper(targetType);
+        }
+
+        // Default: return null, indicating no dialect-specific mapper found
+        return new DefaultTypeMapper<T>();
+    }
+
+    /**
+     * Helper method to call getEnumMapper with proper type safety.
+     */
+    private <E extends Enum<E>> ITypeMapper<E> getEnumMapperHelper(Class<?> enumClass) {
+        @SuppressWarnings("unchecked")
+        Class<E> typedEnum = (Class<E>) enumClass;
+        return (ITypeMapper<E>) getEnumMapper(typedEnum);
+    }
+
+    @Override
+    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass) {
+        return new EnumStringMapper<E>(enumClass);
+    }
+
+    @Override
+    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
+        throw new UnsupportedOperationException(
+                "JSON type mapping is not supported by default dialect. " +
+                        "Override getJsonMapper() in your dialect implementation: " + jsonClass.getName());
+    }
+
+    @Override
+    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass) {
+        throw new UnsupportedOperationException(
+                "Composite type mapping is not supported by default dialect. " +
+                        "Override getCompositeMapper() in your dialect implementation: " + compositeClass.getName());
+    }
+}

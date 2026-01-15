@@ -4,14 +4,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
 
+import io.github.pascalheraud.nativsql.domain.postgres.ContactInfo;
+import io.github.pascalheraud.nativsql.domain.postgres.ContactType;
+import io.github.pascalheraud.nativsql.domain.postgres.User;
+import io.github.pascalheraud.nativsql.domain.postgres.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
-
-import io.github.pascalheraud.nativsql.domain.ContactInfo;
-import io.github.pascalheraud.nativsql.domain.ContactType;
-import io.github.pascalheraud.nativsql.domain.User;
-import io.github.pascalheraud.nativsql.domain.UserStatus;
 
 /**
  * Integration tests for ContactInfoRepository using Testcontainers.

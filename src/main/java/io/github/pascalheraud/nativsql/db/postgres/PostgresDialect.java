@@ -1,14 +1,13 @@
 package io.github.pascalheraud.nativsql.db.postgres;
 
-import java.lang.reflect.Field;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
+import java.lang.annotation.Annotation;
+import java.util.HashMap;
+import java.util.Map;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.pascalheraud.nativsql.db.DatabaseDialect;
-import io.github.pascalheraud.nativsql.db.TypeRegistry;
-import org.postgresql.util.PGobject;
+import io.github.pascalheraud.nativsql.annotation.EnumMapping;
+import io.github.pascalheraud.nativsql.db.DefaultDialect;
+import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
+import org.springframework.stereotype.Component;
 
 /**
  * PostgreSQL-specific implementation of DatabaseDialect.
@@ -18,190 +17,68 @@ import org.postgresql.util.PGobject;
  * - Composite types with (val1,val2,val3) format
  * - JSON/JSONB types
  */
-public class PostgresDialect implements DatabaseDialect {
+@Component
+public class PostgresDialect extends DefaultDialect {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    private final Map<Class<?>, String> enumTypeNames = new HashMap<>();
+    private final Map<Class<?>, String> compositeTypeNames = new HashMap<>();
 
-    @Override
-    public String formatEnumParameter(String paramName, String dbTypeName) {
-        return "(:" + paramName + ")::" + dbTypeName;
+    public <E extends Enum<E>> void registerEnumType(Class<E> enumClass, String pgTypeName) {
+        enumTypeNames.put(enumClass, pgTypeName);
+    }
+
+    public <T> void registerCompositeType(Class<T> compositeClass, String pgTypeName) {
+        compositeTypeNames.put(compositeClass, pgTypeName);
     }
 
     @Override
-    public String formatCompositeParameter(String paramName, String dbTypeName) {
-        return "(:" + paramName + ")::" + dbTypeName;
-    }
+    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass) {
+        // Check if enum type is registered programmatically
+        String dbTypeName = enumTypeNames.get(enumClass);
 
-    @Override
-    public Object convertEnumToSql(Enum<?> value, String dbTypeName) {
-        try {
-            PGobject pgObject = new PGobject();
-            pgObject.setType(dbTypeName);
-            pgObject.setValue(value.name());
-            return pgObject;
-        } catch (SQLException e) {
-            throw new RuntimeException("Failed to convert enum to SQL", e);
-        }
-    }
-
-    @Override
-    public Object convertCompositeToSql(Object value, Class<?> valueClass, String dbTypeName,
-                                         TypeRegistry registry) {
-        try {
-            List<String> fieldValues = new ArrayList<>();
-
-            for (Field field : valueClass.getDeclaredFields()) {
-                field.setAccessible(true);
-                Object fieldValue = field.get(value);
-                String quoted = quoteCompositeValue(fieldValue);
-                fieldValues.add(quoted);
-            }
-
-            PGobject pgObject = new PGobject();
-            pgObject.setType(dbTypeName);
-            pgObject.setValue("(" + String.join(",", fieldValues) + ")");
-            return pgObject;
-        } catch (IllegalAccessException | SQLException e) {
-            throw new RuntimeException("Failed to convert composite to SQL", e);
-        }
-    }
-
-    @Override
-    public Object convertJsonToSql(Object value) {
-        try {
-            PGobject pgObject = new PGobject();
-            pgObject.setType("jsonb");
-            pgObject.setValue(objectMapper.writeValueAsString(value));
-            return pgObject;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to convert value to JSON", e);
-        }
-    }
-
-    @Override
-    public <T> T parseCompositeType(Object dbValue, Class<T> targetType,
-                                     TypeRegistry registry) {
-        try {
-            if (!(dbValue instanceof PGobject)) {
-                throw new RuntimeException("Expected PGobject for composite type, got: " + dbValue.getClass());
-            }
-
-            PGobject pgObject = (PGobject) dbValue;
-            String compositeStr = pgObject.getValue();
-
-            // Remove outer parentheses and split by comma
-            String trimmed = compositeStr.substring(1, compositeStr.length() - 1);
-            String[] values = trimmed.split(",", -1);
-
-            T instance = targetType.getDeclaredConstructor().newInstance();
-            Field[] fields = targetType.getDeclaredFields();
-
-            for (int i = 0; i < fields.length && i < values.length; i++) {
-                Field field = fields[i];
-                field.setAccessible(true);
-
-                String value = values[i];
-                // Remove quotes if present
-                if (value.startsWith("\"") && value.endsWith("\"")) {
-                    value = value.substring(1, value.length() - 1);
+        // If not in map, check for annotation
+        if (dbTypeName == null) {
+            // Look for EnumPGMapping annotation
+            Annotation[] annotations = enumClass.getAnnotations();
+            for (Annotation annotation : annotations) {
+                if (annotation instanceof EnumMapping enumMapping) {
+                    dbTypeName = enumMapping.pgTypeName();
+                    // Cache it in the map for next time
+                    enumTypeNames.put(enumClass, dbTypeName);
                 }
-
-                Object convertedValue = convertValue(value, field.getType());
-                field.set(instance, convertedValue);
             }
-
-            return instance;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse composite type", e);
         }
+
+        return new PGEnumMapper<E>(enumClass, dbTypeName);
     }
 
     @Override
-    public <E extends Enum<E>> E parseEnum(Object dbValue, Class<E> enumClass) {
-        try {
-            if (dbValue instanceof PGobject) {
-                String enumValue = ((PGobject) dbValue).getValue();
-                return Enum.valueOf(enumClass, enumValue);
-            } else if (dbValue instanceof String) {
-                return Enum.valueOf(enumClass, (String) dbValue);
-            }
-            throw new RuntimeException("Cannot parse enum from value: " + dbValue);
-        } catch (IllegalArgumentException e) {
-            throw new RuntimeException("Invalid enum value", e);
-        }
+    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
+        // PostgreSQL uses the dedicated PostgreJSONTypeMapper
+        return new PostgreJSONTypeMapper<>(jsonClass);
     }
 
     @Override
-    public Object parseJson(Object dbValue, Class<?> targetType) {
-        try {
-            String jsonStr;
-            if (dbValue instanceof PGobject) {
-                jsonStr = ((PGobject) dbValue).getValue();
-            } else if (dbValue instanceof String) {
-                jsonStr = (String) dbValue;
-            } else {
-                return dbValue;
-            }
+    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass) {
+        // Check if composite type is registered programmatically
+        String dbTypeName = compositeTypeNames.get(compositeClass);
 
-            return objectMapper.readValue(jsonStr, targetType);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to parse JSON value", e);
+        if (dbTypeName == null) {
+            throw new RuntimeException("Composite type not registered: " + compositeClass.getName());
         }
+
+        // PostgreSQL uses the dedicated PostgresCompositeTypeMapper
+        return new PostgresCompositeTypeMapper<>(compositeClass, dbTypeName);
     }
 
     @Override
-    public String getRegisteredEnumType(Class<?> enumType) {
-        // This would normally query the registry, but we don't have direct access to it here
-        // The actual lookup happens in PostgresTypeRegistry
-        return null;
-    }
-
-    @Override
-    public String getRegisteredCompositeType(Class<?> compositeType) {
-        // This would normally query the registry, but we don't have direct access to it here
-        // The actual lookup happens in PostgresTypeRegistry
-        return null;
-    }
-
-    /**
-     * Quotes a value for use in a PostgreSQL composite type string.
-     * Handles null values, strings, and other types.
-     */
-    private String quoteCompositeValue(Object value) {
-        if (value == null) {
-            return "";
+    public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
+        // Check for composite types first (PostgreSQL-specific)
+        if (compositeTypeNames.containsKey(targetType)) {
+            return getCompositeMapper(targetType);
         }
 
-        if (value instanceof String) {
-            String str = (String) value;
-            // Escape backslashes and quotes
-            str = str.replace("\\", "\\\\").replace("\"", "\\\"");
-            return "\"" + str + "\"";
-        }
-
-        return value.toString();
-    }
-
-    /**
-     * Converts a string value to the target type.
-     */
-    private Object convertValue(String value, Class<?> targetType) {
-        if (value == null || value.isEmpty()) {
-            return null;
-        }
-
-        if (String.class == targetType) {
-            return value;
-        } else if (Integer.class == targetType || int.class == targetType) {
-            return Integer.parseInt(value);
-        } else if (Long.class == targetType || long.class == targetType) {
-            return Long.parseLong(value);
-        } else if (Double.class == targetType || double.class == targetType) {
-            return Double.parseDouble(value);
-        } else if (Boolean.class == targetType || boolean.class == targetType) {
-            return Boolean.parseBoolean(value);
-        }
-
-        return value;
+        // Fall back to parent implementation for enums and JSON types
+        return super.getMapper(targetType);
     }
 }

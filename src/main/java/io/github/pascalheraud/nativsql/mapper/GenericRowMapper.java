@@ -20,11 +20,11 @@ import org.springframework.lang.Nullable;
 public class GenericRowMapper<T> implements RowMapper<T> {
 
     private final Class<T> rootClass;
-    private final List<PropertyMetadata> simpleProperties;
+    private final List<PropertyMetadata<?>> simpleProperties;
     private final Map<String, NestedPropertyMetadata> nestedProperties;
 
     public GenericRowMapper(Class<T> rootClass,
-            List<PropertyMetadata> simpleProperties,
+            List<PropertyMetadata<?>> simpleProperties,
             Map<String, NestedPropertyMetadata> nestedProperties) {
         this.rootClass = rootClass;
         this.simpleProperties = simpleProperties;
@@ -38,7 +38,7 @@ public class GenericRowMapper<T> implements RowMapper<T> {
             T instance = null;
 
             // Map simple properties
-            for (PropertyMetadata prop : simpleProperties) {
+            for (PropertyMetadata<?> prop : simpleProperties) {
                 // Check if column exists first before attempting to map
                 if (!columnExists(rs, prop.getColumnName())) {
                     continue;
@@ -52,7 +52,7 @@ public class GenericRowMapper<T> implements RowMapper<T> {
                         if (instance == null) {
                             instance = rootClass.getDeclaredConstructor().newInstance();
                         }
-                        prop.getSetter().invoke(instance, value);
+                        prop.getFieldAccessor().setValue(instance, value);
                     } else {
                         // Column exists but value is NULL
                         if (instance == null) {
@@ -88,7 +88,7 @@ public class GenericRowMapper<T> implements RowMapper<T> {
         }
     }
 
-    /**
+        /**
      * Checks if a column exists in the ResultSet.
      */
     private boolean columnExists(ResultSet rs, String columnName) {

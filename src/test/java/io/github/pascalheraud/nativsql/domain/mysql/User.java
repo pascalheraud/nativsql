@@ -1,10 +1,11 @@
-package io.github.pascalheraud.nativsql.domain;
+package io.github.pascalheraud.nativsql.domain.mysql;
 
 import java.time.LocalDateTime;
 import java.util.List;
 
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
-import io.github.pascalheraud.nativsql.repository.postgres.PGContactInfoRepository;
+import io.github.pascalheraud.nativsql.domain.Entity;
+import io.github.pascalheraud.nativsql.repository.mysql.MySQLContactInfoRepository;
 import lombok.Data;
 
 /**
@@ -24,7 +25,7 @@ public class User implements Entity<Long> {
 
     @OneToMany(
         mappedBy = "userId",
-        repository = PGContactInfoRepository.class
+        repository = MySQLContactInfoRepository.class
     )
     private List<ContactInfo> contacts;
 }

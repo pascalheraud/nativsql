@@ -1,4 +1,4 @@
-package io.github.pascalheraud.nativsql.repository;
+package io.github.pascalheraud.nativsql.repository.postgres;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 
 import io.github.pascalheraud.nativsql.config.NativSqlConfig;
 import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
+import io.github.pascalheraud.nativsql.repository.BaseRepositoryTest;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
@@ -27,14 +28,26 @@ import org.testcontainers.utility.DockerImageName;
  * Initializes the schema once per JVM before any tests run.
  */
 @SuppressWarnings("resource")
-@SpringBootTest
-@Import({ NativSqlConfig.class, RowMapperFactory.class })
-public abstract class PGBaseRepositoryTest {
+public abstract class PGBaseRepositoryTest extends BaseRepositoryTest{
     protected abstract String getScriptPath();
 
+    static boolean pgSchemaLoaded = false;
     static JdbcDatabaseContainer<?> databaseContainer;
-    // static JdbcDatabaseContainer<?> secondaryDatabaseContainer;
-    static boolean loadSchema = false;
+
+    @Override
+    public JdbcDatabaseContainer<?> getDatabaseContainer() {
+        return databaseContainer;
+    }
+
+    @Override
+    protected boolean isSchemaLoaded() {
+        return pgSchemaLoaded;
+    }
+
+    @Override
+    protected void markSchemaAsLoaded() {
+        pgSchemaLoaded = true;
+    }
 
     protected static void init() {
         if (databaseContainer == null) {
@@ -47,30 +60,6 @@ public abstract class PGBaseRepositoryTest {
                     .withUsername("test")
                     .withPassword("test");
             databaseContainer.start();
-        }
-    }
-
-    @BeforeEach
-    private void loadSchema() throws SQLException, IOException {
-        if (!loadSchema) {
-            loadSchema = true;
-            try (Connection conn = DriverManager.getConnection(databaseContainer.getJdbcUrl(),
-                    databaseContainer.getUsername(),
-                    databaseContainer.getPassword());
-                    Statement stmt = conn.createStatement()) {
-
-                String sql = readSqlScript();
-                stmt.execute(sql);
-
-            }
-        }
-    }
-
-    private String readSqlScript() throws IOException {
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(
-                        PGBaseRepositoryTest.class.getClassLoader().getResourceAsStream(getScriptPath())))) {
-            return reader.lines().collect(Collectors.joining("\n"));
         }
     }
 

@@ -104,6 +104,10 @@ public class FieldAccessor {
         return field;
     }
 
+    public boolean isSimpleType() {
+        return !this.hasAnnotation(OneToMany.class);
+    }
+
     /**
      * Gets the OneToMany association details.
      *

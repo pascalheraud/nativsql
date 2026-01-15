@@ -1,4 +1,4 @@
-package io.github.pascalheraud.nativsql.domain;
+package io.github.pascalheraud.nativsql.domain.mysql;
 
 import io.github.pascalheraud.nativsql.annotation.EnumMapping;
 

@@ -10,21 +10,21 @@ import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
  *
  * Implementations handle database-specific syntax and type marshalling.
  */
-public interface DatabaseDialect {
+public interface IDatabaseDialect {
 
     /**
-     * Gets the appropriate TypeMapper for the given class.
+     * Gets the appropriate ITypeMapper for the given class.
      * Checks enum types, JSON types, and composite types.
      * Returns null if no dialect-specific mapper is found.
      *
      * @param targetType the type to get a mapper for
-     * @return a TypeMapper for the type, or null if not found
+     * @return a ITypeMapper for the type, or null if not found
      * @param <T> the type
      */
     <T> ITypeMapper<T> getMapper(Class<T> targetType);
 
     /**
-     * Creates a TypeMapper for the specified enum class.
+     * Creates a ITypeMapper for the specified enum class.
      * The mapper handles both reading from and writing to the database.
      *
      * @param enumClass the enum class
@@ -34,7 +34,7 @@ public interface DatabaseDialect {
     <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass);
 
     /**
-     * Creates a TypeMapper for the specified JSON type class.
+     * Creates a ITypeMapper for the specified JSON type class.
      * The mapper handles both reading from and writing to the database as JSON.
      *
      * @param jsonClass the class to map as JSON
@@ -44,7 +44,7 @@ public interface DatabaseDialect {
     <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass);
 
     /**
-     * Creates a TypeMapper for the specified composite type class.
+     * Creates a ITypeMapper for the specified composite type class.
      * The mapper handles both reading from and writing to the database.
      *
      * @param compositeClass the composite class

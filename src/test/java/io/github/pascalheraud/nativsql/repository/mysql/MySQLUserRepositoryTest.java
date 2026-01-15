@@ -1,29 +1,25 @@
-package io.github.pascalheraud.nativsql.repository.postgres;
+package io.github.pascalheraud.nativsql.repository.mysql;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.util.List;
-
-import io.github.pascalheraud.nativsql.domain.postgres.Address;
-import io.github.pascalheraud.nativsql.domain.postgres.ContactInfo;
-import io.github.pascalheraud.nativsql.domain.postgres.ContactType;
-import io.github.pascalheraud.nativsql.domain.postgres.Preferences;
-import io.github.pascalheraud.nativsql.domain.postgres.User;
-import io.github.pascalheraud.nativsql.domain.postgres.UserStatus;
+import io.github.pascalheraud.nativsql.domain.mysql.ContactInfo;
+import io.github.pascalheraud.nativsql.domain.mysql.ContactType;
+import io.github.pascalheraud.nativsql.domain.mysql.User;
+import io.github.pascalheraud.nativsql.domain.mysql.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 
 /**
- * Integration tests for UserRepository using Testcontainers.
+ * Integration tests for MySQLUserRepository using Testcontainers.
  */
-@Import({ PGUserRepository.class, PGContactInfoRepository.class })
-class PGUserRepositoryTest extends PGRepositoryTest {
+@Import({ MySQLUserRepository.class, MySQLContactInfoRepository.class })
+class MySQLUserRepositoryTest extends MySQLRepositoryTest {
     @Autowired
-    private PGUserRepository userRepository;
+    private MySQLUserRepository userRepository;
 
     @Autowired
-    private PGContactInfoRepository contactInfoRepository;
+    private MySQLContactInfoRepository contactInfoRepository;
 
     @Test
     void testInsertUser() {
@@ -34,28 +30,17 @@ class PGUserRepositoryTest extends PGRepositoryTest {
         user.setEmail("alice@example.com");
         user.setStatus(UserStatus.ACTIVE);
 
-        Address address = new Address("123 Main St", "Paris", "75001", "France");
-        user.setAddress(address);
-
-        Preferences prefs = new Preferences("fr", "dark", true);
-        user.setPreferences(prefs);
-
         // When
-        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status", "address", "preferences");
+        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         // Then
         assertThat(rows).isEqualTo(1);
 
-        User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status",
-                "address", "preferences");
+        User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(found).isNotNull();
         assertThat(found.getFirstName()).isEqualTo("Alice");
         assertThat(found.getLastName()).isEqualTo("Wonder");
         assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
-        assertThat(found.getAddress()).isNotNull();
-        assertThat(found.getAddress().getCity()).isEqualTo("Paris");
-        assertThat(found.getPreferences()).isNotNull();
-        assertThat(found.getPreferences().getTheme()).isEqualTo("dark");
     }
 
     @Test
@@ -89,55 +74,22 @@ class PGUserRepositoryTest extends PGRepositoryTest {
         user.setStatus(UserStatus.ACTIVE);
         userRepository.insert(user, "firstName", "lastName", "email", "status");
 
-        User found = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status",
-                "address");
+        User found = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(found).isNotNull();
 
         // When - update the user
         found.setFirstName("Charles");
         found.setStatus(UserStatus.SUSPENDED);
 
-        Address newAddress = new Address("456 Oak Ave", "Lyon", "69001", "France");
-        found.setAddress(newAddress);
-
-        int rows = userRepository.update(found, "firstName", "status", "address");
+        int rows = userRepository.update(found, "firstName", "status");
 
         // Then
         assertThat(rows).isEqualTo(1);
 
-        User updated = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email",
-                "status", "address");
+        User updated = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(updated.getFirstName()).isEqualTo("Charles");
         assertThat(updated.getLastName()).isEqualTo("Brown"); // Unchanged
         assertThat(updated.getStatus()).isEqualTo(UserStatus.SUSPENDED);
-        assertThat(updated.getAddress()).isNotNull();
-        assertThat(updated.getAddress().getCity()).isEqualTo("Lyon");
-    }
-
-    @Test
-    void testUpdateUserAllFields() {
-        // Given
-        User user = new User();
-        user.setFirstName("Dave");
-        user.setLastName("Davidson");
-        user.setEmail("dave@example.com");
-        user.setStatus(UserStatus.ACTIVE);
-        userRepository.insert(user, "firstName", "lastName", "email", "status");
-
-        User found = userRepository.findByEmail("dave@example.com", "id", "firstName", "lastName", "email", "status");
-
-        // When - update specified fields
-        found.setLastName("Davies");
-        found.setStatus(UserStatus.INACTIVE);
-
-        int rows = userRepository.update(found, "lastName", "status");
-
-        // Then
-        assertThat(rows).isEqualTo(1);
-
-        User updated = userRepository.findByEmail("dave@example.com", "id", "lastName", "email", "status");
-        assertThat(updated.getLastName()).isEqualTo("Davies");
-        assertThat(updated.getStatus()).isEqualTo(UserStatus.INACTIVE);
     }
 
     @Test
@@ -161,36 +113,6 @@ class PGUserRepositoryTest extends PGRepositoryTest {
 
         User deleted = userRepository.findByEmail("eve@example.com", "id", "email");
         assertThat(deleted).isNull();
-    }
-
-    @Test
-    void testFindByCity() {
-        // Given
-        User user1 = new User();
-        user1.setFirstName("Frank");
-        user1.setEmail("frank@example.com");
-        user1.setAddress(new Address("123 St", "Paris", "75001", "France"));
-        userRepository.insert(user1, "firstName", "email", "address");
-
-        User user2 = new User();
-        user2.setFirstName("Grace");
-        user2.setEmail("grace@example.com");
-        user2.setAddress(new Address("456 Ave", "Lyon", "69001", "France"));
-        userRepository.insert(user2, "firstName", "email", "address");
-
-        User user3 = new User();
-        user3.setFirstName("Henry");
-        user3.setEmail("henry@example.com");
-        user3.setAddress(new Address("789 Blvd", "Paris", "75002", "France"));
-        userRepository.insert(user3, "firstName", "email", "address");
-
-        // When
-        List<User> parisUsers = userRepository.findByCity("Paris", "id", "firstName", "email", "address");
-
-        // Then
-        assertThat(parisUsers).hasSize(2);
-        assertThat(parisUsers).extracting(User::getFirstName)
-                .containsExactlyInAnyOrder("Frank", "Henry");
     }
 
     @Test
@@ -251,21 +173,16 @@ class PGUserRepositoryTest extends PGRepositoryTest {
         contactInfoRepository.insert(phone, "userId", "contactType", "contactValue", "isPrimary");
         contactInfoRepository.insert(linkedin, "userId", "contactType", "contactValue", "isPrimary");
 
-        // When - Load user with contact information
-        User userWithContacts = userRepository.findByIdWithContactInfos(
-                userId,
-                new String[] { "id", "contactType", "contactValue", "isPrimary" },
-                "id", "firstName", "lastName", "email", "status");
+        // When
+        ContactInfo found1 = contactInfoRepository.findPrimaryByUserIdAndType(userId, ContactType.EMAIL, "id", "contactType", "contactValue", "isPrimary");
+        ContactInfo found2 = contactInfoRepository.findByUserIdAndType(userId, ContactType.PHONE, "id", "contactType", "contactValue").get(0);
 
         // Then
-        assertThat(userWithContacts).isNotNull();
-        assertThat(userWithContacts.getContacts()).isNotNull();
-        assertThat(userWithContacts.getContacts()).hasSize(3);
-        assertThat(userWithContacts.getContacts())
-                .extracting(ContactInfo::getContactType)
-                .containsExactlyInAnyOrder(
-                        ContactType.EMAIL,
-                        ContactType.PHONE,
-                        ContactType.LINKEDIN);
+        assertThat(found1).isNotNull();
+        assertThat(found1.getIsPrimary()).isTrue();
+        assertThat(found1.getContactType()).isEqualTo(ContactType.EMAIL);
+
+        assertThat(found2).isNotNull();
+        assertThat(found2.getContactType()).isEqualTo(ContactType.PHONE);
     }
 }
