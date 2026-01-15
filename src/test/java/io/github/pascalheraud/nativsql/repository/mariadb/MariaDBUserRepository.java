@@ -43,13 +43,13 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
     public UserReport getUsersReport() {
         String sql = """
                 SELECT
-                    (SELECT COUNT(*) FROM users) as totalUsers,
+                    (SELECT COUNT(*) FROM users) as total_users,
                     (SELECT COUNT(DISTINCT u.id) FROM users u
                      INNER JOIN contact_info ci ON u.id = ci.user_id
-                     WHERE ci.contact_type = 'EMAIL') as usersWithEmailContact,
+                     WHERE ci.contact_type = 'EMAIL') as users_with_email_contact,
                     (SELECT COUNT(*) FROM users u
-                     WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr') as usersWithFrenchPreference
-                FROM (SELECT 1) AS t
+                     WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr') as users_with_french_preference
+                FROM DUAL
                 """;
         return findExternal(sql, UserReport.class);
     }

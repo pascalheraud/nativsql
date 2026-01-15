@@ -73,12 +73,12 @@ public class PGUserRepository extends PGRepository<User, Long> {
     public UserReport getUsersReport() {
         String sql = """
                 SELECT
-                    (SELECT COUNT(*) FROM users) as totalUsers,
+                    (SELECT COUNT(*) FROM users) as total_users,
                     (SELECT COUNT(DISTINCT u.id) FROM users u
                      INNER JOIN contact_info ci ON u.id = ci.user_id
-                     WHERE ci.contact_type = 'EMAIL'::contact_type) as usersWithEmailContact,
+                     WHERE ci.contact_type = 'EMAIL'::contact_type) as users_with_email_contact,
                     (SELECT COUNT(*) FROM users u
-                     WHERE u.preferences->>'language' = 'fr') as usersWithFrenchPreference
+                     WHERE u.preferences->>'language' = 'fr') as users_with_french_preference
                 """;
         return findExternal(sql, UserReport.class);
     }
