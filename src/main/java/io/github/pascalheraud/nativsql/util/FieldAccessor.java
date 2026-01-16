@@ -4,7 +4,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 import org.springframework.lang.NonNull;
 
 /**
@@ -55,7 +55,7 @@ public class FieldAccessor {
         try {
             return (T) field.get(instance);
         } catch (IllegalAccessException e) {
-            throw new SQLException("Failed to get value of field: " + field.getName(), e);
+            throw new NativSQLException("Failed to get value of field: " + field.getName(), e);
         }
     }
 
@@ -70,7 +70,7 @@ public class FieldAccessor {
         try {
             field.set(instance, value);
         } catch (IllegalAccessException e) {
-            throw new SQLException("Failed to set value of field: " + field.getName(), e);
+            throw new NativSQLException("Failed to set value of field: " + field.getName(), e);
         }
     }
 
@@ -112,14 +112,14 @@ public class FieldAccessor {
      * Gets the OneToMany association details.
      *
      * @return a non-null OneToManyAssociation object
-     * @throws SQLException if the @OneToMany annotation is not present on this
+     * @throws NativSQLException if the @OneToMany annotation is not present on this
      *                      field
      */
     @NonNull
     public OneToManyAssociation getOneToMany() {
         OneToMany annotation = field.getAnnotation(OneToMany.class);
         if (annotation == null) {
-            throw new SQLException("Field is not annotated with @OneToMany: " + field.getName());
+            throw new NativSQLException("Field is not annotated with @OneToMany: " + field.getName());
         }
         return new OneToManyAssociation(annotation.mappedBy(), annotation.repository());
     }

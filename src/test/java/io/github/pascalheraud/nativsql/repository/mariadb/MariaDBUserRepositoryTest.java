@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.pascalheraud.nativsql.domain.mariadb.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.mariadb.ContactType;
+import io.github.pascalheraud.nativsql.domain.mariadb.Group;
 import io.github.pascalheraud.nativsql.domain.mariadb.Preferences;
 import io.github.pascalheraud.nativsql.domain.mariadb.User;
 import io.github.pascalheraud.nativsql.domain.mariadb.UserReport;
@@ -15,13 +16,16 @@ import org.springframework.context.annotation.Import;
 /**
  * Integration tests for MariaDBUserRepository using Testcontainers.
  */
-@Import({ MariaDBUserRepository.class, MariaDBContactInfoRepository.class })
+@Import({ MariaDBUserRepository.class, MariaDBContactInfoRepository.class, MariaDBGroupRepository.class })
 class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
     @Autowired
     private MariaDBUserRepository userRepository;
 
     @Autowired
     private MariaDBContactInfoRepository contactInfoRepository;
+
+    @Autowired
+    private MariaDBGroupRepository groupRepository;
 
     @Test
     void testInsertUser() {
@@ -33,11 +37,9 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         user.setStatus(UserStatus.ACTIVE);
 
         // When
-        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status");
+        userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         // Then
-        assertThat(rows).isEqualTo(1);
-
         User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(found).isNotNull();
         assertThat(found.getFirstName()).isEqualTo("Alice");
@@ -55,11 +57,9 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         user.setStatus(UserStatus.INACTIVE);
 
         // When - insert specified fields
-        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status");
+        userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         // Then
-        assertThat(rows).isEqualTo(1);
-
         User found = userRepository.findByEmail("bob@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(found).isNotNull();
         assertThat(found.getFirstName()).isEqualTo("Bob");
@@ -243,5 +243,41 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         assertThat(report.getTotalUsers()).isEqualTo(3);
         assertThat(report.getUsersWithEmailContact()).isEqualTo(1);
         assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
+    }
+
+    @Test
+    void testGetUserWithGroup() {
+        // Given - Create a group
+        Group group = Group.builder()
+                .name("Engineering")
+                .build();
+        groupRepository.insert(group, "name");
+        Long groupId = group.getId();
+
+        // Create a user in the group
+        User user = User.builder()
+                .firstName("Alice")
+                .lastName("Engineer")
+                .email("alice@example.com")
+                .status(UserStatus.ACTIVE)
+                .groupId(groupId)
+                .build();
+        userRepository.insert(user, "firstName", "lastName", "email", "status", "groupId");
+        Long userId = user.getId();
+
+        // When - Load user with group information
+        User userWithGroup = userRepository.getUserWithGroup(
+                userId,
+                new String[] { "id", "name" },
+                "id", "firstName", "lastName", "email", "groupId");
+
+        // Then
+        assertThat(userWithGroup).isNotNull();
+        assertThat(userWithGroup.getId()).isEqualTo(userId);
+        assertThat(userWithGroup.getFirstName()).isEqualTo("Alice");
+        assertThat(userWithGroup.getLastName()).isEqualTo("Engineer");
+        assertThat(userWithGroup.getGroup()).isNotNull();
+        assertThat(userWithGroup.getGroup().getId()).isEqualTo(groupId);
+        assertThat(userWithGroup.getGroup().getName()).isEqualTo("Engineering");
     }
 }

@@ -5,7 +5,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 
 /**
  * Utility class for reflection operations.
@@ -22,7 +22,7 @@ public final class ReflectionUtils {
      * @param clazz the class containing the property
      * @param propertyName the property name (camelCase)
      * @return the getter method
-     * @throws SQLException if no getter is found
+     * @throws NativSQLException if no getter is found
      */
     private static Method findGetter(Class<?> clazz, String propertyName) {
         // Try getXxx()
@@ -35,7 +35,7 @@ public final class ReflectionUtils {
             try {
                 return clazz.getMethod(booleanGetterName);
             } catch (NoSuchMethodException ex) {
-                throw new SQLException("No getter found for property: " + propertyName + " in class: " + clazz.getName(), ex);
+                throw new NativSQLException("No getter found for property: " + propertyName + " in class: " + clazz.getName(), ex);
             }
         }
     }
@@ -47,14 +47,14 @@ public final class ReflectionUtils {
      * @param propertyName the property name (camelCase)
      * @param parameterType the parameter type of the setter
      * @return the setter method
-     * @throws SQLException if no setter is found
+     * @throws NativSQLException if no setter is found
      */
     private static Method findSetter(Class<?> clazz, String propertyName, Class<?> parameterType) {
         String setterName = "set" + capitalize(propertyName);
         try {
             return clazz.getMethod(setterName, parameterType);
         } catch (NoSuchMethodException e) {
-            throw new SQLException("No setter found for property: " + propertyName + " in class: " + clazz.getName(), e);
+            throw new NativSQLException("No setter found for property: " + propertyName + " in class: " + clazz.getName(), e);
         }
     }
 
@@ -71,7 +71,7 @@ public final class ReflectionUtils {
         try {
             return getter.invoke(object);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new SQLException("Failed to invoke getter for property: " + propertyName, e);
+            throw new NativSQLException("Failed to invoke getter for property: " + propertyName, e);
         }
     }
 
@@ -89,7 +89,7 @@ public final class ReflectionUtils {
         try {
             setter.invoke(object, value);
         } catch (IllegalAccessException | InvocationTargetException e) {
-            throw new SQLException("Failed to invoke setter for property: " + propertyName, e);
+            throw new NativSQLException("Failed to invoke setter for property: " + propertyName, e);
         }
     }
 

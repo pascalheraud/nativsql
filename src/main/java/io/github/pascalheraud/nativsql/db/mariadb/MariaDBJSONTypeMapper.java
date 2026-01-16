@@ -4,7 +4,7 @@ import java.sql.ResultSet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
 
 /**
@@ -23,7 +23,7 @@ public class MariaDBJSONTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public T map(ResultSet rs, String columnName) throws SQLException {
+    public T map(ResultSet rs, String columnName) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -45,9 +45,9 @@ public class MariaDBJSONTypeMapper<T> implements ITypeMapper<T> {
 
             return objectMapper.readValue(jsonStr, jsonClass);
         } catch (java.sql.SQLException e) {
-            throw new SQLException(e);
+            throw new NativSQLException(e);
         } catch (JsonProcessingException e) {
-            throw new SQLException("Failed to read JSON from column: " + columnName, e);
+            throw new NativSQLException("Failed to read JSON from column: " + columnName, e);
         }
     }
 
@@ -59,7 +59,7 @@ public class MariaDBJSONTypeMapper<T> implements ITypeMapper<T> {
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
-            throw new SQLException("Failed to convert to JSON", e);
+            throw new NativSQLException("Failed to convert to JSON", e);
         }
     }
 

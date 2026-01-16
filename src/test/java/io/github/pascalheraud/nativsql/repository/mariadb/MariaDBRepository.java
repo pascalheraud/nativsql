@@ -7,6 +7,7 @@ import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.repository.GenericRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.lang.NonNull;
 
 /**
@@ -35,5 +36,11 @@ public abstract class MariaDBRepository<T extends Entity<ID>, ID> extends Generi
     @Override
     protected io.github.pascalheraud.nativsql.db.DatabaseDialect getDatabaseDialectInstance() {
         return mariadbDialect;
+    }
+
+    @Override
+    protected Long getLastInsertedId() {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(mariadbDataSource);
+        return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
     }
 }

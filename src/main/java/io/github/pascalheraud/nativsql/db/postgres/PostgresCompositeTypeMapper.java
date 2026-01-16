@@ -5,7 +5,7 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
 import org.postgresql.util.PGobject;
 
@@ -26,7 +26,7 @@ public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public T map(ResultSet rs, String columnName) throws SQLException {
+    public T map(ResultSet rs, String columnName) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -64,13 +64,13 @@ public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
 
             return instance;
         } catch (java.sql.SQLException e) {
-            throw new SQLException(e);
+            throw new NativSQLException(e);
         } catch (ReflectiveOperationException e) {
-            throw new SQLException(e);
+            throw new NativSQLException(e);
         } catch (IllegalArgumentException e) {
-            throw new SQLException(e);
+            throw new NativSQLException(e);
         } catch (SecurityException e) {
-            throw new SQLException(e);
+            throw new NativSQLException(e);
         }
     }
 

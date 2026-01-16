@@ -1,6 +1,6 @@
 package io.github.pascalheraud.nativsql.mapper;
 
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 
 /**
  * Mapper for enum types that handles reading String values from database
@@ -17,7 +17,7 @@ public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
     }
 
     @Override
-    public E map(java.sql.ResultSet rs, String columnName) throws SQLException {
+    public E map(java.sql.ResultSet rs, String columnName) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -29,13 +29,13 @@ public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
                 return Enum.valueOf(enumClass, (String) dbValue);
             }
 
-            throw new SQLException("Cannot parse enum from value: " + dbValue);
+            throw new NativSQLException("Cannot parse enum from value: " + dbValue);
 
         } catch (IllegalArgumentException e) {
-            throw new SQLException(
+            throw new NativSQLException(
                     "Invalid enum value for " + enumClass.getSimpleName() + ": " + e.getMessage(), e);
         } catch (java.sql.SQLException e) {
-            throw new SQLException(e);
+            throw new NativSQLException(e);
         }
     }
 

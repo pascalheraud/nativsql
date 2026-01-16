@@ -7,6 +7,7 @@ import java.util.List;
 import io.github.pascalheraud.nativsql.domain.postgres.Address;
 import io.github.pascalheraud.nativsql.domain.postgres.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.postgres.ContactType;
+import io.github.pascalheraud.nativsql.domain.postgres.Group;
 import io.github.pascalheraud.nativsql.domain.postgres.Preferences;
 import io.github.pascalheraud.nativsql.domain.postgres.User;
 import io.github.pascalheraud.nativsql.domain.postgres.UserReport;
@@ -18,13 +19,16 @@ import org.springframework.context.annotation.Import;
 /**
  * Integration tests for UserRepository using Testcontainers.
  */
-@Import({ PGUserRepository.class, PGContactInfoRepository.class })
+@Import({ PGUserRepository.class, PGContactInfoRepository.class, PGGroupRepository.class })
 class PGUserRepositoryTest extends PGRepositoryTest {
     @Autowired
     private PGUserRepository userRepository;
 
     @Autowired
     private PGContactInfoRepository contactInfoRepository;
+
+    @Autowired
+    private PGGroupRepository groupRepository;
 
     @Test
     void testInsertUser() {
@@ -39,10 +43,10 @@ class PGUserRepositoryTest extends PGRepositoryTest {
                 .build();
 
         // When
-        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status", "address", "preferences");
+        userRepository.insert(user, "firstName", "lastName", "email", "status", "address", "preferences");
 
         // Then
-        assertThat(rows).isEqualTo(1);
+        assertThat(user.getId()).isNotNull();
 
         User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status",
                 "address", "preferences");
@@ -67,10 +71,10 @@ class PGUserRepositoryTest extends PGRepositoryTest {
                 .build();
 
         // When - insert specified fields
-        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status");
+        userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         // Then
-        assertThat(rows).isEqualTo(1);
+        assertThat(user.getId()).isNotNull();
 
         User found = userRepository.findByEmail("bob@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(found).isNotNull();
@@ -332,5 +336,41 @@ class PGUserRepositoryTest extends PGRepositoryTest {
         assertThat(report.getTotalUsers()).isEqualTo(3);
         assertThat(report.getUsersWithEmailContact()).isEqualTo(1);
         assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
+    }
+
+    @Test
+    void testGetUserWithGroup() {
+        // Given - Create a group
+        Group group = Group.builder()
+                .name("Engineering")
+                .build();
+        groupRepository.insert(group, "name");
+        Long groupId = group.getId();
+
+        // Create a user in the group
+        User user = User.builder()
+                .firstName("Alice")
+                .lastName("Engineer")
+                .email("alice@example.com")
+                .status(UserStatus.ACTIVE)
+                .groupId(groupId)
+                .build();
+        userRepository.insert(user, "firstName", "lastName", "email", "status", "groupId");
+        Long userId = user.getId();
+
+        // When - Load user with group information
+        User userWithGroup = userRepository.getUserWithGroup(
+                userId,
+                new String[] { "id", "name" },
+                "id", "firstName", "lastName", "email", "groupId");
+
+        // Then
+        assertThat(userWithGroup).isNotNull();
+        assertThat(userWithGroup.getId()).isEqualTo(userId);
+        assertThat(userWithGroup.getFirstName()).isEqualTo("Alice");
+        assertThat(userWithGroup.getLastName()).isEqualTo("Engineer");
+        assertThat(userWithGroup.getGroup()).isNotNull();
+        assertThat(userWithGroup.getGroup().getId()).isEqualTo(groupId);
+        assertThat(userWithGroup.getGroup().getName()).isEqualTo("Engineering");
     }
 }

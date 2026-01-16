@@ -2,7 +2,7 @@ package io.github.pascalheraud.nativsql.db.postgres;
 
 import java.sql.ResultSet;
 
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
 import lombok.RequiredArgsConstructor;
 import org.postgresql.util.PGobject;
@@ -21,7 +21,7 @@ public class PGEnumMapper<E extends Enum<E>> implements ITypeMapper<E> {
     private final String dbTypeName;
 
     @Override
-    public E map(ResultSet rs, String columnName) throws SQLException {
+    public E map(ResultSet rs, String columnName) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -33,13 +33,13 @@ public class PGEnumMapper<E extends Enum<E>> implements ITypeMapper<E> {
                 return Enum.valueOf(enumClass, (String) dbValue);
             }
 
-            throw new SQLException("Cannot parse enum from value: " + dbValue);
+            throw new NativSQLException("Cannot parse enum from value: " + dbValue);
 
         } catch (IllegalArgumentException e) {
-            throw new SQLException(
+            throw new NativSQLException(
                     "Invalid enum value for " + enumClass.getSimpleName() + ": " + e.getMessage(), e);
         } catch (java.sql.SQLException e) {
-            throw new SQLException(e);
+            throw new NativSQLException(e);
         }
     }
 
@@ -54,7 +54,7 @@ public class PGEnumMapper<E extends Enum<E>> implements ITypeMapper<E> {
             pgObject.setValue(value.name());
             return pgObject;
         } catch (java.sql.SQLException e) {
-            throw new SQLException("Failed to convert enum to SQL", e);
+            throw new NativSQLException("Failed to convert enum to SQL", e);
         }
     }
 

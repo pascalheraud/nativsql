@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.pascalheraud.nativsql.domain.mysql.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.mysql.ContactType;
+import io.github.pascalheraud.nativsql.domain.mysql.Group;
 import io.github.pascalheraud.nativsql.domain.mysql.Preferences;
 import io.github.pascalheraud.nativsql.domain.mysql.User;
 import io.github.pascalheraud.nativsql.domain.mysql.UserReport;
@@ -15,13 +16,16 @@ import org.springframework.context.annotation.Import;
 /**
  * Integration tests for MySQLUserRepository using Testcontainers.
  */
-@Import({ MySQLUserRepository.class, MySQLContactInfoRepository.class })
+@Import({ MySQLUserRepository.class, MySQLContactInfoRepository.class, MySQLGroupRepository.class })
 class MySQLUserRepositoryTest extends MySQLRepositoryTest {
     @Autowired
     private MySQLUserRepository userRepository;
 
     @Autowired
     private MySQLContactInfoRepository contactInfoRepository;
+
+    @Autowired
+    private MySQLGroupRepository groupRepository;
 
     @Test
     void testInsertUser() {
@@ -34,11 +38,9 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
                 .build();
 
         // When
-        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status");
+        userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         // Then
-        assertThat(rows).isEqualTo(1);
-
         User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(found).isNotNull();
         assertThat(found.getFirstName()).isEqualTo("Alice");
@@ -57,11 +59,9 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
                 .build();
 
         // When - insert specified fields
-        int rows = userRepository.insert(user, "firstName", "lastName", "email", "status");
+        userRepository.insert(user, "firstName", "lastName", "email", "status");
 
         // Then
-        assertThat(rows).isEqualTo(1);
-
         User found = userRepository.findByEmail("bob@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(found).isNotNull();
         assertThat(found.getFirstName()).isEqualTo("Bob");
@@ -250,5 +250,41 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
         assertThat(report.getTotalUsers()).isEqualTo(3);
         assertThat(report.getUsersWithEmailContact()).isEqualTo(1);
         assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
+    }
+
+    @Test
+    void testGetUserWithGroup() {
+        // Given - Create a group
+        Group group = Group.builder()
+                .name("Engineering")
+                .build();
+        groupRepository.insert(group, "name");
+        Long groupId = group.getId();
+
+        // Create a user in the group
+        User user = User.builder()
+                .firstName("Alice")
+                .lastName("Engineer")
+                .email("alice@example.com")
+                .status(UserStatus.ACTIVE)
+                .groupId(groupId)
+                .build();
+        userRepository.insert(user, "firstName", "lastName", "email", "status", "groupId");
+        Long userId = user.getId();
+
+        // When - Load user with group information
+        User userWithGroup = userRepository.getUserWithGroup(
+                userId,
+                new String[] { "id", "name" },
+                "id", "firstName", "lastName", "email", "groupId");
+
+        // Then
+        assertThat(userWithGroup).isNotNull();
+        assertThat(userWithGroup.getId()).isEqualTo(userId);
+        assertThat(userWithGroup.getFirstName()).isEqualTo("Alice");
+        assertThat(userWithGroup.getLastName()).isEqualTo("Engineer");
+        assertThat(userWithGroup.getGroup()).isNotNull();
+        assertThat(userWithGroup.getGroup().getId()).isEqualTo(groupId);
+        assertThat(userWithGroup.getGroup().getName()).isEqualTo("Engineering");
     }
 }

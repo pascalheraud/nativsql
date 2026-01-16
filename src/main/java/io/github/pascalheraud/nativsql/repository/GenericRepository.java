@@ -16,7 +16,7 @@ import jakarta.annotation.PostConstruct;
 
 import io.github.pascalheraud.nativsql.db.DatabaseDialect;
 import io.github.pascalheraud.nativsql.domain.Entity;
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
 import io.github.pascalheraud.nativsql.mapper.RowMapperFactory;
 import io.github.pascalheraud.nativsql.util.Association;
@@ -87,14 +87,29 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     protected abstract String getTableName();
 
     /**
-     * Inserts an entity with specified columns.
+     * Returns the entity fields metadata.
+     * Used by FindQuery builder.
+     */
+    public Fields getEntityFields() {
+        return entityFields;
+    }
+
+    /**
+     * Returns the name of the database table.
+     * Used by FindQuery builder.
+     */
+    public String getTableNameForQuery() {
+        return getTableName();
+    }
+
+    /**
+     * Inserts an entity with specified columns and populates the generated ID.
      *
-     * @param entity  the entity to insert
+     * @param entity  the entity to insert (will be modified with generated ID)
      * @param columns the property names (camelCase) to insert (must not be empty)
-     * @return the number of rows inserted
      * @throws IllegalArgumentException if columns array is empty
      */
-    public int insert(T entity, String... columns) {
+    public void insert(T entity, String... columns) {
         String columnList = SqlUtils.getColumnsList(columns);
 
         Map<String, Object> params = extractValues(entity, columns);
@@ -107,8 +122,27 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         String sql = formatQuery("INSERT INTO %s (%s) VALUES (%s)",
                 getTableName(), columnList, paramList);
 
-        return executeUpdate(sql, params);
+        executeUpdate(sql, params);
+
+        // Retrieve and set the generated ID on the entity
+        Long generatedId = getLastInsertedId();
+        if (generatedId != null) {
+            FieldAccessor idField = entityFields.get(ID_COLUMN);
+            if (idField != null) {
+                @SuppressWarnings("unchecked")
+                ID id = (ID) generatedId;
+                idField.setValue(entity, id);
+            }
+        }
     }
+
+    /**
+     * Retrieves the last inserted ID from the database.
+     * This method must be implemented by database-specific repositories.
+     *
+     * @return the last inserted ID
+     */
+    protected abstract Long getLastInsertedId();
 
     @NonNull
     private String formatQuery(String sql, Object... params) {
@@ -237,6 +271,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param columns  the property names (camelCase) to retrieve
      * @return list of matching entities
      */
+    // TODO Pascal: Refactor findAllByProperty to use FindQuery instead of direct SQL construction
+    // This will provide a more consistent API and support ordering, complex filters, etc.
     protected List<T> findAllByProperty(String property, List<?> values, String... columns) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -325,21 +361,22 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Finds a single entity using a complex FindQuery builder.
      * Loads associations if specified in the query using batch loading.
+     * If JOINs are specified, uses them for nested object mapping.
      *
      * @param query the FindQuery builder with search criteria
      * @return the first matching entity or null if not found
      */
-    protected T find(FindQuery query) {
+    protected T find(FindQuery<T, ID> query) {
         // Build SQL query using FindQuery
         String sql = query.buildSql();
 
         // Get parameters with SQL conversion
         Map<String, Object> params = query.getParameters(this::convertToSqlValue);
 
-        // Execute query using findExternal
+        // Execute query (joins are handled by the RowMapper based on SQL)
         T entity = findExternal(sql, params, entityClass);
 
-        // Load associations for single entity using batch loading
+        // Load associations for multiple linked entities using batch loading
         if (entity != null && query.hasAssociations()) {
             loadAssociationsInBatch(List.of(entity), query.getAssociations());
         }
@@ -351,7 +388,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * Finds entities using a complex FindQuery builder.
      * Does NOT load associations to avoid N+1 queries.
      */
-    protected List<T> findAll(FindQuery query) {
+    protected List<T> findAll(FindQuery<T,ID> query) {
         // Build SQL query using FindQuery
         String sql = query.buildSql();
 
@@ -362,40 +399,15 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         return findAllExternal(sql, params, entityClass);
     }
 
-    /**
-     * Finds entities using a complex FindQuery builder and loads associations using
-     * batch loading.
-     * Uses IN clause to load all associations in a single query per association (no
-     * N+1).
-     * 
-     * @param query        the FindQuery builder with search criteria
-     * @param associations list of associations to load with their column
-     *                     configurations
-     * @return list of entities with loaded associations
-     */
-    protected List<T> findAll(FindQuery query, List<Association> associations) {
-        // Execute the main query
-        List<T> entities = findAll(query);
-
-        if (entities.isEmpty() || associations == null || associations.isEmpty()) {
-            return entities;
-        }
-
-        // Load associations using batch loading (IN clause)
-        loadAssociationsInBatch(entities, associations);
-
-        return entities;
-    }
-
     // ==================== Protected Helper Methods ====================
 
     /**
      * Creates a new FindQuery builder for this repository's table.
-     * 
-     * @return a new FindQuery instance preconfigured with this table name
+     *
+     * @return a new FindQuery instance preconfigured with this repository
      */
-    protected FindQuery newFindQuery() {
-        return FindQuery.of(getTableName());
+    protected FindQuery<T, ID> newFindQuery() {
+        return FindQuery.of(this);
     }
 
     // ==================== Private Helper Methods ====================
@@ -516,59 +528,55 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Loads a single association for multiple entities using batch loading.
      *
-     * @param entities the list of entities to load the association for
-     * @param config   the association configuration
+     * @param entities    the list of entities to load the association for
+     * @param association the association configuration
      */
-    private <SUBT extends Entity<ID>> void loadAssociationInBatch(List<T> entities, Association config) {
-        FieldAccessor fieldAccessor = entityFields.get(config.getAssociationField());
+    private <SUBT extends Entity<ID>> void loadAssociationInBatch(List<T> entities, Association association) {
+        FieldAccessor fieldAccessor = entityFields.get(association.getName());
         if (fieldAccessor == null) {
-            throw new SQLException("Association field not found: " + config.getAssociationField());
+            throw new NativSQLException("Association field not found: " + association.getName());
         }
 
-        try {
-            OneToManyAssociation association = fieldAccessor.getOneToMany();
+        OneToManyAssociation associationAnnotation = fieldAccessor.getOneToMany();
 
-            // Get the repository for the associated entity
-            @SuppressWarnings("unchecked")
-            GenericRepository<SUBT, ID> repository = (GenericRepository<SUBT, ID>) applicationContext
-                    .getBean(association.getRepositoryClass());
+        // Get the repository for the associated entity
+        @SuppressWarnings("unchecked")
+        GenericRepository<SUBT, ID> repository = (GenericRepository<SUBT, ID>) applicationContext
+                .getBean(associationAnnotation.getRepositoryClass());
 
-            // Create a map of entities by their ID for direct access
-            Map<ID, T> entitiesById = entities.stream()
-                    .collect(Collectors.toMap(Entity::getId, e -> e));
+        // Create a map of entities by their ID for direct access
+        Map<ID, T> entitiesById = entities.stream()
+                .collect(Collectors.toMap(Entity::getId, e -> e));
 
-            // Get columns to load
-            String[] columns = config.getColumnsArray();
-            if (columns == null || columns.length == 0) {
-                throw new SQLException(
-                        "Association configuration must specify columns for: " + config.getAssociationField());
+        // Get columns to load
+        String[] columns = association.getColumns().toArray(new String[0]);
+        if (columns == null || columns.length == 0) {
+            throw new NativSQLException(
+                    "Association configuration must specify columns for: " + association.getName());
+        }
+
+        // Ensure foreign key field is included in columns for proper grouping
+        String foreignKeyField = associationAnnotation.getForeignKey();
+        columns = ensureForeignKeyInColumns(columns, foreignKeyField);
+
+        List<SUBT> allAssociatedEntities = repository.findAllByProperty(
+                foreignKeyField,
+                entitiesById.keySet().stream().distinct().toList(), // Use Map keys directly
+                columns);
+
+        // Initialize associations on each entity
+        for (T entity : entities) {
+            fieldAccessor.setValue(entity, new ArrayList<>());
+        }
+
+        // Add associated entities directly to their parent
+        for (SUBT associated : allAssociatedEntities) {
+            ID parentIdValue = repository.getFieldValue(associated, foreignKeyField);
+            T parentEntity = entitiesById.get(parentIdValue);
+            if (parentEntity != null) {
+                List<SUBT> associatedList = fieldAccessor.getValue(parentEntity);
+                associatedList.add(associated);
             }
-
-            // Ensure foreign key field is included in columns for proper grouping
-            String foreignKeyField = association.getForeignKey();
-            columns = ensureForeignKeyInColumns(columns, foreignKeyField);
-
-            List<SUBT> allAssociatedEntities = repository.findAllByProperty(
-                    foreignKeyField,
-                    entitiesById.keySet().stream().distinct().toList(), // Use Map keys directly
-                    columns);
-
-            // Initialize associations on each entity
-            for (T entity : entities) {
-                fieldAccessor.setValue(entity, new ArrayList<>());
-            }
-
-            // Add associated entities directly to their parent
-            for (SUBT associated : allAssociatedEntities) {
-                ID parentIdValue = repository.getFieldValue(associated, foreignKeyField);
-                T parentEntity = entitiesById.get(parentIdValue);
-                if (parentEntity != null) {
-                    List<SUBT> associatedList = fieldAccessor.getValue(parentEntity);
-                    associatedList.add(associated);
-                }
-            }
-        } catch (SQLException e) {
-            throw e;
         }
     }
 
@@ -599,12 +607,12 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param entity    the entity to get the value from
      * @param fieldName the field name
      * @return the field value with the correct type
-     * @throws SQLException if the field is not found
+     * @throws NativSQLException if the field is not found
      */
-    protected <V> V getFieldValue(Object entity, String fieldName) throws SQLException {
+    protected <V> V getFieldValue(Object entity, String fieldName) throws NativSQLException {
         FieldAccessor accessor = entityFields.get(fieldName);
         if (accessor == null) {
-            throw new SQLException("Field not found: " + fieldName);
+            throw new NativSQLException("Field not found: " + fieldName);
         }
         @SuppressWarnings("unchecked")
         V value = (V) accessor.getValue(entity);
@@ -613,7 +621,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Executes a custom SQL query and returns a single external object.
-     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     * Useful for reporting, aggregations, and queries returning objects different
+     * from the entity type.
      *
      * @param <EXT>       the type of the external object to return
      * @param sql         the SQL query to execute
@@ -626,7 +635,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Executes a custom SQL query and returns a single external object.
-     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     * Useful for reporting, aggregations, and queries returning objects different
+     * from the entity type.
      *
      * @param <EXT>       the type of the external object to return
      * @param sql         the SQL query to execute
@@ -643,7 +653,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Executes a custom SQL query and returns a list of external objects.
-     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     * Useful for reporting, aggregations, and queries returning objects different
+     * from the entity type.
      *
      * @param <EXT>       the type of the external objects to return
      * @param sql         the SQL query to execute
@@ -656,7 +667,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Executes a custom SQL query and returns a list of external objects.
-     * Useful for reporting, aggregations, and queries returning objects different from the entity type.
+     * Useful for reporting, aggregations, and queries returning objects different
+     * from the entity type.
      *
      * @param <EXT>       the type of the external objects to return
      * @param sql         the SQL query to execute

@@ -61,7 +61,23 @@ public class PGUserRepository extends PGRepository<User, Long> {
                 newFindQuery()
                         .select(userColumns)
                         .whereAndEquals("id", userId)
-                        .join("contacts", List.of(contactColumns)));
+                        .associate("contacts", List.of(contactColumns)));
+    }
+
+    /**
+     * Finds a user by ID and loads their group information via JOIN.
+     *
+     * @param userId       the user ID
+     * @param groupColumns the columns to load for the group
+     * @param userColumns  the columns to load for the user
+     * @return the user with group information, or null if not found
+     */
+    public User getUserWithGroup(Long userId, String[] groupColumns, String... userColumns) {
+        return find(
+                newFindQuery()
+                        .select(userColumns)
+                        .whereAndEquals("id", userId)
+                        .leftJoin("group", List.of(groupColumns)));
     }
 
     /**

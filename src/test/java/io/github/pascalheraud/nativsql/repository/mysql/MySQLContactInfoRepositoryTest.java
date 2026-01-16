@@ -46,11 +46,9 @@ class MySQLContactInfoRepositoryTest extends MySQLRepositoryTest {
             .build();
 
         // When
-        int rows = contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
+        contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
 
         // Then
-        assertThat(rows).isEqualTo(1);
-
         ContactInfo found = contactInfoRepository.findPrimaryByUserIdAndType(userId, ContactType.EMAIL,
             "id", "userId", "contactType", "contactValue", "isPrimary");
         assertThat(found).isNotNull();

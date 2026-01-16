@@ -4,7 +4,7 @@ import java.sql.ResultSet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
 import org.postgresql.util.PGobject;
 
@@ -24,7 +24,7 @@ public class PostgreJSONTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public T map(ResultSet rs, String columnName) throws SQLException {
+    public T map(ResultSet rs, String columnName) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -48,9 +48,9 @@ public class PostgreJSONTypeMapper<T> implements ITypeMapper<T> {
 
             return objectMapper.readValue(jsonStr, jsonClass);
         } catch (java.sql.SQLException e) {
-            throw new SQLException("SQLException", e);
+            throw new NativSQLException("SQLException", e);
         } catch (JsonProcessingException e) {
-            throw new SQLException("JSONException", e);
+            throw new NativSQLException("JSONException", e);
         }
     }
 
@@ -65,7 +65,7 @@ public class PostgreJSONTypeMapper<T> implements ITypeMapper<T> {
             pgObject.setValue(objectMapper.writeValueAsString(value));
             return pgObject;
         } catch (Exception e) {
-            throw new SQLException("Failed to convert to JSONB", e);
+            throw new NativSQLException("Failed to convert to JSONB", e);
         }
     }
 

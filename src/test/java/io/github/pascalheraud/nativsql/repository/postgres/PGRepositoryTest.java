@@ -19,6 +19,6 @@ public abstract class PGRepositoryTest extends PGBaseRepositoryTest {
     }
 
     protected String getScriptPath() {
-        return "test-schema-init.sql";
+        return "test-schema-postgres-init.sql";
     }
 }

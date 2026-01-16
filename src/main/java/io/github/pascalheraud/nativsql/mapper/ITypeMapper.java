@@ -1,7 +1,8 @@
 package io.github.pascalheraud.nativsql.mapper;
 
 import java.sql.ResultSet;
-import java.sql.SQLException;
+
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 
 /**
  * A bidirectional type mapper that handles both reading from ResultSet
@@ -17,9 +18,9 @@ public interface ITypeMapper<T> {
      * @param rs the ResultSet
      * @param columnName the column name
      * @return the mapped value
-     * @throws SQLException if mapping fails
+     * @throws NativSQLException if mapping fails
      */
-    T map(ResultSet rs, String columnName) throws SQLException;
+    T map(ResultSet rs, String columnName) throws NativSQLException;
 
     /**
      * Converts a Java value to database representation for storage.

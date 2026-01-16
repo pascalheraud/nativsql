@@ -49,11 +49,9 @@ class PGContactInfoRepositoryTest  extends PGRepositoryTest{
                 .build();
 
         // When
-        int rows = contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
+        contactInfoRepository.insert(contact, "userId", "contactType", "contactValue", "isPrimary");
 
         // Then
-        assertThat(rows).isEqualTo(1);
-
         List<ContactInfo> contacts = contactInfoRepository.findByUserId(testUserId, "id", "userId", "contactType",
                 "contactValue", "isPrimary");
         assertThat(contacts).hasSize(1);

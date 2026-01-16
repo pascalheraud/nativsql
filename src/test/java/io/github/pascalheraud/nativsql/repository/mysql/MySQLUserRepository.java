@@ -35,6 +35,34 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
     }
 
     /**
+     * Finds a user by ID and loads their group information.
+     * The group is loaded via a separate query using the groupId field.
+     *
+     * @param userId       the user ID
+     * @param groupColumns the columns to load for the group
+     * @param userColumns  the columns to load for the user
+     * @return the user with group information, or null if not found
+     */
+    public User getUserWithGroup(Long userId, String[] groupColumns, String... userColumns) {
+        // Load user first (must include groupId)
+        java.util.List<String> userColsWithGroup = new java.util.ArrayList<>(java.util.Arrays.asList(userColumns));
+        if (!userColsWithGroup.contains("groupId")) {
+            userColsWithGroup.add("groupId");
+        }
+
+        User user = findById(userId, userColsWithGroup.toArray(new String[0]));
+        if (user == null || user.getGroupId() == null) {
+            return user;
+        }
+
+        // Load group using groupId
+        MySQLGroupRepository groupRepository = applicationContext.getBean(MySQLGroupRepository.class);
+        user.setGroup(groupRepository.findById(user.getGroupId(), groupColumns));
+
+        return user;
+    }
+
+    /**
      * Generates a user statistics report.
      *
      * @return the user report with stats on total users, users with email contacts,

@@ -3,7 +3,7 @@ package io.github.pascalheraud.nativsql.util;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import io.github.pascalheraud.nativsql.exception.SQLException;
+import io.github.pascalheraud.nativsql.exception.NativSQLException;
 import org.springframework.lang.NonNull;
 
 /**
@@ -38,7 +38,7 @@ public class OneToManyAssociation {
      * Gets the target entity class by extracting it from the repository generic type.
      *
      * @return the target entity class
-     * @throws SQLException if the entity type cannot be extracted from the repository
+     * @throws NativSQLException if the entity type cannot be extracted from the repository
      */
     @SuppressWarnings("null")
     @NonNull
@@ -57,7 +57,7 @@ public class OneToManyAssociation {
                 }
             }
         }
-        throw new SQLException("Cannot extract entity type from repository: " + repositoryClass.getName());
+        throw new NativSQLException("Cannot extract entity type from repository: " + repositoryClass.getName());
     }
 
     /**

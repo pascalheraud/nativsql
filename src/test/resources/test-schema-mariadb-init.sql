@@ -1,6 +1,12 @@
 -- Test schema initialization for MariaDB
 -- Creates all necessary types and tables for testing
 
+CREATE TABLE user_group (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(255),
@@ -9,8 +15,10 @@ CREATE TABLE users (
     status ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED'),
     address JSON,
     preferences JSON,
+    group_id BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (group_id) REFERENCES user_group(id) ON DELETE SET NULL
 );
 
 CREATE TABLE contact_info (
@@ -27,3 +35,4 @@ CREATE TABLE contact_info (
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_users_group_id ON users(group_id);

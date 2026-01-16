@@ -3,9 +3,11 @@ package io.github.pascalheraud.nativsql.domain.postgres;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import io.github.pascalheraud.nativsql.annotation.MappedBy;
 import io.github.pascalheraud.nativsql.annotation.OneToMany;
 import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.repository.postgres.PGContactInfoRepository;
+import io.github.pascalheraud.nativsql.repository.postgres.PGGroupRepository;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,6 +28,9 @@ public class User implements Entity<Long> {
     private UserStatus status;
     private Address address;
     private Preferences preferences;
+    private Long groupId;
+    @MappedBy(value = "groupId", repository = PGGroupRepository.class)
+    private Group group;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
