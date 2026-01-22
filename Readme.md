@@ -2,6 +2,9 @@
 
 A lightweight, reflection-based SQL mapping library for Java with Spring Boot and PostgreSQL.
 
+[![Build and Test](https://github.com/pascalheraud/nativsql/actions/workflows/build.yml/badge.svg)](https://github.com/pascalheraud/nativsql/actions/workflows/build.yml)
+[![Pull Request Checks](https://github.com/pascalheraud/nativsql/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/pascalheraud/nativsql/actions/workflows/pr-checks.yml)
+
 ## Features
 
 - **Generic RowMapper**: Automatic mapping from ResultSet to Java objects using reflection
@@ -85,37 +88,31 @@ public enum UserStatus {
 ### 4. Create Repository
 
 ```java
+import ovh.heraud.nativsql.repository.GenericRepository;
+
 @Repository
-public class UserRepository extends GenericRepository<User> {
-    
+public class UserRepository extends GenericRepository<User, Long> {
+
     @Autowired
-    public UserRepository(NamedParameterJdbcTemplate jdbcTemplate,
-                          RowMapperFactory rowMapperFactory,
-                          TypeMapperFactory typeMapperFactory) {
-        super(jdbcTemplate, rowMapperFactory, typeMapperFactory, User.class);
-    }
-    
+    private RowMapperFactory rowMapperFactory;
+
     @Override
     protected String getTableName() {
         return "users";
     }
-    
-    public User findById(Long id) {
-        String sql = "SELECT id, first_name, last_name, email, status, address " +
-                     "FROM users WHERE id = :id";
-        
-        List<User> users = jdbcTemplate.query(sql,
-            Map.of("id", id),
-            rowMapperFactory.getRowMapper(User.class));
-        
-        return users.isEmpty() ? null : users.get(0);
+
+    @Override
+    protected Class<User> getEntityClass() {
+        return User.class;
     }
-    
-    // Query JSON fields
+
+    public User findByEmail(String email) {
+        return findByProperty("email", email, "id", "firstName", "lastName", "email");
+    }
+
     public List<User> findByCity(String city) {
-        String sql = "SELECT * FROM users WHERE address->>'city' = :city";
-        return jdbcTemplate.query(sql, Map.of("city", city),
-            rowMapperFactory.getRowMapper(User.class));
+        return findAllByPropertyExpression("(address)->>'city'", "city", city,
+            "id", "firstName", "lastName", "email", "address");
     }
 }
 ```
@@ -193,6 +190,69 @@ factory.register(Point.class, (rs, col) -> {
 });
 ```
 
+## Advanced Features
+
+### FindQuery Builder
+
+Build type-safe, reusable queries:
+
+```java
+// Simple query
+List<User> users = repository.findAll(
+    repository.newFindQuery()
+        .select("id", "firstName", "email")
+        .whereAndEquals("status", UserStatus.ACTIVE)
+        .orderBy("firstName")
+        .build(),
+    "id", "firstName", "email"
+);
+
+// Query with IN clause
+List<User> activeUsers = repository.findAllByIds(
+    List.of(1L, 2L, 3L),
+    "id", "firstName", "email"
+);
+
+// Query with JOINs
+User userWithGroup = repository.find(
+    repository.newFindQuery()
+        .select("id", "firstName", "email")
+        .whereAndEquals("id", userId)
+        .leftJoin("group", List.of("id", "name"))
+        .build()
+);
+```
+
+### Extensible WHERE Expressions
+
+The WHERE clause builder supports extensible operators:
+
+```java
+public enum Operator {
+    EQUALS("=", (col, param) -> col + " = :" + param),
+    IN("IN", (col, param) -> col + " IN (:" + param + ")");
+    // Easy to add: LIKE, >, <, BETWEEN, etc.
+}
+
+// Use in queries
+Condition condition = new Condition("email", Operator.EQUALS, "john@example.com");
+```
+
+### Batch Loading with Associations
+
+Load one-to-many relationships efficiently:
+
+```java
+User user = repository.find(
+    repository.newFindQuery()
+        .select("id", "firstName", "email")
+        .whereAndEquals("id", userId)
+        .associate("contacts", List.of("id", "type", "value"))
+        .build()
+);
+// Loads user and all their contacts in 2 queries (N+1 problem solved)
+```
+
 ## Running Tests
 
 Start PostgreSQL with Docker:
@@ -232,27 +292,42 @@ CREATE TABLE users (
 src/
 ├── main/
 │   └── java/
-│       └── io/github/pascalheraud/nativsql/
-│           ├── config/
-│           │   └── NativSqlConfig.java
+│       └── ovh/heraud/nativsql/
+│           ├── annotation/
+│           │   ├── EnumMapping.java
+│           │   ├── MappedBy.java
+│           │   └── OneToMany.java
+│           ├── db/
+│           │   ├── DatabaseDialect.java
+│           │   ├── DefaultDialect.java
+│           │   └── (dialect implementations)
 │           ├── domain/
-│           │   ├── User.java
-│           │   ├── Address.java
-│           │   └── UserStatus.java
+│           │   └── Entity.java
+│           ├── exception/
+│           │   └── NativSQLException.java
 │           ├── mapper/
-│           │   ├── TypeMapper.java
-│           │   ├── TypeMapperFactory.java
-│           │   ├── RowMapperFactory.java
 │           │   ├── GenericRowMapper.java
-│           │   └── PrefixedResultSet.java
-│           └── repository/
-│               ├── GenericRepository.java
-│               └── UserRepository.java
-└── test/
+│           │   ├── ITypeMapper.java
+│           │   ├── PropertyMetadata.java
+│           │   ├── RowMapperFactory.java
+│           │   └── (type mappers)
+│           ├── repository/
+│           │   └── GenericRepository.java
+│           └── util/
+│               ├── Condition.java
+│               ├── FindQuery.java
+│               ├── Operator.java
+│               ├── WhereExpressionBuilder.java
+│               └── (utilities)
+├── test/
+│   └── java/
+│       └── ovh/heraud/nativsql/
+│           ├── domain/(mariadb|mysql|postgres)/
+│           └── repository/(mariadb|mysql|postgres)/
+└── testFixtures/
     └── java/
-        └── io/github/pascalheraud/nativsql/
-            └── repository/
-                └── UserRepositoryTest.java
+        └── ovh/heraud/nativsql/
+            └── repository/(mariadb|mysql|postgres)/
 ```
 
 ## Design Principles
@@ -262,6 +337,16 @@ src/
 3. **Explicit SQL**: You write the SQL, we handle the mapping
 4. **Type Safety**: Compile-time type checking for custom mappers
 5. **Performance**: Reflection metadata cached per class
+
+## Documentation
+
+For more detailed information, see:
+- **[DOCS.md](DOCS.md)** - Complete documentation index
+- **[API.md](API.md)** - API reference
+- **[INSTALLATION.md](INSTALLATION.md)** - Installation guide
+- **[FAQ.md](FAQ.md)** - Frequently asked questions
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - How to contribute
+- **[CHANGELOG.md](CHANGELOG.md)** - Version history
 
 ## License
 
