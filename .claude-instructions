@@ -86,3 +86,5 @@ Use PostgresDialect implementation (only in db/postgres/ package)
 ✅ Always delegate through DatabaseDialect interface
 
 This projects build with gradle
+
+Do not run git commands in any way

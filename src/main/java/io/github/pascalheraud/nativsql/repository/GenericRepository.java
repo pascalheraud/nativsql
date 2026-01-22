@@ -583,19 +583,22 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         Map<ID, T> entitiesById = entities.stream()
                 .collect(Collectors.toMap(Entity::getId, e -> e));
 
-        // Get columns to load
-        String[] columns = association.getColumns().toArray(new String[0]);
-        if (columns == null || columns.length == 0) {
+        // Get columns to load from association configuration
+        List<String> columns = new ArrayList<>(association.getColumns());
+        if (columns.isEmpty()) {
             throw new NativSQLException(
                     "Association configuration must specify columns for: " + association.getName());
         }
 
         // Ensure foreign key field is included in columns for proper grouping
         String foreignKeyField = associationAnnotation.getForeignKey();
-        columns = ensureForeignKeyInColumns(columns, foreignKeyField);
+        if (!columns.contains(foreignKeyField)) {
+            columns.add(foreignKeyField);
+        }
 
         List<ID> foreignKeyValues = entitiesById.keySet().stream().distinct().toList();
-        List<SUBT> allAssociatedEntities = repository.findAllByPropertyIn(foreignKeyField, foreignKeyValues, columns);
+        List<SUBT> allAssociatedEntities = repository.findAllByPropertyIn(foreignKeyField, foreignKeyValues,
+                columns.toArray(new String[0]));
 
         // Initialize associations on each entity
         for (T entity : entities) {
@@ -611,27 +614,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
                 associatedList.add(associated);
             }
         }
-    }
-
-    /**
-     * Ensures the foreign key field is included in the columns array.
-     * If not present, adds it to the end of the array.
-     *
-     * @param columns         the original columns array
-     * @param foreignKeyField the foreign key field to ensure is included
-     * @return the columns array with foreign key field included
-     */
-    private String[] ensureForeignKeyInColumns(String[] columns, String foreignKeyField) {
-        for (String col : columns) {
-            if (col.equals(foreignKeyField)) {
-                return columns; // Already present
-            }
-        }
-        // Add foreign key field to the end
-        String[] newColumns = new String[columns.length + 1];
-        System.arraycopy(columns, 0, newColumns, 0, columns.length);
-        newColumns[columns.length] = foreignKeyField;
-        return newColumns;
     }
 
     /**

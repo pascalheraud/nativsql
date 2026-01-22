@@ -436,12 +436,9 @@ public class FindQuery<T extends Entity<ID>, ID> {
                         dbCol = tableName + "." + dbCol;
                     }
                     String paramName = condition.getColumn();
-                    String conditionStr;
-                    if (condition.getOperator() == Operator.IN) {
-                        conditionStr = dbCol + " IN (:" + paramName + ")";
-                    } else {
-                        conditionStr = dbCol + " = :" + paramName;
-                    }
+                    String conditionStr = condition.getOperator()
+                            .getExpressionBuilder()
+                            .buildExpression(dbCol, paramName);
                     conditions.add(conditionStr);
                 }
                 sql.append(String.join(" AND ", conditions));
