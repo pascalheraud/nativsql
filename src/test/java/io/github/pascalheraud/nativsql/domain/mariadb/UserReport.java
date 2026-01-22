@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * User statistics report.
+ * User statistics report with hierarchical data.
  */
 @Data
 @NoArgsConstructor
@@ -14,4 +14,5 @@ public class UserReport {
     private long totalUsers;
     private long usersWithEmailContact;
     private long usersWithFrenchPreference;
+    private GroupStats groupStats;
 }

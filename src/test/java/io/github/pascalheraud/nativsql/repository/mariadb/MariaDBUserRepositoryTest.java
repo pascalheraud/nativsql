@@ -2,6 +2,8 @@ package io.github.pascalheraud.nativsql.repository.mariadb;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
+
 import io.github.pascalheraud.nativsql.domain.mariadb.ContactInfo;
 import io.github.pascalheraud.nativsql.domain.mariadb.ContactType;
 import io.github.pascalheraud.nativsql.domain.mariadb.Group;
@@ -279,5 +281,134 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         assertThat(userWithGroup.getGroup()).isNotNull();
         assertThat(userWithGroup.getGroup().getId()).isEqualTo(groupId);
         assertThat(userWithGroup.getGroup().getName()).isEqualTo("Engineering");
+    }
+
+    @Test
+    void testGetUserReportWithGroupStats() {
+        // Given - Create groups
+        Group engGroup = Group.builder()
+                .name("Engineering")
+                .build();
+        groupRepository.insert(engGroup, "name");
+        Long engGroupId = engGroup.getId();
+
+        Group salesGroup = Group.builder()
+                .name("Sales")
+                .build();
+        groupRepository.insert(salesGroup, "name");
+        Long salesGroupId = salesGroup.getId();
+
+        // Create users in groups
+        User user1 = User.builder()
+                .firstName("Alice")
+                .lastName("Dev")
+                .email("alice@example.com")
+                .status(UserStatus.ACTIVE)
+                .groupId(engGroupId)
+                .preferences(Preferences.builder().language("fr").theme("dark").notifications(true).build())
+                .build();
+        userRepository.insert(user1, "firstName", "lastName", "email", "status", "groupId", "preferences");
+
+        User user2 = User.builder()
+                .firstName("Bob")
+                .lastName("Sales")
+                .email("bob@example.com")
+                .status(UserStatus.ACTIVE)
+                .groupId(salesGroupId)
+                .preferences(Preferences.builder().language("en").theme("light").notifications(false).build())
+                .build();
+        userRepository.insert(user2, "firstName", "lastName", "email", "status", "groupId", "preferences");
+
+        User user3 = User.builder()
+                .firstName("Charlie")
+                .lastName("SalesMgr")
+                .email("charlie@example.com")
+                .status(UserStatus.ACTIVE)
+                .groupId(salesGroupId)
+                .preferences(Preferences.builder().language("fr").theme("auto").notifications(true).build())
+                .build();
+        userRepository.insert(user3, "firstName", "lastName", "email", "status", "groupId", "preferences");
+
+        // Add contact info for some users
+        User foundUser1 = userRepository.findByEmail("alice@example.com", "id");
+        ContactInfo contact1 = ContactInfo.builder()
+                .userId(foundUser1.getId())
+                .contactType(ContactType.EMAIL)
+                .contactValue("alice@work.com")
+                .build();
+        contactInfoRepository.insert(contact1, "userId", "contactType", "contactValue");
+
+        User foundUser2 = userRepository.findByEmail("bob@example.com", "id");
+        ContactInfo contact2 = ContactInfo.builder()
+                .userId(foundUser2.getId())
+                .contactType(ContactType.EMAIL)
+                .contactValue("bob@work.com")
+                .build();
+        contactInfoRepository.insert(contact2, "userId", "contactType", "contactValue");
+
+        // When
+        UserReport report = userRepository.getUsersReportWithGroupStats();
+
+        // Then - Verify hierarchical structure
+        assertThat(report).isNotNull();
+        assertThat(report.getTotalUsers()).isEqualTo(3);
+        assertThat(report.getUsersWithEmailContact()).isEqualTo(2);
+        assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
+
+        // Verify nested group stats
+        assertThat(report.getGroupStats()).isNotNull();
+        assertThat(report.getGroupStats().getGroupId()).isNotNull();
+        assertThat(report.getGroupStats().getGroupName()).isNotNull();
+        assertThat(report.getGroupStats().getUserCount()).isGreaterThan(0);
+        assertThat(report.getGroupStats().getActiveUserCount()).isGreaterThan(0);
+        assertThat(report.getGroupStats().getEmailContactCount()).isGreaterThanOrEqualTo(0);
+    }
+
+    @Test
+    void testFindAllByIds() {
+        // Given - Create multiple users
+        User user1 = User.builder()
+                .firstName("User1")
+                .lastName("Test1")
+                .email("user1@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
+        userRepository.insert(user1, "firstName", "lastName", "email", "status");
+
+        User user2 = User.builder()
+                .firstName("User2")
+                .lastName("Test2")
+                .email("user2@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
+        userRepository.insert(user2, "firstName", "lastName", "email", "status");
+
+        User user3 = User.builder()
+                .firstName("User3")
+                .lastName("Test3")
+                .email("user3@example.com")
+                .status(UserStatus.INACTIVE)
+                .build();
+        userRepository.insert(user3, "firstName", "lastName", "email", "status");
+
+        Long userId1 = user1.getId();
+        Long userId3 = user3.getId();
+
+        // When - Find multiple users by their IDs
+        List<User> foundUsers = userRepository.findAllByIds(
+                List.of(userId1, userId3),
+                "id", "firstName", "lastName", "email", "status");
+
+        // Then
+        assertThat(foundUsers).hasSize(2);
+        assertThat(foundUsers)
+                .extracting(User::getId)
+                .containsExactlyInAnyOrder(userId1, userId3);
+        assertThat(foundUsers)
+                .extracting(User::getFirstName)
+                .containsExactlyInAnyOrder("User1", "User3");
+        assertThat(foundUsers)
+                .extracting(User::getStatus)
+                .containsExactlyInAnyOrder(UserStatus.ACTIVE, UserStatus.INACTIVE);
     }
 }

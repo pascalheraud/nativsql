@@ -52,4 +52,22 @@ public interface DatabaseDialect {
      * @param <T> the type
      */
     <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass);
+
+    /**
+     * Convert a Java identifier (camelCase) to a database identifier.
+     * Default implementation converts to snake_case (e.g., "firstName" → "first_name").
+     *
+     * @param javaIdentifier the Java field name in camelCase
+     * @return the database column name
+     */
+    String javaToDBIdentifier(String javaIdentifier);
+
+    /**
+     * Convert a database identifier to a Java identifier (camelCase).
+     * Default implementation converts from snake_case (e.g., "first_name" → "firstName").
+     *
+     * @param dbIdentifier the database column name
+     * @return the Java field name in camelCase
+     */
+    String dbToJavaIdentifier(String dbIdentifier);
 }

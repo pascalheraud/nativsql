@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import io.github.pascalheraud.nativsql.mapper.DefaultTypeMapper;
 import io.github.pascalheraud.nativsql.mapper.EnumStringMapper;
 import io.github.pascalheraud.nativsql.mapper.ITypeMapper;
+import org.springframework.jdbc.support.JdbcUtils;
 
 /**
  * Base dialect with common behavior shared across all database implementations.
@@ -32,6 +33,8 @@ public abstract class DefaultDialect implements DatabaseDialect {
 
     /**
      * Gets the appropriate TypeMapper for the given class.
+     * Returns a mapper only for types that JDBC can handle directly (primitives, strings, dates, etc.)
+     * Returns null for complex types that need custom mapping or are joined properties.
      * Checks enum types first, then JSON types.
      * Subclasses can override to add dialect-specific mappings.
      */
@@ -48,8 +51,49 @@ public abstract class DefaultDialect implements DatabaseDialect {
             return (ITypeMapper<T>) getJsonMapper(targetType);
         }
 
-        // Default: return null, indicating no dialect-specific mapper found
-        return new DefaultTypeMapper<T>();
+        // Check if it's a JDBC-supported type
+        if (isJdbcType(targetType)) {
+            return new DefaultTypeMapper<T>();
+        }
+
+        // For unknown types (complex objects, joined properties), return null
+        return null;
+    }
+
+    /**
+     * Determines if a type is supported by JDBC for direct mapping.
+     */
+    private boolean isJdbcType(Class<?> type) {
+        // Primitive types and their wrappers
+        if (type.isPrimitive() ||
+            type == String.class ||
+            type == Boolean.class ||
+            type == Integer.class ||
+            type == Long.class ||
+            type == Double.class ||
+            type == Float.class ||
+            type == Short.class ||
+            type == Byte.class ||
+            type == Character.class) {
+            return true;
+        }
+
+        // JDBC standard types
+        if (type == java.sql.Date.class ||
+            type == java.sql.Time.class ||
+            type == java.sql.Timestamp.class ||
+            type == java.util.Date.class ||
+            type == java.time.LocalDate.class ||
+            type == java.time.LocalTime.class ||
+            type == java.time.LocalDateTime.class ||
+            type == java.time.Instant.class ||
+            type == java.math.BigDecimal.class ||
+            type == java.math.BigInteger.class ||
+            type == byte[].class) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -78,5 +122,30 @@ public abstract class DefaultDialect implements DatabaseDialect {
         throw new UnsupportedOperationException(
                 "Composite type mapping is not supported by default dialect. " +
                         "Override getCompositeMapper() in your dialect implementation: " + compositeClass.getName());
+    }
+
+    @Override
+    public String javaToDBIdentifier(String javaIdentifier) {
+        return JdbcUtils.convertPropertyNameToUnderscoreName(javaIdentifier);
+    }
+
+    @Override
+    public String dbToJavaIdentifier(String dbIdentifier) {
+        // Convert snake_case to camelCase
+        StringBuilder result = new StringBuilder();
+        boolean capitalizeNext = false;
+
+        for (char c : dbIdentifier.toCharArray()) {
+            if (c == '_') {
+                capitalizeNext = true;
+            } else if (capitalizeNext) {
+                result.append(Character.toUpperCase(c));
+                capitalizeNext = false;
+            } else {
+                result.append(c);
+            }
+        }
+
+        return result.toString();
     }
 }

@@ -84,3 +84,5 @@ Use PostgresDialect implementation (only in db/postgres/ package)
 ❌ Never import org.postgresql.util.PGobject outside postgres/
 ❌ Never use :: casting syntax outside PostgresDialect
 ✅ Always delegate through DatabaseDialect interface
+
+This projects build with gradle

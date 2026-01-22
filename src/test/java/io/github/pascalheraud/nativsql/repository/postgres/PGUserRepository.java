@@ -89,12 +89,72 @@ public class PGUserRepository extends PGRepository<User, Long> {
     public UserReport getUsersReport() {
         String sql = """
                 SELECT
-                    (SELECT COUNT(*) FROM users) as total_users,
-                    (SELECT COUNT(DISTINCT u.id) FROM users u
-                     INNER JOIN contact_info ci ON u.id = ci.user_id
-                     WHERE ci.contact_type = 'EMAIL'::contact_type) as users_with_email_contact,
-                    (SELECT COUNT(*) FROM users u
-                     WHERE u.preferences->>'language' = 'fr') as users_with_french_preference
+                    (
+                        SELECT COUNT(*)
+                        FROM users
+                    )
+                            AS "totalUsers",
+                    (
+                        SELECT COUNT(DISTINCT u.id)
+                        FROM users u
+                        INNER JOIN contact_info ci ON u.id = ci.user_id
+                        WHERE ci.contact_type = 'EMAIL'::contact_type
+                    )
+                            AS "usersWithEmailContact",
+                    (
+                        SELECT COUNT(*)
+                        FROM users u
+                        WHERE u.preferences->>'language' = 'fr'
+                    )
+                            AS "usersWithFrenchPreference"
+                """;
+        return findExternal(sql, UserReport.class);
+    }
+
+    /**
+     * Generates a hierarchical user statistics report with group details.
+     * The report includes nested group statistics for the group with the most users.
+     *
+     * @return the user report with group statistics
+     */
+    public UserReport getUsersReportWithGroupStats() {
+        String sql = """
+                SELECT
+                    (
+                        SELECT COUNT(*)
+                        FROM users
+                    )
+                            AS "totalUsers",
+                    (
+                        SELECT COUNT(DISTINCT u.id)
+                        FROM users u
+                        INNER JOIN contact_info ci ON u.id = ci.user_id
+                        WHERE ci.contact_type = 'EMAIL'::contact_type
+                    )
+                            AS "usersWithEmailContact",
+                    (
+                        SELECT COUNT(*)
+                        FROM users u
+                        WHERE u.preferences->>'language' = 'fr'
+                    )
+                            AS "usersWithFrenchPreference",
+                    g.id
+                            AS "groupStats.groupId",
+                    g.name
+                            AS "groupStats.groupName",
+                    COUNT(DISTINCT u.id)
+                            AS "groupStats.userCount",
+                    CAST(SUM(CASE WHEN u.status = 'ACTIVE'::user_status THEN 1 ELSE 0 END) AS BIGINT)
+                            AS "groupStats.activeUserCount",
+                    CAST(COUNT(DISTINCT ci.id) AS BIGINT)
+                            AS "groupStats.emailContactCount"
+                FROM users u
+                    LEFT JOIN user_group g ON u.group_id = g.id
+                    LEFT JOIN contact_info ci ON u.id = ci.user_id AND ci.contact_type = 'EMAIL'::contact_type
+                WHERE g.id IS NOT NULL
+                GROUP BY g.id, g.name
+                ORDER BY "groupStats.userCount" DESC
+                LIMIT 1
                 """;
         return findExternal(sql, UserReport.class);
     }

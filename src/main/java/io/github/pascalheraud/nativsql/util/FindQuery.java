@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import io.github.pascalheraud.nativsql.annotation.MappedBy;
+import io.github.pascalheraud.nativsql.db.DatabaseDialect;
 import io.github.pascalheraud.nativsql.domain.Entity;
 import io.github.pascalheraud.nativsql.repository.GenericRepository;
 import org.springframework.lang.NonNull;
@@ -29,36 +30,42 @@ import org.springframework.lang.NonNull;
  */
 public class FindQuery<T extends Entity<ID>, ID> {
     private final GenericRepository<T, ID> repository;
+    private final DatabaseDialect dialect;
 
     private final List<String> columns = new ArrayList<>();
     private final OrderBy orderBy = new OrderBy();
     private final List<Association> associations = new ArrayList<>();
     private final List<Join> joins = new ArrayList<>();
-    private final Map<String, Object> whereConditions = new HashMap<>();
+    private final List<Condition> whereConditions = new ArrayList<>();
     private String customWhereExpression;
     private String customParamName;
 
     /**
      * Creates a new FindQuery for the specified repository.
-     * 
+     *
      * @param repository the repository to query (required)
-     * @throws IllegalArgumentException if repository is null
+     * @param dialect    the database dialect for identifier conversion
+     * @throws IllegalArgumentException if repository or dialect is null
      */
-    private FindQuery(GenericRepository<T, ID> repository) {
+    private FindQuery(GenericRepository<T, ID> repository, DatabaseDialect dialect) {
         if (repository == null) {
             throw new IllegalArgumentException("Repository cannot be null");
         }
+        if (dialect == null) {
+            throw new IllegalArgumentException("Dialect cannot be null");
+        }
         this.repository = repository;
+        this.dialect = dialect;
     }
 
     /**
      * Factory method to create a new FindQuery builder from a repository.
-     * 
+     *
      * @param repository the repository to query (required)
      * @return a new FindQuery builder instance
      */
     public static <T extends Entity<ID>, ID> FindQuery<T, ID> of(GenericRepository<T, ID> repository) {
-        return new FindQuery<>(repository);
+        return new FindQuery<>(repository, repository.getDatabaseDialect());
     }
 
     /**
@@ -98,7 +105,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
      */
     public FindQuery<T, ID> orderBy(OrderBy orderBy) {
         // Copy the order conditions from the provided orderBy to this query's orderBy
-        String orderByClause = orderBy.build();
+        String orderByClause = orderBy.build(dialect);
         if (orderByClause.isEmpty()) {
             return this;
         }
@@ -122,16 +129,24 @@ public class FindQuery<T extends Entity<ID>, ID> {
     }
 
     /**
-     * Adds a WHERE condition (property = value).
+     * Adds a WHERE condition with EQUALS operator (property = value).
      */
     public FindQuery<T, ID> whereAndEquals(String column, Object value) {
-        whereConditions.put(column, value);
+        whereConditions.add(new Condition(column, Operator.EQUALS, value));
+        return this;
+    }
+
+    /**
+     * Adds a WHERE condition with IN operator (property IN (...)).
+     */
+    public FindQuery<T, ID> whereAndIn(String column, List<?> values) {
+        whereConditions.add(new Condition(column, Operator.IN, values));
         return this;
     }
 
     /**
      * Adds a custom WHERE expression (e.g., "(address).city" for composite types).
-     * 
+     *
      * @param expression the SQL expression (e.g., "(address).city")
      * @param paramName  the parameter name to use in the query
      * @param value      the value to bind to the parameter
@@ -139,7 +154,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
     public FindQuery<T, ID> whereExpression(String expression, String paramName, Object value) {
         this.customWhereExpression = expression;
         this.customParamName = paramName;
-        whereConditions.put(paramName, value);
+        whereConditions.add(new Condition(paramName, Operator.EQUALS, value));
         return this;
     }
 
@@ -278,8 +293,8 @@ public class FindQuery<T extends Entity<ID>, ID> {
     /**
      * Gets the WHERE conditions.
      */
-    public Map<String, Object> getWhereConditions() {
-        return new HashMap<>(whereConditions);
+    public List<Condition> getWhereConditions() {
+        return new ArrayList<>(whereConditions);
     }
 
     /**
@@ -327,43 +342,63 @@ public class FindQuery<T extends Entity<ID>, ID> {
     }
 
     /**
+     * Builds a column expression with table prefix and alias.
+     * For main table columns: buildColumnExpression("user", "id", "id", null)
+     * For joined table columns: buildColumnExpression("group", "id", "group", "id")
+     *
+     * @param tableName the table name
+     * @param column the column name in Java naming
+     * @param aliasPrefix the alias prefix (same as column for main table, or property name for joined table)
+     * @param aliasSuffix the alias suffix (null for main table, column name for joined table)
+     * @return the column expression with alias
+     */
+    private String buildColumnExpression(String tableName, String column, String aliasPrefix, String aliasSuffix) {
+        String dbColumn = dialect.javaToDBIdentifier(column);
+        String alias = aliasSuffix == null ? aliasPrefix : aliasPrefix + "." + aliasSuffix;
+        return String.format("""
+                %s.%s AS "%s"
+                """.strip(), tableName, dbColumn, alias);
+    }
+
+    /**
+     * Builds the list of columns with proper prefixes and aliases for the SELECT clause.
+     * Handles both simple cases and cases with joins.
+     *
+     * @param tableName the main table name
+     * @return a list of column expressions ready for the SELECT clause
+     */
+    private List<String> buildPrefixedColumns(String tableName) {
+        List<String> prefixedColumns = new ArrayList<>();
+
+        // Add main table columns with table prefix and alias
+        for (String col : columns) {
+            String columnWithAlias = buildColumnExpression(tableName, col, col, null);
+            prefixedColumns.add(columnWithAlias);
+        }
+
+        // Add joined table columns with their property name as prefix in aliases
+        for (Join join : joins) {
+            String joinTableName = join.getRepository().getTableNameForQuery();
+            String propertyName = join.getName(); // Use the property name (e.g., "group")
+            for (String col : join.getColumns()) {
+                String columnWithAlias = buildColumnExpression(joinTableName, col, propertyName, col);
+                prefixedColumns.add(columnWithAlias);
+            }
+        }
+
+        return prefixedColumns;
+    }
+
+    /**
      * Builds the SQL SELECT query.
      * Uses the columns and table name stored in this FindQuery.
-     * 
+     *
      * @return the complete SQL query string
      */
     @NonNull
     public String buildSql() {
         String tableName = repository.getTableNameForQuery();
-
-        // If there are joins, prefix columns with table name to avoid ambiguity
-        // and include columns from joined tables
-        List<String> prefixedColumns = new ArrayList<>();
-
-        if (hasJoins()) {
-            // Add main table columns with prefix
-            for (String col : columns) {
-                String snakeCaseCol = StringUtils.camelToSnake(col);
-                prefixedColumns.add(tableName + "." + snakeCaseCol);
-            }
-
-            // Add joined table columns with their property name as prefix in aliases
-            for (Join join : joins) {
-                String joinTableName = join.getRepository().getTableNameForQuery();
-                String propertyName = join.getName(); // Use the property name (e.g., "group")
-                for (String col : join.getColumns()) {
-                    String snakeCaseCol = StringUtils.camelToSnake(col);
-                    // Use alias with property name prefix (e.g., group_id, group_name)
-                    prefixedColumns.add(joinTableName + "." + snakeCaseCol + " AS " +
-                                      propertyName + "_" + snakeCaseCol);
-                }
-            }
-        } else {
-            // No joins - use simple column listing
-            for (String col : columns) {
-                prefixedColumns.add(StringUtils.camelToSnake(col));
-            }
-        }
+        List<String> prefixedColumns = buildPrefixedColumns(tableName);
 
         String columnList = String.join(", ", prefixedColumns);
 
@@ -376,11 +411,11 @@ public class FindQuery<T extends Entity<ID>, ID> {
                 FieldAccessor fieldAccessor = entityFields.get(join.getName());
                 if (fieldAccessor.hasAnnotation(MappedBy.class)) {
                     MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
-                    String foreignKeyColumn = StringUtils.camelToSnake(mappedBy.value());
+                    String foreignKeyColumn = dialect.javaToDBIdentifier(mappedBy.value());
                     String joinTableName = join.getRepository().getTableNameForQuery();
-                    String joinType = join.isLeftJoin() ? "LEFT JOIN" : "INNER JOIN";
-                    sql.append(String.format(" %s %s ON %s.%s = %s.id",
-                            joinType, joinTableName, tableName, foreignKeyColumn, joinTableName));
+                    String joinKeyword = join.isLeftJoin() ? "LEFT" : "INNER";
+                    sql.append(String.format(" %s JOIN %s ON %s.%s = %s.id",
+                            joinKeyword, joinTableName, tableName, foreignKeyColumn, joinTableName));
                 }
             }
         }
@@ -394,13 +429,20 @@ public class FindQuery<T extends Entity<ID>, ID> {
                 sql.append(customWhereExpression).append(" = :").append(customParamName);
             } else {
                 List<String> conditions = new ArrayList<>();
-                for (String column : whereConditions.keySet()) {
-                    String columnName = StringUtils.camelToSnake(column);
+                for (Condition condition : whereConditions) {
+                    String dbCol = dialect.javaToDBIdentifier(condition.getColumn());
                     // If there are joins, prefix the column with table name to avoid ambiguity
                     if (hasJoins()) {
-                        columnName = tableName + "." + columnName;
+                        dbCol = tableName + "." + dbCol;
                     }
-                    conditions.add(columnName + " = :" + column);
+                    String paramName = condition.getColumn();
+                    String conditionStr;
+                    if (condition.getOperator() == Operator.IN) {
+                        conditionStr = dbCol + " IN (:" + paramName + ")";
+                    } else {
+                        conditionStr = dbCol + " = :" + paramName;
+                    }
+                    conditions.add(conditionStr);
                 }
                 sql.append(String.join(" AND ", conditions));
             }
@@ -408,7 +450,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
 
         // Add ORDER BY clause
         if (!orderBy.isEmpty()) {
-            sql.append(" ").append(orderBy.build());
+            sql.append(" ").append(orderBy.build(dialect));
         }
 
         return Objects.requireNonNull(sql.toString());
@@ -416,16 +458,16 @@ public class FindQuery<T extends Entity<ID>, ID> {
 
     /**
      * Gets the parameters map for the SQL query with converted values.
-     * 
+     *
      * @param valueConverter a function to convert values to SQL format
      * @return a map of parameter names to SQL values
      */
     @NonNull
     public Map<String, Object> getParameters(ValueConverter valueConverter) {
         Map<String, Object> params = new HashMap<>();
-        for (Map.Entry<String, Object> entry : whereConditions.entrySet()) {
-            Object sqlValue = valueConverter.convert(entry.getValue());
-            params.put(entry.getKey(), sqlValue);
+        for (Condition condition : whereConditions) {
+            Object sqlValue = valueConverter.convert(condition.getValue());
+            params.put(condition.getColumn(), sqlValue);
         }
         return params;
     }

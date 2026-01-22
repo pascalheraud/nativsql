@@ -23,11 +23,11 @@ import io.github.pascalheraud.nativsql.util.Association;
 import io.github.pascalheraud.nativsql.util.FieldAccessor;
 import io.github.pascalheraud.nativsql.util.Fields;
 import io.github.pascalheraud.nativsql.util.FindQuery;
+import io.github.pascalheraud.nativsql.util.Join;
 import io.github.pascalheraud.nativsql.util.OneToManyAssociation;
 import io.github.pascalheraud.nativsql.util.OrderBy;
 import io.github.pascalheraud.nativsql.util.ReflectionUtils;
 import io.github.pascalheraud.nativsql.util.SqlUtils;
-import io.github.pascalheraud.nativsql.util.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -103,6 +103,15 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
+     * Returns the database dialect for this repository.
+     * 
+     * @return the database dialect instance
+     */
+    public DatabaseDialect getDatabaseDialect() {
+        return databaseDialect;
+    }
+
+    /**
      * Inserts an entity with specified columns and populates the generated ID.
      *
      * @param entity  the entity to insert (will be modified with generated ID)
@@ -110,7 +119,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @throws IllegalArgumentException if columns array is empty
      */
     public void insert(T entity, String... columns) {
-        String columnList = SqlUtils.getColumnsList(columns);
+        String columnList = SqlUtils.getColumnsList(databaseDialect, columns);
 
         Map<String, Object> params = extractValues(entity, columns);
         Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
@@ -179,10 +188,11 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
 
         String setClause = Arrays.stream(columns)
-                .map(col -> StringUtils.camelToSnake(col) + " = " + formatParameter(col, propertyTypes.get(col)))
+                .map(col -> getDatabaseDialectInstance().javaToDBIdentifier(col) + " = "
+                        + formatParameter(col, propertyTypes.get(col)))
                 .collect(Collectors.joining(", "));
 
-        String idColumnSnake = StringUtils.camelToSnake(ID_COLUMN);
+        String idColumnSnake = getDatabaseDialectInstance().javaToDBIdentifier(ID_COLUMN);
         String sql = "UPDATE " + getTableName() + " SET " + setClause + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
         return executeUpdate(sql, params);
@@ -201,7 +211,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the number of rows deleted
      */
     public int deleteById(Object id) {
-        String idColumnSnake = StringUtils.camelToSnake(ID_COLUMN);
+        String idColumnSnake = getDatabaseDialectInstance().javaToDBIdentifier(ID_COLUMN);
         String sql = "DELETE FROM " + getTableName() + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
         return executeUpdate(sql, getMap(ID_COLUMN, id));
@@ -235,6 +245,20 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
+     * Finds all entities by a list of IDs with specified columns (assumes ID column is named "id").
+     *
+     * @param ids     the list of ID values
+     * @param columns the property names (camelCase) to retrieve
+     * @return list of matching entities
+     */
+    public List<T> findAllByIds(List<?> ids, String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndIn(ID_COLUMN, ids));
+    }
+
+    /**
      * Finds an entity by a property value with specified columns.
      *
      * @param property the property name (camelCase) to filter by
@@ -243,7 +267,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the entity or null if not found
      */
     protected T findByProperty(String property, Object value, String... columns) {
-        return findByPropertyExpression(StringUtils.camelToSnake(property), property, value, columns);
+        return findByPropertyExpression(getDatabaseDialectInstance().javaToDBIdentifier(property), property, value,
+                columns);
     }
 
     /**
@@ -259,7 +284,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     protected List<T> findAllByProperty(String property, Object value, OrderBy orderBy, String... columns) {
-        return findAllByPropertyExpression(StringUtils.camelToSnake(property), property, value, orderBy, columns);
+        return findAllByPropertyExpression(getDatabaseDialectInstance().javaToDBIdentifier(property), property, value,
+                orderBy, columns);
     }
 
     /**
@@ -271,29 +297,31 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param columns  the property names (camelCase) to retrieve
      * @return list of matching entities
      */
-    // TODO Pascal: Refactor findAllByProperty to use FindQuery instead of direct SQL construction
-    // This will provide a more consistent API and support ordering, complex filters, etc.
+    /**
+     * Finds all entities by a list of property values using IN clause (batch loading).
+     *
+     * @param property the property name (camelCase) to filter by
+     * @param values   the list of values to search for (uses IN clause)
+     * @param columns  the property names (camelCase) to retrieve
+     * @return list of matching entities
+     */
     protected List<T> findAllByProperty(String property, List<?> values, String... columns) {
-        if (values == null || values.isEmpty()) {
-            return List.of();
-        }
+        return findAllByPropertyIn(property, values, columns);
+    }
 
-        String columnList = SqlUtils.getColumnsList(columns);
-        String propertySnake = StringUtils.camelToSnake(property);
-
-        // Create indexed parameter names and placeholders
-        List<String> placeholders = new ArrayList<>();
-        Map<String, Object> params = new HashMap<>();
-        for (int i = 0; i < values.size(); i++) {
-            String paramName = property + i;
-            placeholders.add(":" + paramName);
-            params.put(paramName, values.get(i));
-        }
-
-        String sql = "SELECT " + columnList + " FROM " + getTableName() + " WHERE " + propertySnake + " IN ("
-                + String.join(",", placeholders) + ")";
-
-        return jdbcTemplate.query(sql, params, rowMapperFactory.getRowMapper(entityClass, databaseDialect));
+    /**
+     * Finds all entities by a list of property values using IN clause.
+     * More explicit variant of findAllByProperty for batch loading scenarios.
+     *
+     * @param property the property name (camelCase) to filter by
+     * @param values   the list of values to search for (uses IN clause)
+     * @param columns  the property names (camelCase) to retrieve
+     * @return list of matching entities
+     */
+    protected List<T> findAllByPropertyIn(String property, List<?> values, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .whereAndIn(property, values));
     }
 
     /**
@@ -308,16 +336,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the entity or null if not found
      */
     protected T findByPropertyExpression(String propertyExpression, String paramName, Object value, String... columns) {
-        String columnList = SqlUtils.getColumnsList(columns);
-
-        String sql = formatQuery("SELECT %s FROM %s WHERE %s = :%s",
-                columnList, getTableName(), propertyExpression, paramName);
-
-        List<T> results = jdbcTemplate.query(sql,
-                getMap(paramName, value),
-                rowMapperFactory.getRowMapper(entityClass, databaseDialect));
-
-        return results.isEmpty() ? null : results.get(0);
+        return find(newFindQuery().select(columns).whereExpression(propertyExpression, paramName, value));
     }
 
     /**
@@ -373,8 +392,9 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         // Get parameters with SQL conversion
         Map<String, Object> params = query.getParameters(this::convertToSqlValue);
 
-        // Execute query (joins are handled by the RowMapper based on SQL)
-        T entity = findExternal(sql, params, entityClass);
+        // Execute query with joins for nested object mapping
+        @SuppressWarnings("null")
+        T entity = findExternal(sql, params, entityClass, query.getJoins());
 
         // Load associations for multiple linked entities using batch loading
         if (entity != null && query.hasAssociations()) {
@@ -388,15 +408,18 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * Finds entities using a complex FindQuery builder.
      * Does NOT load associations to avoid N+1 queries.
      */
-    protected List<T> findAll(FindQuery<T,ID> query) {
+    protected List<T> findAll(FindQuery<T, ID> query) {
         // Build SQL query using FindQuery
         String sql = query.buildSql();
 
         // Get parameters with SQL conversion
         Map<String, Object> params = query.getParameters(this::convertToSqlValue);
 
-        // Execute query (no association loading to avoid N+1)
-        return findAllExternal(sql, params, entityClass);
+        // Execute query with joins for nested object mapping (no association loading to
+        // avoid N+1)
+        @SuppressWarnings("null")
+        List<T> entities = findAllExternal(sql, params, entityClass, query.getJoins());
+        return entities;
     }
 
     // ==================== Protected Helper Methods ====================
@@ -467,9 +490,21 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Converts a Java object to its SQL representation.
      * Handles enums, composite types, JSON types, and value objects.
+     * For lists, converts each element in the list using the element's type mapper.
      */
     @SuppressWarnings("unchecked")
     private <PARAM_T> Object convertToSqlValue(PARAM_T value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                    .map(item -> {
+                        if (item == null) {
+                            return null;
+                        }
+                        ITypeMapper<Object> itemMapper = (ITypeMapper<Object>) databaseDialect.getMapper(item.getClass());
+                        return itemMapper.toDatabase(item);
+                    })
+                    .collect(Collectors.toList());
+        }
         ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(value.getClass());
         return mapper.toDatabase(value);
     }
@@ -559,10 +594,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         String foreignKeyField = associationAnnotation.getForeignKey();
         columns = ensureForeignKeyInColumns(columns, foreignKeyField);
 
-        List<SUBT> allAssociatedEntities = repository.findAllByProperty(
-                foreignKeyField,
-                entitiesById.keySet().stream().distinct().toList(), // Use Map keys directly
-                columns);
+        List<ID> foreignKeyValues = entitiesById.keySet().stream().distinct().toList();
+        List<SUBT> allAssociatedEntities = repository.findAllByPropertyIn(foreignKeyField, foreignKeyValues, columns);
 
         // Initialize associations on each entity
         for (T entity : entities) {
@@ -620,6 +653,25 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
+     * Executes a custom SQL query and returns a single external object with joins
+     * for nested mapping.
+     * Useful for queries with JOINs that need to map nested objects.
+     *
+     * @param <EXT>       the type of the external object to return
+     * @param sql         the SQL query to execute
+     * @param params      the query parameters
+     * @param resultClass the class of the external object to return
+     * @param joins       the list of joins for nested object mapping
+     * @return the first result or null if not found
+     */
+    protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
+            @NonNull Class<EXT> resultClass, @NonNull List<Join> joins) {
+        List<EXT> results = jdbcTemplate.query(sql, params,
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins));
+        return results.isEmpty() ? null : results.get(0);
+    }
+
+    /**
      * Executes a custom SQL query and returns a single external object.
      * Useful for reporting, aggregations, and queries returning objects different
      * from the entity type.
@@ -649,6 +701,24 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         List<EXT> results = jdbcTemplate.query(sql, params,
                 rowMapperFactory.getRowMapper(resultClass, databaseDialect));
         return results.isEmpty() ? null : results.get(0);
+    }
+
+    /**
+     * Executes a custom SQL query and returns a list of external objects with joins
+     * for nested mapping.
+     * Useful for queries with JOINs that need to map nested objects.
+     *
+     * @param <EXT>       the type of the external objects to return
+     * @param sql         the SQL query to execute
+     * @param params      the query parameters
+     * @param resultClass the class of the external objects to return
+     * @param joins       the list of joins for nested object mapping
+     * @return a list of results
+     */
+    protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Map<String, Object> params,
+            @NonNull Class<EXT> resultClass, @NonNull List<Join> joins) {
+        return jdbcTemplate.query(sql, params,
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins));
     }
 
     /**

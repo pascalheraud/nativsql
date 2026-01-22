@@ -3,6 +3,8 @@ package io.github.pascalheraud.nativsql.util;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.pascalheraud.nativsql.db.DatabaseDialect;
+
 /**
  * Builder for SQL ORDER BY clauses.
  * Example: new OrderBy().asc("name").desc("createdAt").build() → "ORDER BY name ASC, created_at DESC"
@@ -30,8 +32,11 @@ public class OrderBy {
      * Builds the SQL ORDER BY clause.
      * Returns "ORDER BY xxx" or empty string if no orders have been specified.
      * Example: "ORDER BY name ASC, created_at DESC"
+     *
+     * @param dialect the database dialect for identifier conversion
+     * @return the SQL ORDER BY clause
      */
-    public String build() {
+    public String build(DatabaseDialect dialect) {
         if (orders.isEmpty()) {
             return "";
         }
@@ -42,7 +47,7 @@ public class OrderBy {
                 sb.append(", ");
             }
             Order order = orders.get(i);
-            String columnName = StringUtils.camelToSnake(order.column);
+            String columnName = dialect.javaToDBIdentifier(order.column);
             sb.append(columnName).append(" ").append(order.isAsc ? "ASC" : "DESC");
         }
         return sb.toString();

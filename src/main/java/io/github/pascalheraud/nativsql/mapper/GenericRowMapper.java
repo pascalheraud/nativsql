@@ -1,6 +1,7 @@
 package io.github.pascalheraud.nativsql.mapper;
 
 import java.sql.ResultSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -12,32 +13,40 @@ import org.springframework.lang.Nullable;
 /**
  * Generic RowMapper that uses reflection and introspection to map ResultSet
  * rows to Java objects.
- * Supports nested objects using dot notation in column names (e.g.,
- * "address.street") and JOINed tables with table name prefixes.
+ * Supports JOINed tables with dot notation in column names (e.g., "group.id").
  *
  * @param <T> the entity type to map
  */
 public class GenericRowMapper<T> implements RowMapper<T> {
 
     private final Class<T> rootClass;
-    private final List<PropertyMetadata<?>> simpleProperties;
-    private final Map<String, NestedPropertyMetadata> nestedProperties;
-    private final Map<String, JoinedPropertyMetadata> joinedProperties;
+    private final Map<String, PropertyMetadata<?>> simpleProperties;
+    private final Map<String, JoinedPropertyMetadata> subProperties;
 
     public GenericRowMapper(Class<T> rootClass,
-            List<PropertyMetadata<?>> simpleProperties,
-            Map<String, NestedPropertyMetadata> nestedProperties) {
-        this(rootClass, simpleProperties, nestedProperties, Map.of());
+            List<PropertyMetadata<?>> simpleProperties) {
+        this(rootClass, simpleProperties, Map.of());
     }
 
     public GenericRowMapper(Class<T> rootClass,
             List<PropertyMetadata<?>> simpleProperties,
-            Map<String, NestedPropertyMetadata> nestedProperties,
-            Map<String, JoinedPropertyMetadata> joinedProperties) {
+            Map<String, JoinedPropertyMetadata> subProperties) {
         this.rootClass = rootClass;
-        this.simpleProperties = simpleProperties;
-        this.nestedProperties = nestedProperties;
-        this.joinedProperties = joinedProperties;
+
+        // Build map of simple properties indexed by Java property name (camelCase)
+        // Since all SQL queries return Java identifiers in AS aliases
+        Map<String, PropertyMetadata<?>> simplePropsByColumn = new HashMap<>();
+        for (PropertyMetadata<?> prop : simpleProperties) {
+            simplePropsByColumn.put(prop.getFieldAccessor().getName(), prop);
+        }
+        this.simpleProperties = simplePropsByColumn;
+
+        // Build map of sub-properties indexed by name
+        Map<String, JoinedPropertyMetadata> subPropsByName = new HashMap<>();
+        for (JoinedPropertyMetadata joined : subProperties.values()) {
+            subPropsByName.put(joined.getPropertyName(), joined);
+        }
+        this.subProperties = subPropsByName;
     }
 
     @Override
@@ -46,73 +55,91 @@ public class GenericRowMapper<T> implements RowMapper<T> {
         try {
             T instance = null;
 
-            // Map simple properties
-            for (PropertyMetadata<?> prop : simpleProperties) {
-                // Check if column exists first before attempting to map
-                if (!columnExists(rs, prop.getColumnName())) {
-                    continue;
-                }
+            // Single loop through ResultSet columns
+            java.sql.ResultSetMetaData metadata = rs.getMetaData();
+            for (int i = 1; i <= metadata.getColumnCount(); i++) {
+                String columnLabel = metadata.getColumnLabel(i);
 
-                Object value = prop.getTypeMapper().map(rs, prop.getColumnName());
+                if (columnLabel.contains(".")) {
+                    // This is a joined property column (e.g., "group.id")
+                    String prefix = columnLabel.substring(0, columnLabel.indexOf("."));
+                    String columnName = columnLabel.substring(columnLabel.indexOf(".") + 1);
+                    JoinedPropertyMetadata joined = subProperties.get(prefix);
 
-                // Lazy instantiation: create instance only if we have at least one value
-                if (value != null) {
-                    if (instance == null) {
-                        instance = rootClass.getDeclaredConstructor().newInstance();
+                    if (joined != null) {
+                        // Lazy-initialize root instance if needed
+                        if (instance == null) {
+                            instance = newInstance(rootClass);
+                        }
+
+                        // Get or create sub-object instance via delegated mapper
+                        Object subInstance = joined.getFieldAccessor().getValue(instance);
+                        if (subInstance == null) {
+                            subInstance = createSubInstance(joined);
+                            joined.getFieldAccessor().setValue(instance, subInstance);
+                        }
+
+                        // Map this single column to the sub-object using the delegated mapper
+                        joined.getDelegateMapper().mapColumn(subInstance, columnName, rs, columnLabel, prefix);
                     }
-                    prop.getFieldAccessor().setValue(instance, value);
                 } else {
-                    // Column exists but value is NULL
+                    // This is a simple property column
                     if (instance == null) {
-                        instance = rootClass.getDeclaredConstructor().newInstance();
+                        instance = newInstance(rootClass);
                     }
-                }
-            }
-
-            // Map nested properties (dot notation)
-            for (NestedPropertyMetadata nested : nestedProperties.values()) {
-                ResultSet prefixedRs = new PrefixedResultSet(rs, nested.getPropertyName() + ".");
-                Object nestedObj = nested.getDelegateMapper().mapRow(prefixedRs, rowNum);
-
-                if (nestedObj != null) {
-                    if (instance == null) {
-                        instance = rootClass.getDeclaredConstructor().newInstance();
-                    }
-                    nested.getSetter().invoke(instance, nestedObj);
-                }
-            }
-
-            // Map joined properties (property name prefix matching the alias format)
-            for (JoinedPropertyMetadata joined : joinedProperties.values()) {
-                // Use property name as prefix matching the alias format: property_column (e.g.,
-                // group_id, group_name)
-                ResultSet prefixedRs = new PrefixedResultSet(rs, joined.getPropertyName() + "_");
-                Object joinedObj = joined.getDelegateMapper().mapRow(prefixedRs, rowNum);
-
-                if (joinedObj != null) {
-                    if (instance == null) {
-                        instance = rootClass.getDeclaredConstructor().newInstance();
-                    }
-                    joined.getFieldAccessor().setValue(instance, joinedObj);
+                    mapColumn(instance, columnLabel, rs, columnLabel, null);
                 }
             }
 
             return instance;
 
-        } catch (ReflectiveOperationException e) {
+        } catch (ReflectiveOperationException | java.sql.SQLException e) {
             throw new NativSQLException("Failed to map row to " + rootClass.getSimpleName(), e);
         }
     }
 
     /**
-     * Checks if a column exists in the ResultSet.
+     * Creates a new instance of the given class using its no-arg constructor.
      */
-    private boolean columnExists(ResultSet rs, String columnName) {
-        try {
-            rs.findColumn(columnName);
-            return true;
-        } catch (java.sql.SQLException e) {
-            return false;
-        }
+    private <U> U newInstance(Class<U> clazz) throws ReflectiveOperationException {
+        return clazz.getDeclaredConstructor().newInstance();
     }
+
+    /**
+     * Creates a new sub-instance using the delegated mapper.
+     */
+    private Object createSubInstance(JoinedPropertyMetadata joined) throws ReflectiveOperationException {
+        return joined.getDelegateMapper().createNewInstance(joined.getPropertyType());
+    }
+
+    /**
+     * Creates a new instance of the given class.
+     * Public method to allow sub-mappers to create instances.
+     */
+    public <U> U createNewInstance(Class<U> clazz) throws ReflectiveOperationException {
+        return newInstance(clazz);
+    }
+
+    /**
+     * Maps a single column value to a simple property of a target object.
+     *
+     * @param targetObject the object to set the property on
+     * @param propertyColumnName the column name to search for in this mapper
+     * @param rs the result set
+     * @param columnLabel the actual column label from the result set
+     * @param prefix the prefix for this property (e.g., "group" for "group.id"), or null for root properties
+     * @throws NativSQLException if the property metadata is not found
+     */
+    private void mapColumn(Object targetObject, String propertyColumnName, ResultSet rs, String columnLabel, String prefix)
+            throws NativSQLException {
+        PropertyMetadata<?> prop = simpleProperties.get(propertyColumnName);
+
+        if (prop == null) {
+            throw new NativSQLException("Property metadata not found for column: " + propertyColumnName);
+        }
+
+        Object value = prop.getTypeMapper().map(rs, columnLabel);
+        prop.getFieldAccessor().setValue(targetObject, value);
+    }
+
 }

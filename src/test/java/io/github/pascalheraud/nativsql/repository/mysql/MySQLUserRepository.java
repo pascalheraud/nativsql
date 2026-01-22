@@ -1,5 +1,7 @@
 package io.github.pascalheraud.nativsql.repository.mysql;
 
+import java.util.List;
+
 import io.github.pascalheraud.nativsql.domain.mysql.User;
 import io.github.pascalheraud.nativsql.domain.mysql.UserReport;
 import org.springframework.lang.NonNull;
@@ -35,8 +37,7 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
     }
 
     /**
-     * Finds a user by ID and loads their group information.
-     * The group is loaded via a separate query using the groupId field.
+     * Finds a user by ID and loads their group information via JOIN.
      *
      * @param userId       the user ID
      * @param groupColumns the columns to load for the group
@@ -44,22 +45,11 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
      * @return the user with group information, or null if not found
      */
     public User getUserWithGroup(Long userId, String[] groupColumns, String... userColumns) {
-        // Load user first (must include groupId)
-        java.util.List<String> userColsWithGroup = new java.util.ArrayList<>(java.util.Arrays.asList(userColumns));
-        if (!userColsWithGroup.contains("groupId")) {
-            userColsWithGroup.add("groupId");
-        }
-
-        User user = findById(userId, userColsWithGroup.toArray(new String[0]));
-        if (user == null || user.getGroupId() == null) {
-            return user;
-        }
-
-        // Load group using groupId
-        MySQLGroupRepository groupRepository = applicationContext.getBean(MySQLGroupRepository.class);
-        user.setGroup(groupRepository.findById(user.getGroupId(), groupColumns));
-
-        return user;
+        return find(
+                newFindQuery()
+                        .select(userColumns)
+                        .whereAndEquals("id", userId)
+                        .leftJoin("group", List.of(groupColumns)));
     }
 
     /**
@@ -71,13 +61,73 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
     public UserReport getUsersReport() {
         String sql = """
                 SELECT
-                    (SELECT COUNT(*) FROM users) as total_users,
-                    (SELECT COUNT(DISTINCT u.id) FROM users u
-                     INNER JOIN contact_info ci ON u.id = ci.user_id
-                     WHERE ci.contact_type = 'EMAIL') as users_with_email_contact,
-                    (SELECT COUNT(*) FROM users u
-                     WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr') as users_with_french_preference
+                    (
+                        SELECT COUNT(*)
+                        FROM users
+                    )
+                            AS "totalUsers",
+                    (
+                        SELECT COUNT(DISTINCT u.id)
+                        FROM users u
+                        INNER JOIN contact_info ci ON u.id = ci.user_id
+                        WHERE ci.contact_type = 'EMAIL'
+                    )
+                            AS "usersWithEmailContact",
+                    (
+                        SELECT COUNT(*)
+                        FROM users u
+                        WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr'
+                    )
+                            AS "usersWithFrenchPreference"
                 FROM DUAL
+                """;
+        return findExternal(sql, UserReport.class);
+    }
+
+    /**
+     * Generates a hierarchical user statistics report with group details.
+     * The report includes nested group statistics for the group with the most users.
+     *
+     * @return the user report with group statistics
+     */
+    public UserReport getUsersReportWithGroupStats() {
+        String sql = """
+                SELECT
+                    (
+                        SELECT COUNT(*)
+                        FROM users
+                    )
+                            AS "totalUsers",
+                    (
+                        SELECT COUNT(DISTINCT u.id)
+                        FROM users u
+                        INNER JOIN contact_info ci ON u.id = ci.user_id
+                        WHERE ci.contact_type = 'EMAIL'
+                    )
+                            AS "usersWithEmailContact",
+                    (
+                        SELECT COUNT(*)
+                        FROM users u
+                        WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr'
+                    )
+                            AS "usersWithFrenchPreference",
+                    g.id
+                            AS "groupStats.groupId",
+                    g.name
+                            AS "groupStats.groupName",
+                    COUNT(DISTINCT u.id)
+                            AS "groupStats.userCount",
+                    SUM(CASE WHEN u.status = 'ACTIVE' THEN 1 ELSE 0 END)
+                            AS "groupStats.activeUserCount",
+                    SUM(CASE WHEN ci.id IS NOT NULL THEN 1 ELSE 0 END)
+                            AS "groupStats.emailContactCount"
+                FROM users u
+                    LEFT JOIN user_group g ON u.group_id = g.id
+                    LEFT JOIN contact_info ci ON u.id = ci.user_id AND ci.contact_type = 'EMAIL'
+                WHERE g.id IS NOT NULL
+                GROUP BY g.id, g.name
+                ORDER BY "groupStats.userCount" DESC
+                LIMIT 1
                 """;
         return findExternal(sql, UserReport.class);
     }

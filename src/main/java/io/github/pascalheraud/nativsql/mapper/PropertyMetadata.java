@@ -1,20 +1,25 @@
 package io.github.pascalheraud.nativsql.mapper;
 
+import io.github.pascalheraud.nativsql.db.DatabaseDialect;
 import io.github.pascalheraud.nativsql.util.FieldAccessor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
-import org.springframework.jdbc.support.JdbcUtils;
 
 /**
  * Metadata for a simple (non-nested) property.
  */
 @Getter
-@RequiredArgsConstructor
 public class PropertyMetadata<T> {
     private final FieldAccessor fieldAccessor; // camelCase (e.g., "firstName")
     private final ITypeMapper<T> typeMapper;
+    private final DatabaseDialect dialect;
+
+    public PropertyMetadata(FieldAccessor fieldAccessor, ITypeMapper<T> typeMapper, DatabaseDialect dialect) {
+        this.fieldAccessor = fieldAccessor;
+        this.typeMapper = typeMapper;
+        this.dialect = dialect;
+    }
 
     public String getColumnName() {
-        return JdbcUtils.convertPropertyNameToUnderscoreName(fieldAccessor.getName());
+        return dialect.javaToDBIdentifier(fieldAccessor.getName());
     }
 }
