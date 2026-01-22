@@ -32,8 +32,8 @@ dependencies {
     implementation 'org.mariadb.jdbc:mariadb-java-client:3.2.0'
 
     // PostGIS
-    implementation 'net.postgis:postgis-jdbc:2023.1.0'
-    implementation 'net.postgis:postgis-geometry:2023.1.0'
+    implementation 'net.postgis:postgis-jdbc:2025.1.1'
+    implementation 'net.postgis:postgis-geometry:2025.1.1'
 
     // Jackson for JSON
     implementation 'com.fasterxml.jackson.core:jackson-databind'
