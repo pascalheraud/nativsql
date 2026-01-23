@@ -3,10 +3,11 @@ plugins {
     id 'java-test-fixtures'
     id 'org.springframework.boot' version '4.0.2'
     id 'io.spring.dependency-management' version '1.1.7'
+    id 'maven-publish'
 }
 
-group = 'io.github.pascalheraud'
-version = '0.1.0-SNAPSHOT'
+group = 'ovh.heraud'
+version = '1.0.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -83,4 +84,22 @@ tasks.named('test') {
 
 springBoot {
     mainClass = 'ovh.heraud.nativsql.NativSqlApplication'
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/pascalheraud/nativsql"
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
+    publications {
+        gpr(MavenPublication) {
+            from(components.java)
+        }
+    }
 }

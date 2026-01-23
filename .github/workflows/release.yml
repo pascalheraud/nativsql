@@ -11,6 +11,7 @@ jobs:
 
     permissions:
       contents: write
+      packages: write
 
     steps:
     - uses: actions/checkout@v6
@@ -38,6 +39,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Publish to Maven Central (if configured)
-      run: ./gradlew publish --no-daemon || echo "Maven publish not configured"
+    - name: Publish to GitHub Packages
+      run: ./gradlew publish --no-daemon
       if: success()
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
