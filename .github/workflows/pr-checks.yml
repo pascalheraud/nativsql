@@ -55,7 +55,7 @@ jobs:
       run: ./gradlew test jacocoTestReport --no-daemon || true
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v5
       with:
         files: ./build/reports/jacoco/test/jacocoTestReport.xml
         flags: unittests
