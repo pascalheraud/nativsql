@@ -120,7 +120,9 @@ publishing {
             artifactId = 'nativsql'
             version = '1.1.0'
 
-            artifact tasks.testFixturesJar
+            artifact(tasks.testFixturesJar) {
+                classifier = 'test-fixtures'
+            }
 
             pom.withXml {
                 def root = asNode()
