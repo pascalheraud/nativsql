@@ -7,7 +7,7 @@ plugins {
 }
 
 group = 'ovh.heraud'
-version = '1.0.0'
+version = '1.1.0'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -51,21 +51,23 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.assertj:assertj-core'
-    testImplementation 'org.testcontainers:testcontainers:2.0.3'
-    testImplementation 'org.testcontainers:testcontainers-postgresql:2.0.3'
-    testImplementation 'org.testcontainers:testcontainers-mysql:2.0.3'
-    testImplementation 'org.testcontainers:testcontainers-mariadb:2.0.3'
-    testImplementation 'org.testcontainers:testcontainers-junit-jupiter:2.0.3'
+    testImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
+    testImplementation 'org.testcontainers:testcontainers-mysql'
+    testImplementation 'org.testcontainers:testcontainers-mariadb'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 
     // Test fixtures dependencies (reusable test classes)
     testFixturesImplementation 'org.springframework.boot:spring-boot-starter-jdbc'
     testFixturesImplementation 'org.springframework.boot:spring-boot-starter-test'
     testFixturesImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testFixturesImplementation 'org.testcontainers:testcontainers:2.0.3'
-    testFixturesImplementation 'org.testcontainers:testcontainers-postgresql:2.0.3'
-    testFixturesImplementation 'org.testcontainers:testcontainers-mysql:2.0.3'
-    testFixturesImplementation 'org.testcontainers:testcontainers-mariadb:2.0.3'
-    testFixturesImplementation 'org.testcontainers:testcontainers-junit-jupiter:2.0.3'
+    testFixturesImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    testFixturesImplementation 'org.testcontainers:testcontainers'
+    testFixturesImplementation 'org.testcontainers:testcontainers-postgresql'
+    testFixturesImplementation 'org.testcontainers:testcontainers-mysql'
+    testFixturesImplementation 'org.testcontainers:testcontainers-mariadb'
+    testFixturesImplementation 'org.testcontainers:testcontainers-junit-jupiter'
     testFixturesCompileOnly 'org.projectlombok:lombok:1.18.42'
     testFixturesAnnotationProcessor 'org.projectlombok:lombok:1.18.42'
 }
@@ -86,6 +88,13 @@ springBoot {
     mainClass = 'ovh.heraud.nativsql.NativSqlApplication'
 }
 
+// Configure the testFixturesJar task created by java-test-fixtures plugin
+tasks.named('testFixturesJar') {
+    archiveBaseName = 'nativsql'
+    archiveVersion = '1.0.0'
+    archiveClassifier = 'test-fixtures'
+}
+
 publishing {
     repositories {
         maven {
@@ -96,10 +105,77 @@ publishing {
                 password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
             }
         }
+        maven {
+            name = "MavenLocal"
+            url = "file://${System.getProperty('user.home')}/.m2/repository"
+        }
     }
     publications {
         gpr(MavenPublication) {
             from(components.java)
+        }
+
+        testFixtures(MavenPublication) {
+            groupId = 'ovh.heraud'
+            artifactId = 'nativsql'
+            version = '1.0.0'
+
+            artifact tasks.testFixturesJar
+
+            pom.withXml {
+                def root = asNode()
+
+                // Add dependencyManagement section with testcontainers-bom
+                def depMgmt = root.dependencyManagement
+                if (!depMgmt) {
+                    depMgmt = root.appendNode('dependencyManagement')
+                } else {
+                    depMgmt = depMgmt[0]
+                }
+
+                def depMgmtDepsNode = depMgmt.dependencies
+                if (!depMgmtDepsNode) {
+                    depMgmtDepsNode = depMgmt.appendNode('dependencies')
+                } else {
+                    depMgmtDepsNode = depMgmtDepsNode[0]
+                }
+
+                def bomDep = depMgmtDepsNode.appendNode('dependency')
+                bomDep.appendNode('groupId', 'org.testcontainers')
+                bomDep.appendNode('artifactId', 'testcontainers-bom')
+                bomDep.appendNode('version', '2.0.2')
+                bomDep.appendNode('type', 'pom')
+                bomDep.appendNode('scope', 'import')
+
+                // Add regular dependencies section
+                def depsNode = root.dependencies
+                if (!depsNode) {
+                    depsNode = root.appendNode('dependencies')
+                } else {
+                    depsNode = depsNode[0]
+                }
+
+                def testFixturesDeps = [
+                    ['org.springframework.boot', 'spring-boot-starter-jdbc', null],
+                    ['org.springframework.boot', 'spring-boot-starter-test', null],
+                    ['org.springframework.boot', 'spring-boot-testcontainers', null],
+                    ['org.testcontainers', 'testcontainers', null],
+                    ['org.testcontainers', 'testcontainers-postgres', null],
+                    ['org.testcontainers', 'testcontainers-mysql', null],
+                    ['org.testcontainers', 'testcontainers-mariadb', null],
+                    ['org.testcontainers', 'testcontainers-junit-jupiter', null]
+                ]
+
+                testFixturesDeps.each { depData ->
+                    def dep = depsNode.appendNode('dependency')
+                    dep.appendNode('groupId', depData[0])
+                    dep.appendNode('artifactId', depData[1])
+                    if (depData[2]) {
+                        dep.appendNode('version', depData[2])
+                    }
+                    dep.appendNode('scope', 'compile')
+                }
+            }
         }
     }
 }

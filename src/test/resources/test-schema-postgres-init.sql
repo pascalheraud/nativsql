@@ -18,6 +18,7 @@ CREATE TABLE users (
     first_name VARCHAR(255),
     last_name VARCHAR(255),
     email VARCHAR(255) UNIQUE NOT NULL,
+    external_id UUID UNIQUE,
     status user_status DEFAULT 'ACTIVE',
     address address_type,
     preferences JSONB,

@@ -2,6 +2,7 @@ package ovh.heraud.nativsql.domain.mariadb;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OneToMany;
@@ -25,6 +26,7 @@ public class User implements Entity<Long> {
     private String firstName;
     private String lastName;
     private String email;
+    private UUID externalId;
     private UserStatus status;
     private Address address;
     private Preferences preferences;

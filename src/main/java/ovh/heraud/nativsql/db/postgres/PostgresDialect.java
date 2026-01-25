@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.db.postgres;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 import ovh.heraud.nativsql.annotation.EnumMapping;
 import ovh.heraud.nativsql.db.DefaultDialect;
@@ -72,10 +73,16 @@ public class PostgresDialect extends DefaultDialect {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
         // Check for composite types first (PostgreSQL-specific)
         if (compositeTypeNames.containsKey(targetType)) {
             return getCompositeMapper(targetType);
+        }
+
+        // Use PostgreSQL-specific UUID mapper
+        if (targetType == UUID.class) {
+            return (ITypeMapper<T>) new PostgresUUIDTypeMapper();
         }
 
         // Fall back to parent implementation for enums and JSON types

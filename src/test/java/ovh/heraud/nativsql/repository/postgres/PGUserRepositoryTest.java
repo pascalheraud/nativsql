@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.repository.postgres;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
+import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.postgres.Address;
 import ovh.heraud.nativsql.domain.postgres.ContactInfo;
@@ -504,5 +505,29 @@ class PGUserRepositoryTest extends PGRepositoryTest {
         assertThat(foundUsers)
                 .extracting(User::getStatus)
                 .containsExactlyInAnyOrder(UserStatus.ACTIVE, UserStatus.INACTIVE);
+    }
+
+    @Test
+    void testFindByExternalId() {
+        // Given - Create a user with external ID
+        UUID externalId = UUID.randomUUID();
+        User user = User.builder()
+                .firstName("UUIDTest")
+                .lastName("User")
+                .email("uuid@example.com")
+                .externalId(externalId)
+                .status(UserStatus.ACTIVE)
+                .build();
+        userRepository.insert(user, "firstName", "lastName", "email", "externalId", "status");
+
+        // When - Find by external ID
+        User found = userRepository.findByExternalId(externalId, "id", "firstName", "lastName", "email", "externalId", "status");
+
+        // Then
+        assertThat(found).isNotNull();
+        assertThat(found.getExternalId()).isEqualTo(externalId);
+        assertThat(found.getEmail()).isEqualTo("uuid@example.com");
+        assertThat(found.getFirstName()).isEqualTo("UUIDTest");
+        assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
     }
 }

@@ -1,6 +1,7 @@
 package ovh.heraud.nativsql.repository.postgres;
 
 import java.util.List;
+import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
@@ -34,6 +35,17 @@ public class PGUserRepository extends PGRepository<User, Long> {
      */
     public User findByEmail(String email, String... columns) {
         return findByProperty("email", email, columns);
+    }
+
+    /**
+     * Finds a user by external ID (UUID) with specified columns.
+     *
+     * @param externalId the user external ID
+     * @param columns    the property names (camelCase) to retrieve
+     * @return the user or null if not found
+     */
+    public User findByExternalId(UUID externalId, String... columns) {
+        return findByProperty("externalId", externalId, columns);
     }
 
     /**

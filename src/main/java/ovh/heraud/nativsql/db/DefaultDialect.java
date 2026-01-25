@@ -2,11 +2,13 @@ package ovh.heraud.nativsql.db;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import ovh.heraud.nativsql.mapper.DefaultTypeMapper;
 import ovh.heraud.nativsql.mapper.EnumStringMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.mapper.UUIDTypeMapper;
 import org.springframework.jdbc.support.JdbcUtils;
 
 /**
@@ -49,6 +51,11 @@ public abstract class DefaultDialect implements DatabaseDialect {
         // Check if it's a registered JSON type
         if (jsonTypes.containsKey(targetType)) {
             return (ITypeMapper<T>) getJsonMapper(targetType);
+        }
+
+        // Check if it's a UUID type
+        if (targetType == UUID.class) {
+            return (ITypeMapper<T>) new UUIDTypeMapper();
         }
 
         // Check if it's a JDBC-supported type
