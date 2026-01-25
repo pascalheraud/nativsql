@@ -91,7 +91,7 @@ springBoot {
 // Configure the testFixturesJar task created by java-test-fixtures plugin
 tasks.named('testFixturesJar') {
     archiveBaseName = 'nativsql'
-    archiveVersion = '1.0.0'
+    archiveVersion = '1.1.0'
     archiveClassifier = 'test-fixtures'
 }
 
@@ -118,7 +118,7 @@ publishing {
         testFixtures(MavenPublication) {
             groupId = 'ovh.heraud'
             artifactId = 'nativsql'
-            version = '1.0.0'
+            version = '1.1.0'
 
             artifact tasks.testFixturesJar
 
