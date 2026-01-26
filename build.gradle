@@ -6,8 +6,14 @@ plugins {
     id 'maven-publish'
 }
 
-group = 'ovh.heraud'
-version = '1.1.0'
+// Define properties
+def groupId = 'ovh.heraud'
+def projectVersion = '1.1.0'
+def mainArtifactId = 'nativsql'
+def testFixturesArtifactId = 'nativsql-test-fixtures'
+
+group = groupId
+version = projectVersion
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -16,6 +22,14 @@ java {
 
 repositories {
     mavenCentral()
+}
+
+configurations {
+    testFixturesElements {
+        canBeConsumed = true
+        canBeResolved = false
+        extendsFrom testFixturesRuntimeElements
+    }
 }
 
 dependencies {
@@ -90,9 +104,8 @@ springBoot {
 
 // Configure the testFixturesJar task created by java-test-fixtures plugin
 tasks.named('testFixturesJar') {
-    archiveBaseName = 'nativsql'
-    archiveVersion = '1.1.0'
-    archiveClassifier = 'test-fixtures'
+    archiveBaseName = testFixturesArtifactId
+    archiveVersion = projectVersion
 }
 
 publishing {
@@ -112,18 +125,24 @@ publishing {
     }
     publications {
         gpr(MavenPublication) {
+            groupId = groupId
+            artifactId = mainArtifactId
+            version = projectVersion
             from(components.java)
+            suppressPomMetadataWarningsFor('testFixturesApiElements')
+            suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
         }
 
         testFixtures(MavenPublication) {
-            groupId = 'ovh.heraud'
-            artifactId = 'nativsql'
-            version = '1.1.0'
+            groupId = groupId
+            artifactId = testFixturesArtifactId
+            version = projectVersion
 
             artifact(tasks.testFixturesJar) {
-                classifier = 'test-fixtures'
+                classifier = null
             }
 
+            // Add testFixtures dependencies to POM
             pom.withXml {
                 def root = asNode()
 
