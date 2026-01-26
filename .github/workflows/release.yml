@@ -43,4 +43,5 @@ jobs:
       run: ./gradlew publish --no-daemon
       if: success()
       env:
+        GITHUB_ACTOR: ${{ github.actor }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
