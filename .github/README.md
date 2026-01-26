@@ -48,7 +48,7 @@ This directory contains GitHub Actions workflows and configuration for automated
 
 All PRs and pushes run:
 
-✅ Build with Gradle (Java 21, 22)
+✅ Build with Gradle (Java 17+)
 ✅ Integration tests (MySQL, MariaDB, PostgreSQL)
 ✅ Code quality checks
 ✅ Security scanning
