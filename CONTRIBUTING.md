@@ -6,7 +6,7 @@ We welcome contributions to NativSQL! This document provides guidelines for cont
 
 ### Prerequisites
 
-- Java 21+
+- Java 17+
 - Gradle 8.0+
 - Docker (for running services locally)
 - Git

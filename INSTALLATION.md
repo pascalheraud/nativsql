@@ -4,7 +4,7 @@ This guide walks you through installing and setting up NativSQL in your project.
 
 ## Prerequisites
 
-- Java 21 or 22
+- Java 17 or higher
 - Gradle 8.0 or Maven (project uses Gradle)
 - Spring Boot 3.2+
 - One of the supported databases:
