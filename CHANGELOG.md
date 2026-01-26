@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Significantly better performance for loading related entities
 
 - **GitHub Actions CI/CD**
-  - `build.yml` - Automated build and test on Java 21/22 with MySQL, MariaDB, PostgreSQL
+  - `build.yml` - Automated build and test on Java 17+ with MySQL, MariaDB, PostgreSQL
   - `pr-checks.yml` - Code quality, security scanning, coverage reporting
   - `release.yml` - Automated GitHub releases and artifact publishing
   - `dependabot.yml` - Automatic dependency updates
@@ -81,8 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PostgreSQL 15+ (with PostGIS support)
 
 #### Supported Java Versions
-- Java 21
-- Java 22
+- Java 17+
 
 ---
 

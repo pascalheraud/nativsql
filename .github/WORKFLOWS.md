@@ -11,7 +11,7 @@ This project uses GitHub Actions to automate building, testing, and releasing.
 - Pull requests to `main` or `develop` branches
 
 **Features:**
-- Runs on Java 21 and 22 (matrix strategy)
+- Runs on Java 17+ (matrix strategy)
 - Starts MySQL, MariaDB, and PostgreSQL services for integration tests
 - Executes full Gradle build and test suite
 - Uploads test reports on failure
@@ -107,7 +107,7 @@ This will mark the release as a prerelease on GitHub.
 
 ## Requirements
 
-- Java 21 or 22
+- Java 17 or higher
 - Gradle 8.0+
 - Docker (for local service testing)
 
