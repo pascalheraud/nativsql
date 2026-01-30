@@ -5,13 +5,12 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
+import org.jspecify.annotations.NonNull;
 import ovh.heraud.nativsql.annotation.MappedBy;
-import ovh.heraud.nativsql.db.DatabaseDialect;
+import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.Entity;
 import ovh.heraud.nativsql.repository.GenericRepository;
-import org.springframework.lang.NonNull;
 
 /**
  * Builder for complex SELECT queries with filtering, ordering, and
@@ -28,34 +27,27 @@ import org.springframework.lang.NonNull;
  * @param <T>  the entity type
  * @param <ID> the entity ID type
  */
-public class FindQuery<T extends Entity<ID>, ID> {
+public class FindQuery<T extends Entity<ID>, ID> implements SQLBuilder {
     private final GenericRepository<T, ID> repository;
-    private final DatabaseDialect dialect;
 
     private final List<String> columns = new ArrayList<>();
     private final OrderBy orderBy = new OrderBy();
+    private final WhereClause whereClause = new WhereClause();
     private final List<Association> associations = new ArrayList<>();
     private final List<Join> joins = new ArrayList<>();
-    private final List<Condition> whereConditions = new ArrayList<>();
-    private String customWhereExpression;
-    private String customParamName;
 
     /**
      * Creates a new FindQuery for the specified repository.
      *
      * @param repository the repository to query (required)
-     * @param dialect    the database dialect for identifier conversion
-     * @throws IllegalArgumentException if repository or dialect is null
+     * @param identifierConverter the identifier converter for name transformation
+     * @throws IllegalArgumentException if repository or converter is null
      */
-    private FindQuery(GenericRepository<T, ID> repository, DatabaseDialect dialect) {
+    private FindQuery(@NonNull GenericRepository<T, ID> repository) {
         if (repository == null) {
             throw new IllegalArgumentException("Repository cannot be null");
         }
-        if (dialect == null) {
-            throw new IllegalArgumentException("Dialect cannot be null");
-        }
         this.repository = repository;
-        this.dialect = dialect;
     }
 
     /**
@@ -65,7 +57,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * @return a new FindQuery builder instance
      */
     public static <T extends Entity<ID>, ID> FindQuery<T, ID> of(GenericRepository<T, ID> repository) {
-        return new FindQuery<>(repository, repository.getDatabaseDialect());
+        return new FindQuery<>(repository);
     }
 
     /**
@@ -103,28 +95,15 @@ public class FindQuery<T extends Entity<ID>, ID> {
     /**
      * Sets the OrderBy builder for this query.
      */
+    /**
+     * Merges order conditions from another OrderBy builder into this query's ordering.
+     * This is an efficient way to apply pre-configured ordering without duplicating logic.
+     *
+     * @param orderBy the OrderBy builder containing the order conditions to merge
+     * @return this FindQuery for method chaining
+     */
     public FindQuery<T, ID> orderBy(OrderBy orderBy) {
-        // Copy the order conditions from the provided orderBy to this query's orderBy
-        String orderByClause = orderBy.build(dialect);
-        if (orderByClause.isEmpty()) {
-            return this;
-        }
-
-        // Remove "ORDER BY " prefix
-        if (orderByClause.toUpperCase().startsWith("ORDER BY ")) {
-            orderByClause = orderByClause.substring(9);
-        }
-
-        for (String orderClause : orderByClause.split(",")) {
-            String trimmed = orderClause.trim();
-            if (trimmed.toUpperCase().endsWith("ASC")) {
-                String column = trimmed.substring(0, trimmed.length() - 3).trim();
-                this.orderBy.asc(column);
-            } else if (trimmed.toUpperCase().endsWith("DESC")) {
-                String column = trimmed.substring(0, trimmed.length() - 4).trim();
-                this.orderBy.desc(column);
-            }
-        }
+        this.orderBy.copyFrom(orderBy);
         return this;
     }
 
@@ -132,7 +111,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * Adds a WHERE condition with EQUALS operator (property = value).
      */
     public FindQuery<T, ID> whereAndEquals(String column, Object value) {
-        whereConditions.add(new Condition(column, Operator.EQUALS, value));
+        whereClause.add(column, Operator.EQUALS, value);
         return this;
     }
 
@@ -140,7 +119,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * Adds a WHERE condition with IN operator (property IN (...)).
      */
     public FindQuery<T, ID> whereAndIn(String column, List<?> values) {
-        whereConditions.add(new Condition(column, Operator.IN, values));
+        whereClause.add(column, Operator.IN, values);
         return this;
     }
 
@@ -152,9 +131,8 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * @param value      the value to bind to the parameter
      */
     public FindQuery<T, ID> whereExpression(String expression, String paramName, Object value) {
-        this.customWhereExpression = expression;
-        this.customParamName = paramName;
-        whereConditions.add(new Condition(paramName, Operator.EQUALS, value));
+        whereClause.custom(expression, paramName);
+        whereClause.add(paramName, Operator.EQUALS, value);
         return this;
     }
 
@@ -294,7 +272,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * Gets the WHERE conditions.
      */
     public List<Condition> getWhereConditions() {
-        return new ArrayList<>(whereConditions);
+        return whereClause.getConditions();
     }
 
     /**
@@ -317,7 +295,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * Checks if there are any WHERE conditions.
      */
     public boolean hasWhereConditions() {
-        return !whereConditions.isEmpty();
+        return !whereClause.isEmpty();
     }
 
     /**
@@ -341,6 +319,24 @@ public class FindQuery<T extends Entity<ID>, ID> {
         return !columns.isEmpty();
     }
 
+    @Override
+    public void build(StringBuilder sb, IdentifierConverter identifierConverter) {
+        buildSql(sb, identifierConverter);
+    }
+
+    /**
+     * Builds the SQL SELECT query and returns it as a String.
+     * This is a convenience method that creates a StringBuilder internally.
+     *
+     * @param identifierConverter the identifier converter to use for name transformation
+     * @return the complete SQL query string
+     */
+    public String buildString(IdentifierConverter identifierConverter) {
+        StringBuilder sb = new StringBuilder();
+        buildSql(sb, identifierConverter);
+        return sb.toString();
+    }
+
     /**
      * Builds a column expression with table prefix and alias.
      * For main table columns: buildColumnExpression("user", "id", "id", null)
@@ -352,8 +348,8 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * @param aliasSuffix the alias suffix (null for main table, column name for joined table)
      * @return the column expression with alias
      */
-    private String buildColumnExpression(String tableName, String column, String aliasPrefix, String aliasSuffix) {
-        String dbColumn = dialect.javaToDBIdentifier(column);
+    private String buildColumnExpression(IdentifierConverter identifierConverter, String tableName, String column, String aliasPrefix, String aliasSuffix) {
+        String dbColumn = identifierConverter.toDB(column);
         String alias = aliasSuffix == null ? aliasPrefix : aliasPrefix + "." + aliasSuffix;
         return String.format("""
                 %s.%s AS "%s"
@@ -364,15 +360,16 @@ public class FindQuery<T extends Entity<ID>, ID> {
      * Builds the list of columns with proper prefixes and aliases for the SELECT clause.
      * Handles both simple cases and cases with joins.
      *
+     * @param identifierConverter the identifier converter to use for name transformation
      * @param tableName the main table name
      * @return a list of column expressions ready for the SELECT clause
      */
-    private List<String> buildPrefixedColumns(String tableName) {
+    private List<String> buildPrefixedColumns(IdentifierConverter identifierConverter, String tableName) {
         List<String> prefixedColumns = new ArrayList<>();
 
         // Add main table columns with table prefix and alias
         for (String col : columns) {
-            String columnWithAlias = buildColumnExpression(tableName, col, col, null);
+            String columnWithAlias = buildColumnExpression(identifierConverter, tableName, col, col, null);
             prefixedColumns.add(columnWithAlias);
         }
 
@@ -381,7 +378,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
             String joinTableName = join.getRepository().getTableNameForQuery();
             String propertyName = join.getName(); // Use the property name (e.g., "group")
             for (String col : join.getColumns()) {
-                String columnWithAlias = buildColumnExpression(joinTableName, col, propertyName, col);
+                String columnWithAlias = buildColumnExpression(identifierConverter, joinTableName, col, propertyName, col);
                 prefixedColumns.add(columnWithAlias);
             }
         }
@@ -392,17 +389,18 @@ public class FindQuery<T extends Entity<ID>, ID> {
     /**
      * Builds the SQL SELECT query.
      * Uses the columns and table name stored in this FindQuery.
+     * Appends the complete SQL query to the provided StringBuilder.
      *
-     * @return the complete SQL query string
+     * @param sb                  the StringBuilder to append the SQL to
+     * @param identifierConverter the identifier converter to use for name transformation
      */
-    @NonNull
-    public String buildSql() {
+    private void buildSql(StringBuilder sb, IdentifierConverter identifierConverter) {
         String tableName = repository.getTableNameForQuery();
-        List<String> prefixedColumns = buildPrefixedColumns(tableName);
+        List<String> prefixedColumns = buildPrefixedColumns(identifierConverter, tableName);
 
         String columnList = String.join(", ", prefixedColumns);
 
-        StringBuilder sql = new StringBuilder("SELECT " + columnList + " FROM " + tableName);
+        sb.append("SELECT ").append(columnList).append(" FROM ").append(tableName);
 
         // Add JOINs for @MappedBy associations
         if (hasJoins()) {
@@ -411,10 +409,10 @@ public class FindQuery<T extends Entity<ID>, ID> {
                 FieldAccessor fieldAccessor = entityFields.get(join.getName());
                 if (fieldAccessor.hasAnnotation(MappedBy.class)) {
                     MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
-                    String foreignKeyColumn = dialect.javaToDBIdentifier(mappedBy.value());
+                    String foreignKeyColumn = identifierConverter.toDB(mappedBy.value());
                     String joinTableName = join.getRepository().getTableNameForQuery();
                     String joinKeyword = join.isLeftJoin() ? "LEFT" : "INNER";
-                    sql.append(String.format(" %s JOIN %s ON %s.%s = %s.id",
+                    sb.append(String.format(" %s JOIN %s ON %s.%s = %s.id",
                             joinKeyword, joinTableName, tableName, foreignKeyColumn, joinTableName));
                 }
             }
@@ -422,35 +420,15 @@ public class FindQuery<T extends Entity<ID>, ID> {
 
         // Add WHERE clause
         if (hasWhereConditions()) {
-            sql.append(" WHERE ");
-
-            // If there's a custom WHERE expression, use it instead of normal conditions
-            if (customWhereExpression != null) {
-                sql.append(customWhereExpression).append(" = :").append(customParamName);
-            } else {
-                List<String> conditions = new ArrayList<>();
-                for (Condition condition : whereConditions) {
-                    String dbCol = dialect.javaToDBIdentifier(condition.getColumn());
-                    // If there are joins, prefix the column with table name to avoid ambiguity
-                    if (hasJoins()) {
-                        dbCol = tableName + "." + dbCol;
-                    }
-                    String paramName = condition.getColumn();
-                    String conditionStr = condition.getOperator()
-                            .getExpressionBuilder()
-                            .buildExpression(dbCol, paramName);
-                    conditions.add(conditionStr);
-                }
-                sql.append(String.join(" AND ", conditions));
-            }
+            whereClause.withTablePrefix(tableName).withJoins(hasJoins());
+            whereClause.build(sb, identifierConverter);
         }
 
         // Add ORDER BY clause
         if (!orderBy.isEmpty()) {
-            sql.append(" ").append(orderBy.build(dialect));
+            sb.append(" ");
+            orderBy.build(sb, identifierConverter);
         }
-
-        return Objects.requireNonNull(sql.toString());
     }
 
     /**
@@ -462,7 +440,7 @@ public class FindQuery<T extends Entity<ID>, ID> {
     @NonNull
     public Map<String, Object> getParameters(ValueConverter valueConverter) {
         Map<String, Object> params = new HashMap<>();
-        for (Condition condition : whereConditions) {
+        for (Condition condition : whereClause.getConditions()) {
             Object sqlValue = valueConverter.convert(condition.getValue());
             params.put(condition.getColumn(), sqlValue);
         }

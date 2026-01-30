@@ -6,9 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import ovh.heraud.nativsql.exception.NativSQLException;
+import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.RowMapper;
-import org.springframework.lang.NonNull;
-import org.springframework.lang.Nullable;
 
 /**
  * Generic RowMapper that uses reflection and introspection to map ResultSet
@@ -51,7 +50,7 @@ public class GenericRowMapper<T> implements RowMapper<T> {
 
     @Override
     @Nullable
-    public T mapRow(@NonNull ResultSet rs, int rowNum) throws NativSQLException {
+    public T mapRow(ResultSet rs, int rowNum) throws NativSQLException {
         try {
             T instance = null;
 

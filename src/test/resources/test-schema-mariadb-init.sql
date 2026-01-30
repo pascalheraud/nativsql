@@ -16,6 +16,7 @@ CREATE TABLE users (
     status ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED'),
     address JSON,
     preferences JSON,
+    position POINT,
     group_id BIGINT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,

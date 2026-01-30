@@ -9,7 +9,6 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.stream.Collectors;
 
-import ovh.heraud.nativsql.config.NativSqlConfig;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -23,7 +22,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * Initializes the schema once per JVM before any tests run.
  */
 @SpringBootTest
-@Import({ NativSqlConfig.class, RowMapperFactory.class })
+@Import({ RowMapperFactory.class })
 public abstract class BaseRepositoryTest {
     protected abstract String getScriptPath();
 
@@ -34,7 +33,7 @@ public abstract class BaseRepositoryTest {
     public abstract JdbcDatabaseContainer<?> getDatabaseContainer();
 
     @BeforeEach
-    private void loadSchema() throws SQLException, IOException {
+    protected void loadSchema() throws SQLException, IOException {
         if (!isSchemaLoaded()) {
             markSchemaAsLoaded();
             try (Connection conn = DriverManager.getConnection(getDatabaseContainer().getJdbcUrl(),

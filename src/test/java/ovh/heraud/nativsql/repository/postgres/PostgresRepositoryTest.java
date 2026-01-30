@@ -12,7 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Import({ TestNativSqlConfig.class, TestDataSourceProperties.class })
 @Transactional("pgTransactionManager")
-public abstract class PGRepositoryTest extends PGBaseRepositoryTest {
+public abstract class PostgresRepositoryTest extends PostgresBaseRepositoryTest {
 
     static {
         init();

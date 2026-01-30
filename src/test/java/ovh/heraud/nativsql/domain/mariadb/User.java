@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.postgis.Point;
+
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.domain.Entity;
@@ -30,6 +32,7 @@ public class User implements Entity<Long> {
     private UserStatus status;
     private Address address;
     private Preferences preferences;
+    private Point position;
     private Long groupId;
     @MappedBy(value = "groupId", repository = MariaDBGroupRepository.class)
     private Group group;

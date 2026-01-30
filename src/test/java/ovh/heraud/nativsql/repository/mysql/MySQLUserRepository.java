@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.mysql.User;
 import ovh.heraud.nativsql.domain.mysql.UserReport;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**

@@ -1,14 +1,14 @@
 package ovh.heraud.nativsql.repository.postgres;
 
 import ovh.heraud.nativsql.domain.postgres.Group;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**
  * Repository for Group entities.
  */
 @Repository
-public class PGGroupRepository extends PGRepository<Group, Long> {
+public class PostgresGroupRepository extends PostgresRepository<Group, Long> {
 
     @Override
     @NonNull

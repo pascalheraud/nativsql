@@ -14,7 +14,7 @@ import org.testcontainers.utility.DockerImageName;
  * Initializes the schema once per JVM before any tests run.
  */
 @SuppressWarnings("resource")
-public abstract class PGBaseRepositoryTest extends BaseRepositoryTest{
+public abstract class PostgresBaseRepositoryTest extends BaseRepositoryTest{
     protected abstract String getScriptPath();
 
     static boolean pgSchemaLoaded = false;

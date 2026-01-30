@@ -1,36 +1,52 @@
-package ovh.heraud.nativsql.db;
+package ovh.heraud.nativsql.db.generic;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
-import ovh.heraud.nativsql.mapper.DefaultTypeMapper;
-import ovh.heraud.nativsql.mapper.EnumStringMapper;
+import ovh.heraud.nativsql.db.AbstractChainedDialect;
+import ovh.heraud.nativsql.db.DatabaseDialect;
+import ovh.heraud.nativsql.db.IdentifierConverter;
+import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
+import ovh.heraud.nativsql.db.generic.mapper.DefaultTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.EnumStringMapper;
+import ovh.heraud.nativsql.db.generic.mapper.UUIDTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
-import ovh.heraud.nativsql.mapper.UUIDTypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
 
 /**
  * Base dialect with common behavior shared across all database implementations.
  * Provides default implementations that can be overridden by specific dialects.
+ *
+ * Part of the Chain of Responsibility pattern, serves as the end of the chain.
+ * Handles JDBC-supported types and provides sensible defaults for identifier conversion.
+ * Can be extended by specialized dialects that want to add database-specific behavior.
+ *
+ * Type registration methods (registerJsonType, registerEnumType, registerCompositeType)
+ * are inherited from AbstractChainedDialect.
  */
-public abstract class DefaultDialect implements DatabaseDialect {
+public class GenericDialect extends AbstractChainedDialect {
 
-    protected final Map<Class<?>, String> jsonTypes = new HashMap<>();
-    protected final Map<Class<?>, String> enumDbTypes = new ConcurrentHashMap<>();
-    protected final Map<Class<?>, String> compositeDbTypes = new ConcurrentHashMap<>();
+    private final IdentifierConverter identifierConverter;
 
-    public <T> void registerJsonType(Class<T> jsonClass) {
-        jsonTypes.putIfAbsent(jsonClass, jsonClass.getSimpleName());
+    /**
+     * Create a default dialect with a next dialect to delegate to.
+     */
+    public GenericDialect(DatabaseDialect nextDialect) {
+        super(nextDialect);
+        this.identifierConverter = new SnakeCaseIdentifierConverter();
     }
 
-    public <E extends Enum<E>> void registerEnumType(Class<E> enumClass, String dbTypeName) {
-        enumDbTypes.put(enumClass, dbTypeName);
+    /**
+     * Create a default dialect with no next dialect (end of chain).
+     */
+    public GenericDialect() {
+        super();
+        this.identifierConverter = new SnakeCaseIdentifierConverter();
     }
 
-    public <T> void registerCompositeType(Class<T> compositeClass, String dbTypeName) {
-        compositeDbTypes.put(compositeClass, dbTypeName);
+    /**
+     * Get the identifier converter used by this dialect.
+     */
+    public IdentifierConverter getIdentifierConverter() {
+        return identifierConverter;
     }
 
     /**
@@ -129,30 +145,5 @@ public abstract class DefaultDialect implements DatabaseDialect {
         throw new UnsupportedOperationException(
                 "Composite type mapping is not supported by default dialect. " +
                         "Override getCompositeMapper() in your dialect implementation: " + compositeClass.getName());
-    }
-
-    @Override
-    public String javaToDBIdentifier(String javaIdentifier) {
-        return JdbcUtils.convertPropertyNameToUnderscoreName(javaIdentifier);
-    }
-
-    @Override
-    public String dbToJavaIdentifier(String dbIdentifier) {
-        // Convert snake_case to camelCase
-        StringBuilder result = new StringBuilder();
-        boolean capitalizeNext = false;
-
-        for (char c : dbIdentifier.toCharArray()) {
-            if (c == '_') {
-                capitalizeNext = true;
-            } else if (capitalizeNext) {
-                result.append(Character.toUpperCase(c));
-                capitalizeNext = false;
-            } else {
-                result.append(c);
-            }
-        }
-
-        return result.toString();
     }
 }

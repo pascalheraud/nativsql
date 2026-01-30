@@ -54,20 +54,31 @@ public interface DatabaseDialect {
     <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass);
 
     /**
-     * Convert a Java identifier (camelCase) to a database identifier.
-     * Default implementation converts to snake_case (e.g., "firstName" → "first_name").
+     * Register a JSON type for this dialect.
+     * The registration is propagated through the dialect chain.
      *
-     * @param javaIdentifier the Java field name in camelCase
-     * @return the database column name
+     * @param jsonClass the JSON class to register
+     * @param <T> the type
      */
-    String javaToDBIdentifier(String javaIdentifier);
+    <T> void registerJsonType(Class<T> jsonClass);
 
     /**
-     * Convert a database identifier to a Java identifier (camelCase).
-     * Default implementation converts from snake_case (e.g., "first_name" → "firstName").
+     * Register an enum type for this dialect.
+     * The registration is propagated through the dialect chain.
      *
-     * @param dbIdentifier the database column name
-     * @return the Java field name in camelCase
+     * @param enumClass the enum class to register
+     * @param dbTypeName the database type name for this enum
+     * @param <E> the enum type
      */
-    String dbToJavaIdentifier(String dbIdentifier);
+    <E extends Enum<E>> void registerEnumType(Class<E> enumClass, String dbTypeName);
+
+    /**
+     * Register a composite type for this dialect.
+     * The registration is propagated through the dialect chain.
+     *
+     * @param compositeClass the composite class to register
+     * @param dbTypeName the database type name for this composite
+     * @param <T> the type
+     */
+    <T> void registerCompositeType(Class<T> compositeClass, String dbTypeName);
 }

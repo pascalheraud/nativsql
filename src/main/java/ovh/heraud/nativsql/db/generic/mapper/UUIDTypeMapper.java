@@ -1,9 +1,10 @@
-package ovh.heraud.nativsql.mapper;
+package ovh.heraud.nativsql.db.generic.mapper;
 
 import java.sql.ResultSet;
 import java.util.UUID;
 
 import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.mapper.ITypeMapper;
 
 /**
  * Type mapper for java.util.UUID.

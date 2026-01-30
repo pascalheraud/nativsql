@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-01-27
+
+### Added
+- **PostGIS Support (org.postgis.Point)**
+  - `PostgresPointTypeMapper` for PostgreSQL geometry columns using PGgeometry
+  - `MySQLPointTypeMapper` for MySQL spatial coordinates
+  - `MariaDBPointTypeMapper` for MariaDB spatial columns
+  - Point field support in User entity across all databases
+  - PostGIS JDBC and Geometry library dependencies (version 2.5.1)
+
+- **Spatial Type Mappers**
+  - `PostgresPostGISDialect` - PostgreSQL dialect with PostGIS support
+  - `MySQLPointDialect` - MySQL dialect with spatial Point support
+  - `MariaDBPointDialect` - MariaDB dialect with spatial Point support
+  - Base dialect classes are now non-component classes that can be extended
+
+### Changed
+- **Dialect Architecture**
+  - `PostgresDialect`, `MySQLDialect`, `MariaDBDialect` are now non-component base classes
+  - Concrete dialect implementations can extend these base classes
+  - Removes @Component annotation from base classes to prevent Spring conflicts
+  - Allows for specialized dialect implementations (e.g., with PostGIS support)
+
 ### Changed
 - **BREAKING**: Package renamed from `io.github.pascalheraud.nativsql` to `ovh.heraud.nativsql`
   - Update all imports in your project

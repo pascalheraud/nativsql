@@ -1,7 +1,7 @@
 package ovh.heraud.nativsql.repository.mariadb;
 
 import ovh.heraud.nativsql.domain.mariadb.Group;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**
