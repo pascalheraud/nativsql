@@ -5,14 +5,14 @@ import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities.
  */
 @Repository
-public class PGUserRepository extends PGRepository<User, Long> {
+public class PostgresUserRepository extends PostgresRepository<User, Long> {
 
     @Override
     @NonNull

@@ -1,27 +1,24 @@
-package ovh.heraud.nativsql.db.postgres;
-
-import java.sql.ResultSet;
+package ovh.heraud.nativsql.db.generic.mapper;
 
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
-import lombok.RequiredArgsConstructor;
-import org.postgresql.util.PGobject;
 
 /**
- * PostgreSQL-specific mapper for enum types that handles both reading from
- * database
- * and writing to database with proper type casting.
+ * Mapper for enum types that handles reading String values from database
+ * and writing to database using the appropriate dialect.
  *
  * @param <E> the enum type
  */
-@RequiredArgsConstructor
-public class PGEnumMapper<E extends Enum<E>> implements ITypeMapper<E> {
+public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
 
     private final Class<E> enumClass;
-    private final String dbTypeName;
+
+    public EnumStringMapper(Class<E> enumClass) {
+        this.enumClass = enumClass;
+    }
 
     @Override
-    public E map(ResultSet rs, String columnName) throws NativSQLException {
+    public E map(java.sql.ResultSet rs, String columnName) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -48,18 +45,12 @@ public class PGEnumMapper<E extends Enum<E>> implements ITypeMapper<E> {
         if (value == null) {
             return null;
         }
-        try {
-            PGobject pgObject = new PGobject();
-            pgObject.setType(dbTypeName);
-            pgObject.setValue(value.name());
-            return pgObject;
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException("Failed to convert enum to SQL", e);
-        }
+        return value.name();
     }
 
     @Override
     public String formatParameter(String paramName) {
-        return "(:" + paramName + ")::" + dbTypeName;
+        // MySQL and default behavior: just return the parameter name without casting
+        return ":" + paramName;
     }
 }

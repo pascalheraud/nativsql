@@ -1,14 +1,13 @@
 package ovh.heraud.nativsql.repository.mariadb;
 
-import ovh.heraud.nativsql.config.NativSqlConfig;
-import ovh.heraud.nativsql.mapper.RowMapperFactory;
-import ovh.heraud.nativsql.repository.BaseRepositoryTest;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.mariadb.MariaDBContainer;
+import ovh.heraud.nativsql.mapper.RowMapperFactory;
+import ovh.heraud.nativsql.repository.BaseRepositoryTest;
 
 /**
  * Base class for repository integration tests using Testcontainers.
@@ -18,7 +17,7 @@ import org.testcontainers.mariadb.MariaDBContainer;
  */
 @SuppressWarnings("resource")
 @SpringBootTest
-@Import({ NativSqlConfig.class, RowMapperFactory.class })
+@Import({ RowMapperFactory.class })
 public abstract class MariaDBBaseRepositoryTest extends BaseRepositoryTest {
     protected abstract String getScriptPath();
 

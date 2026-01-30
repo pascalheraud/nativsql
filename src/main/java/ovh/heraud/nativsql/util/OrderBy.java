@@ -3,13 +3,13 @@ package ovh.heraud.nativsql.util;
 import java.util.ArrayList;
 import java.util.List;
 
-import ovh.heraud.nativsql.db.DatabaseDialect;
+import ovh.heraud.nativsql.db.IdentifierConverter;
 
 /**
  * Builder for SQL ORDER BY clauses.
- * Example: new OrderBy().asc("name").desc("createdAt").build() → "ORDER BY name ASC, created_at DESC"
+ * Example: new OrderBy().asc("name").desc("createdAt").build(converter) → "ORDER BY name ASC, created_at DESC"
  */
-public class OrderBy {
+public class OrderBy implements SQLBuilder {
     private final List<Order> orders = new ArrayList<>();
 
     /**
@@ -30,26 +30,39 @@ public class OrderBy {
 
     /**
      * Builds the SQL ORDER BY clause.
-     * Returns "ORDER BY xxx" or empty string if no orders have been specified.
+     * Appends "ORDER BY xxx" to the StringBuilder if orders have been specified.
      * Example: "ORDER BY name ASC, created_at DESC"
      *
-     * @param dialect the database dialect for identifier conversion
-     * @return the SQL ORDER BY clause
+     * @param sb                  the StringBuilder to append the SQL to
+     * @param converter           the identifier converter to use for column name transformation
      */
-    public String build(DatabaseDialect dialect) {
+    public void build(StringBuilder sb, IdentifierConverter converter) {
         if (orders.isEmpty()) {
-            return "";
+            return;
         }
 
-        StringBuilder sb = new StringBuilder("ORDER BY ");
+        sb.append("ORDER BY ");
         for (int i = 0; i < orders.size(); i++) {
             if (i > 0) {
                 sb.append(", ");
             }
-            Order order = orders.get(i);
-            String columnName = dialect.javaToDBIdentifier(order.column);
-            sb.append(columnName).append(" ").append(order.isAsc ? "ASC" : "DESC");
+            orders.get(i).build(sb, converter);
         }
+    }
+
+    /**
+     * Builds the SQL ORDER BY clause and returns it as a String.
+     * This is a convenience method that creates a StringBuilder internally.
+     *
+     * @param converter the identifier converter to use for column name transformation
+     * @return the SQL ORDER BY clause or empty string if no orders specified
+     */
+    public String buildString(IdentifierConverter converter) {
+        if (orders.isEmpty()) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder();
+        build(sb, converter);
         return sb.toString();
     }
 
@@ -61,15 +74,38 @@ public class OrderBy {
     }
 
     /**
-     * Inner class representing a single ORDER BY condition.
+     * Copies all order conditions from another OrderBy builder into this one.
+     * This is more efficient than parsing a string representation.
+     *
+     * @param other the OrderBy to copy orders from
      */
-    private static class Order {
+    public void copyFrom(OrderBy other) {
+        for (Order order : other.orders) {
+            if (order.isAsc) {
+                this.asc(order.column);
+            } else {
+                this.desc(order.column);
+            }
+        }
+    }
+
+    /**
+     * Inner class representing a single ORDER BY condition.
+     * Implements SQLBuilder to generate its portion of the SQL statement.
+     */
+    private static class Order implements SQLBuilder {
         final String column;
         final boolean isAsc;
 
         Order(String column, boolean isAsc) {
             this.column = column;
             this.isAsc = isAsc;
+        }
+
+        @Override
+        public void build(StringBuilder sb, IdentifierConverter converter) {
+            String columnName = converter.toDB(column);
+            sb.append(columnName).append(" ").append(isAsc ? "ASC" : "DESC");
         }
     }
 }

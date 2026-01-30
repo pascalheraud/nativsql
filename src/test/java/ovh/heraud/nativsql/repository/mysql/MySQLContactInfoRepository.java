@@ -4,7 +4,7 @@ import java.util.List;
 
 import ovh.heraud.nativsql.domain.mysql.ContactInfo;
 import ovh.heraud.nativsql.domain.mysql.ContactType;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**

@@ -22,7 +22,7 @@ CREATE TABLE users (
     status user_status DEFAULT 'ACTIVE',
     address address_type,
     preferences JSONB,
-    location GEOMETRY(Point, 4326),
+    position GEOMETRY(Point, 4326),
     group_id BIGINT REFERENCES user_group(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP

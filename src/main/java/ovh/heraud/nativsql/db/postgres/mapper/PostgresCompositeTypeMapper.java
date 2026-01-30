@@ -1,4 +1,4 @@
-package ovh.heraud.nativsql.db.postgres;
+package ovh.heraud.nativsql.db.postgres.mapper;
 
 import java.lang.reflect.Field;
 import java.sql.ResultSet;

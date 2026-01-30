@@ -5,7 +5,7 @@ import java.lang.reflect.Field;
 
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 
 /**
  * Wrapper class that provides convenient access to a field.

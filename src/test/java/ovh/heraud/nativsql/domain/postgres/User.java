@@ -4,11 +4,13 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.postgis.Point;
+
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.domain.Entity;
-import ovh.heraud.nativsql.repository.postgres.PGContactInfoRepository;
-import ovh.heraud.nativsql.repository.postgres.PGGroupRepository;
+import ovh.heraud.nativsql.repository.postgres.PostgresContactInfoRepository;
+import ovh.heraud.nativsql.repository.postgres.PostgresGroupRepository;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -30,15 +32,16 @@ public class User implements Entity<Long> {
     private UserStatus status;
     private Address address;
     private Preferences preferences;
+    private Point position;
     private Long groupId;
-    @MappedBy(value = "groupId", repository = PGGroupRepository.class)
+    @MappedBy(value = "groupId", repository = PostgresGroupRepository.class)
     private Group group;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     @OneToMany(
         mappedBy = "userId",
-        repository = PGContactInfoRepository.class
+        repository = PostgresContactInfoRepository.class
     )
     private List<ContactInfo> contacts;
 }

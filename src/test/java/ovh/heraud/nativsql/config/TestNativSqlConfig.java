@@ -2,22 +2,19 @@ package ovh.heraud.nativsql.config;
 
 import javax.sql.DataSource;
 
-import jakarta.annotation.PostConstruct;
-
-import ovh.heraud.nativsql.db.mariadb.MariaDBDialect;
-import ovh.heraud.nativsql.db.mysql.MySQLDialect;
-import ovh.heraud.nativsql.db.postgres.PostgresDialect;
-import ovh.heraud.nativsql.domain.postgres.Address;
-import ovh.heraud.nativsql.domain.postgres.Preferences;
-import ovh.heraud.nativsql.domain.postgres.UserStatus;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import ovh.heraud.nativsql.db.mysql.MySQLDialect;
+import ovh.heraud.nativsql.db.postgres.PostgresDialect;
+import ovh.heraud.nativsql.db.postgres.postgis.PostgresPostGISDialect;
+import ovh.heraud.nativsql.domain.postgres.Address;
+import ovh.heraud.nativsql.domain.postgres.Preferences;
+import ovh.heraud.nativsql.domain.postgres.UserStatus;
 
 /**
  * Test configuration component that registers example domain types for testing.
@@ -32,42 +29,39 @@ import org.springframework.transaction.PlatformTransactionManager;
 @Component
 public class TestNativSqlConfig {
 
-    @Autowired
-    private PostgresDialect postgresDialect;
+    @Bean
+    public PostgresPostGISDialect postgresDialect() {
+        PostgresDialect baseDialect = new PostgresDialect();
+        PostgresPostGISDialect postgisDialect = new PostgresPostGISDialect(baseDialect);
 
-    @Autowired
-    private MySQLDialect mysqlDialect;
+        // Configure PostgreSQL dialect with composite, JSON, and enum types
+        postgisDialect.registerCompositeType(Address.class, "address_type");
+        postgisDialect.registerJsonType(Preferences.class);
+        postgisDialect.registerEnumType(UserStatus.class, "user_status");
 
-    @Autowired
-    private MariaDBDialect mariadbDialect;
-
-    /**
-     * Configures NativSQL with test domain types.
-     */
-    @PostConstruct
-    public void configure() {
-        configurePG();
-        configureMySQL();
-        configureMariaDB();
+        return postgisDialect;
     }
 
-    private void configureMySQL() {
-        // MySQL - Register JSON types
-        mysqlDialect.registerJsonType(ovh.heraud.nativsql.domain.mysql.Address.class);
-        mysqlDialect.registerJsonType(ovh.heraud.nativsql.domain.mysql.Preferences.class);
+    @Bean(name = "mySQLDialect")
+    public MySQLDialect mySQLDialect() {
+        MySQLDialect mySQLDialect = new MySQLDialect();
+
+        // Configure MySQL dialect with JSON types
+        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mysql.Address.class);
+        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mysql.Preferences.class);
+
+        return mySQLDialect;
     }
 
-    private void configureMariaDB() {
-        // MariaDB - Register JSON types
-        mariadbDialect.registerJsonType(ovh.heraud.nativsql.domain.mariadb.Address.class);
-        mariadbDialect.registerJsonType(ovh.heraud.nativsql.domain.mariadb.Preferences.class);
-    }
+    @Bean(name = "mariaDBDialect")
+    public MySQLDialect mariaDBDialect() {
+        MySQLDialect mySQLDialect = new MySQLDialect();
 
-    private void configurePG() {
-        // PostgreSQL - Register composite and enum types
-        postgresDialect.registerCompositeType(Address.class, "address_type");
-        postgresDialect.registerJsonType(Preferences.class);
-        postgresDialect.registerEnumType(UserStatus.class, "user_status");
+        // Configure MySQL dialect with JSON types (MariaDB is compatible with MySQL)
+        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mariadb.Address.class);
+        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mariadb.Preferences.class);
+
+        return mySQLDialect;
     }
 
     /**

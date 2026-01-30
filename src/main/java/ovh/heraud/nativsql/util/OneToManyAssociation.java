@@ -3,8 +3,8 @@ package ovh.heraud.nativsql.util;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
+import org.jspecify.annotations.NonNull;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import org.springframework.lang.NonNull;
 
 /**
  * Represents the details of a OneToMany association.
@@ -40,7 +40,6 @@ public class OneToManyAssociation {
      * @return the target entity class
      * @throws NativSQLException if the entity type cannot be extracted from the repository
      */
-    @SuppressWarnings("null")
     @NonNull
     public Class<?> getEntity() {
         Type[] genericInterfaces = repositoryClass.getGenericInterfaces();

@@ -1,4 +1,4 @@
-package ovh.heraud.nativsql.db.postgres;
+package ovh.heraud.nativsql.db.postgres.mapper;
 
 import java.sql.ResultSet;
 import java.util.UUID;

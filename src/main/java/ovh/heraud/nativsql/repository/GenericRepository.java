@@ -15,6 +15,8 @@ import javax.sql.DataSource;
 import jakarta.annotation.PostConstruct;
 
 import ovh.heraud.nativsql.db.DatabaseDialect;
+import ovh.heraud.nativsql.db.IdentifierConverter;
+import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
 import ovh.heraud.nativsql.domain.Entity;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
@@ -28,10 +30,10 @@ import ovh.heraud.nativsql.util.OneToManyAssociation;
 import ovh.heraud.nativsql.util.OrderBy;
 import ovh.heraud.nativsql.util.ReflectionUtils;
 import ovh.heraud.nativsql.util.SqlUtils;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.lang.NonNull;
 
 /**
  * Generic repository base class that provides insert and update operations
@@ -52,6 +54,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     private RowMapperFactory rowMapperFactory;
 
     private DatabaseDialect databaseDialect;
+
+    private final IdentifierConverter identifierConverter = new SnakeCaseIdentifierConverter();
 
     @NonNull
     private final Class<T> entityClass;
@@ -104,11 +108,20 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
     /**
      * Returns the database dialect for this repository.
-     * 
+     *
      * @return the database dialect instance
      */
     public DatabaseDialect getDatabaseDialect() {
         return databaseDialect;
+    }
+
+    /**
+     * Returns the identifier converter for this repository.
+     *
+     * @return the identifier converter instance
+     */
+    public IdentifierConverter getIdentifierConverter() {
+        return identifierConverter;
     }
 
     /**
@@ -119,7 +132,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @throws IllegalArgumentException if columns array is empty
      */
     public void insert(T entity, String... columns) {
-        String columnList = SqlUtils.getColumnsList(databaseDialect, columns);
+        String columnList = SqlUtils.getColumnsList(identifierConverter, columns);
 
         Map<String, Object> params = extractValues(entity, columns);
         Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
@@ -188,17 +201,16 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
 
         String setClause = Arrays.stream(columns)
-                .map(col -> getDatabaseDialectInstance().javaToDBIdentifier(col) + " = "
+                .map(col -> identifierConverter.toDB(col) + " = "
                         + formatParameter(col, propertyTypes.get(col)))
                 .collect(Collectors.joining(", "));
 
-        String idColumnSnake = getDatabaseDialectInstance().javaToDBIdentifier(ID_COLUMN);
+        String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "UPDATE " + getTableName() + " SET " + setClause + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
         return executeUpdate(sql, params);
     }
 
-    @SuppressWarnings("null")
     @NonNull
     private Map<String, Object> getMap(String idColumn, Object id) {
         return Map.of(idColumn, id);
@@ -211,7 +223,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the number of rows deleted
      */
     public int deleteById(Object id) {
-        String idColumnSnake = getDatabaseDialectInstance().javaToDBIdentifier(ID_COLUMN);
+        String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "DELETE FROM " + getTableName() + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
         return executeUpdate(sql, getMap(ID_COLUMN, id));
@@ -267,7 +279,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @return the entity or null if not found
      */
     protected T findByProperty(String property, Object value, String... columns) {
-        return findByPropertyExpression(getDatabaseDialectInstance().javaToDBIdentifier(property), property, value,
+        return findByPropertyExpression(identifierConverter.toDB(property), property, value,
                 columns);
     }
 
@@ -284,7 +296,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     protected List<T> findAllByProperty(String property, Object value, OrderBy orderBy, String... columns) {
-        return findAllByPropertyExpression(getDatabaseDialectInstance().javaToDBIdentifier(property), property, value,
+        return findAllByPropertyExpression(identifierConverter.toDB(property), property, value,
                 orderBy, columns);
     }
 
@@ -387,13 +399,12 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      */
     protected T find(FindQuery<T, ID> query) {
         // Build SQL query using FindQuery
-        String sql = query.buildSql();
+        String sql = query.buildString(identifierConverter);
 
         // Get parameters with SQL conversion
         Map<String, Object> params = query.getParameters(this::convertToSqlValue);
 
         // Execute query with joins for nested object mapping
-        @SuppressWarnings("null")
         T entity = findExternal(sql, params, entityClass, query.getJoins());
 
         // Load associations for multiple linked entities using batch loading
@@ -410,14 +421,13 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      */
     protected List<T> findAll(FindQuery<T, ID> query) {
         // Build SQL query using FindQuery
-        String sql = query.buildSql();
+        String sql = query.buildString(identifierConverter);
 
         // Get parameters with SQL conversion
         Map<String, Object> params = query.getParameters(this::convertToSqlValue);
 
         // Execute query with joins for nested object mapping (no association loading to
         // avoid N+1)
-        @SuppressWarnings("null")
         List<T> entities = findAllExternal(sql, params, entityClass, query.getJoins());
         return entities;
     }
@@ -646,10 +656,10 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param joins       the list of joins for nested object mapping
      * @return the first result or null if not found
      */
-    protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
-            @NonNull Class<EXT> resultClass, @NonNull List<Join> joins) {
+    protected <EXT> EXT findExternal( String sql,  Map<String, Object> params,
+             Class<EXT> resultClass,  List<Join> joins) {
         List<EXT> results = jdbcTemplate.query(sql, params,
-                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins));
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins, identifierConverter));
         return results.isEmpty() ? null : results.get(0);
     }
 
@@ -681,7 +691,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
             @NonNull Class<EXT> resultClass) {
         List<EXT> results = jdbcTemplate.query(sql, params,
-                rowMapperFactory.getRowMapper(resultClass, databaseDialect));
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect, identifierConverter));
         return results.isEmpty() ? null : results.get(0);
     }
 
@@ -697,10 +707,11 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param joins       the list of joins for nested object mapping
      * @return a list of results
      */
+    @NonNull
     protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Map<String, Object> params,
             @NonNull Class<EXT> resultClass, @NonNull List<Join> joins) {
         return jdbcTemplate.query(sql, params,
-                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins));
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins, identifierConverter));
     }
 
     /**
@@ -731,7 +742,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Map<String, Object> params,
             @NonNull Class<EXT> resultClass) {
         return jdbcTemplate.query(sql, params,
-                rowMapperFactory.getRowMapper(resultClass, databaseDialect));
+                rowMapperFactory.getRowMapper(resultClass, databaseDialect, identifierConverter));
     }
 
 }

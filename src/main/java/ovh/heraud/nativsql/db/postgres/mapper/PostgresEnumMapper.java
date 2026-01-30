@@ -1,23 +1,27 @@
-package ovh.heraud.nativsql.mapper;
+package ovh.heraud.nativsql.db.postgres.mapper;
+
+import java.sql.ResultSet;
 
 import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.mapper.ITypeMapper;
+import lombok.RequiredArgsConstructor;
+import org.postgresql.util.PGobject;
 
 /**
- * Mapper for enum types that handles reading String values from database
- * and writing to database using the appropriate dialect.
+ * PostgreSQL-specific mapper for enum types that handles both reading from
+ * database
+ * and writing to database with proper type casting.
  *
  * @param <E> the enum type
  */
-public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
+@RequiredArgsConstructor
+public class PostgresEnumMapper<E extends Enum<E>> implements ITypeMapper<E> {
 
     private final Class<E> enumClass;
-
-    public EnumStringMapper(Class<E> enumClass) {
-        this.enumClass = enumClass;
-    }
+    private final String dbTypeName;
 
     @Override
-    public E map(java.sql.ResultSet rs, String columnName) throws NativSQLException {
+    public E map(ResultSet rs, String columnName) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -44,12 +48,18 @@ public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
         if (value == null) {
             return null;
         }
-        return value.name();
+        try {
+            PGobject pgObject = new PGobject();
+            pgObject.setType(dbTypeName);
+            pgObject.setValue(value.name());
+            return pgObject;
+        } catch (java.sql.SQLException e) {
+            throw new NativSQLException("Failed to convert enum to SQL", e);
+        }
     }
 
     @Override
     public String formatParameter(String paramName) {
-        // MySQL and default behavior: just return the parameter name without casting
-        return ":" + paramName;
+        return "(:" + paramName + ")::" + dbTypeName;
     }
 }

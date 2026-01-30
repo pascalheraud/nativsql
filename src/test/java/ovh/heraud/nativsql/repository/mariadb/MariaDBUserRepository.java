@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.mariadb.User;
 import ovh.heraud.nativsql.domain.mariadb.UserReport;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**

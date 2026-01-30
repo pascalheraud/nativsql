@@ -2,19 +2,20 @@ package ovh.heraud.nativsql.repository.mariadb;
 
 import javax.sql.DataSource;
 
-import ovh.heraud.nativsql.db.mariadb.MariaDBDialect;
-import ovh.heraud.nativsql.domain.Entity;
-import ovh.heraud.nativsql.repository.GenericRepository;
+import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.lang.NonNull;
+import ovh.heraud.nativsql.db.DatabaseDialect;
+import ovh.heraud.nativsql.db.mysql.MySQLDialect;
+import ovh.heraud.nativsql.domain.Entity;
+import ovh.heraud.nativsql.repository.GenericRepository;
 
 /**
  * Base repository for MariaDB.
  * All MariaDB repositories extend this class.
  *
- * @param <T> the entity type
+ * @param <T>  the entity type
  * @param <ID> the id type
  */
 public abstract class MariaDBRepository<T extends Entity<ID>, ID> extends GenericRepository<T, ID> {
@@ -24,8 +25,9 @@ public abstract class MariaDBRepository<T extends Entity<ID>, ID> extends Generi
     @NonNull
     private DataSource mariadbDataSource;
 
-    @Autowired
-    private MariaDBDialect mariadbDialect;
+    @Autowired()
+    @Qualifier("mariaDBDialect")
+    private MySQLDialect mariadbDialect;
 
     @Override
     @NonNull
@@ -34,7 +36,7 @@ public abstract class MariaDBRepository<T extends Entity<ID>, ID> extends Generi
     }
 
     @Override
-    protected ovh.heraud.nativsql.db.DatabaseDialect getDatabaseDialectInstance() {
+    protected DatabaseDialect getDatabaseDialectInstance() {
         return mariadbDialect;
     }
 

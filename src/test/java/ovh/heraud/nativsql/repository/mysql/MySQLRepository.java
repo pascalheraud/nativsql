@@ -9,7 +9,7 @@ import ovh.heraud.nativsql.repository.GenericRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.lang.NonNull;
+import org.jspecify.annotations.NonNull;
 
 public abstract class MySQLRepository<T extends Entity<ID>, ID> extends GenericRepository<T, ID> {
 
@@ -19,6 +19,7 @@ public abstract class MySQLRepository<T extends Entity<ID>, ID> extends GenericR
     private DataSource mysqlDataSource;
 
     @Autowired
+    @Qualifier("mySQLDialect")
     private MySQLDialect mySQLDialect;
 
     @Override

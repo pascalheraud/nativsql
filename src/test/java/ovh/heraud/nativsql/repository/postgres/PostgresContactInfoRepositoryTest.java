@@ -15,13 +15,13 @@ import org.springframework.context.annotation.Import;
 /**
  * Integration tests for ContactInfoRepository using Testcontainers.
  */
-@Import({ PGUserRepository.class, PGContactInfoRepository.class })
-class PGContactInfoRepositoryTest  extends PGRepositoryTest{
+@Import({ PostgresUserRepository.class, PostgresContactInfoRepository.class })
+class PostgresContactInfoRepositoryTest  extends PostgresRepositoryTest{
     @Autowired
-    private PGContactInfoRepository contactInfoRepository;
+    private PostgresContactInfoRepository contactInfoRepository;
 
     @Autowired
-    private PGUserRepository userRepository;
+    private PostgresUserRepository userRepository;
 
     private Long createTestUser() {
         User user = User.builder()
