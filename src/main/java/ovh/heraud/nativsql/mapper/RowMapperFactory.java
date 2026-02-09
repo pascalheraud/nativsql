@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.util.FieldAccessor;
-import ovh.heraud.nativsql.util.Join;
 import ovh.heraud.nativsql.util.ReflectionUtils;
 
 /**
@@ -43,22 +42,6 @@ public class RowMapperFactory {
         mapper.toString();
         cache.put(clazz, mapper);
         return mapper;
-    }
-
-    /**
-     * Gets or creates a GenericRowMapper for the specified class with JOIN metadata.
-     * Joins are auto-discovered from the class fields - no need to pass them explicitly.
-     * The RowMapper will detect joined columns from the ResultSet metadata.
-     *
-     * @param clazz               the class to create a mapper for
-     * @param dialect             the database dialect for dialect-specific type mapping
-     * @param joins               (deprecated, ignored) - joins are auto-discovered from class fields
-     * @param identifierConverter the identifier converter for column name transformation
-     * @return a GenericRowMapper for the class
-     */
-    public <T> GenericRowMapper<T> getRowMapper(Class<T> clazz, DatabaseDialect dialect, List<Join> joins, IdentifierConverter identifierConverter) {
-        // Joins parameter is ignored - RowMapper auto-discovers joined properties
-        return getRowMapper(clazz, dialect, identifierConverter);
     }
 
     /**

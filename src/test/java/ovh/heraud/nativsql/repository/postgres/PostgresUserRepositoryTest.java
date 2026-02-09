@@ -683,4 +683,58 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(updated.getLastName()).isEqualTo("LastName"); // Unchanged
                 assertThat(updated.getStatus()).isEqualTo(UserStatus.ACTIVE); // Unchanged
         }
+
+        @Test
+        void testGetUsersReportAroundPoint() throws SQLException {
+                // Given - Create users at different geographic locations
+                Point parisCenter = new Point("POINT(2.3522 48.8566)"); // Paris center
+
+                User user1 = User.builder()
+                                .firstName("NearUser1")
+                                .email("near1@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .position(new Point("POINT(2.3525 48.8570)")) // ~500m from Paris center
+                                .preferences(Preferences.builder().language("fr").theme("dark").notifications(true)
+                                                .build())
+                                .build();
+                userRepository.insert(user1, "firstName", "email", "status", "position", "preferences");
+
+                User user2 = User.builder()
+                                .firstName("NearUser2")
+                                .email("near2@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .position(new Point("POINT(2.3530 48.8575)")) // ~800m from Paris center
+                                .preferences(Preferences.builder().language("fr").theme("light").notifications(false)
+                                                .build())
+                                .build();
+                userRepository.insert(user2, "firstName", "email", "status", "position", "preferences");
+
+                User user3 = User.builder()
+                                .firstName("FarUser")
+                                .email("far@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .position(new Point("POINT(2.3880 48.8800)")) // ~5km from Paris center
+                                .preferences(Preferences.builder().language("en").theme("auto").notifications(true)
+                                                .build())
+                                .build();
+                userRepository.insert(user3, "firstName", "email", "status", "position", "preferences");
+
+                // Add email contact for one of the near users
+                User foundUser1 = userRepository.findByEmail("near1@example.com", "id");
+                ContactInfo contact1 = ContactInfo.builder()
+                                .userId(foundUser1.getId())
+                                .contactType(ContactType.EMAIL)
+                                .contactValue("near1@work.com")
+                                .build();
+                contactInfoRepository.insert(contact1, "userId", "contactType", "contactValue");
+
+                // When - Get report for users within 10km of Paris center
+                UserReport report = userRepository.getUsersReportAroundPoint(parisCenter);
+
+                // Then - Verify all three users are within 10km
+                assertThat(report).isNotNull();
+                assertThat(report.getTotalUsers()).isEqualTo(3);
+                assertThat(report.getUsersWithEmailContact()).isEqualTo(1);
+                assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
+        }
 }

@@ -1,7 +1,11 @@
 package ovh.heraud.nativsql.repository.postgres;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+
+import org.postgis.Point;
 
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
@@ -121,6 +125,43 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                             AS "usersWithFrenchPreference"
                 """;
         return findExternal(sql, UserReport.class);
+    }
+
+    /**
+     * Generates a user statistics report for users within 10km of a given point.
+     *
+     * @param point the geographic point to search around
+     * @return the user report with stats on total users within 10km, users with email contacts,
+     *         and users with French preferences
+     */
+    public UserReport getUsersReportAroundPoint(Point point) {
+        String sql = """
+                SELECT
+                    (
+                        SELECT COUNT(*)
+                        FROM users
+                        WHERE ST_DWithin(position, :point::geography, 10000)
+                    )
+                            AS "totalUsers",
+                    (
+                        SELECT COUNT(DISTINCT u.id)
+                        FROM users u
+                        INNER JOIN contact_info ci ON u.id = ci.user_id
+                        WHERE ci.contact_type = 'EMAIL'::contact_type
+                        AND ST_DWithin(u.position, :point::geography, 10000)
+                    )
+                            AS "usersWithEmailContact",
+                    (
+                        SELECT COUNT(*)
+                        FROM users u
+                        WHERE u.preferences->>'language' = 'fr'
+                        AND ST_DWithin(u.position, :point::geography, 10000)
+                    )
+                            AS "usersWithFrenchPreference"
+                """;
+        Map<String, Object> params = new HashMap<>();
+        params.put("point", point);
+        return findExternal(sql, params, UserReport.class);
     }
 
     /**

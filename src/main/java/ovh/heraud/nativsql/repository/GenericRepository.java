@@ -25,7 +25,6 @@ import ovh.heraud.nativsql.util.Association;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.Fields;
 import ovh.heraud.nativsql.util.FindQuery;
-import ovh.heraud.nativsql.util.Join;
 import ovh.heraud.nativsql.util.OneToManyAssociation;
 import ovh.heraud.nativsql.util.OrderBy;
 import ovh.heraud.nativsql.util.ReflectionUtils;
@@ -406,10 +405,11 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         String sql = query.buildString(identifierConverter);
 
         // Get parameters with SQL conversion
-        Map<String, Object> params = query.getParameters(this::convertToSqlValue);
+        Map<String, Object> params = query.getParameters();
 
         // Execute query with joins for nested object mapping
-        T entity = findExternal(sql, params, entityClass, query.getJoins());
+        List<T> results = findAllExternal(sql, params, entityClass);
+        T entity = getFirstOrNull(results);
 
         // Load associations for multiple linked entities using batch loading
         if (entity != null && query.hasAssociations()) {
@@ -428,11 +428,11 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         String sql = query.buildString(identifierConverter);
 
         // Get parameters with SQL conversion
-        Map<String, Object> params = query.getParameters(this::convertToSqlValue);
+        Map<String, Object> params = query.getParameters();
 
         // Execute query with joins for nested object mapping (no association loading to
         // avoid N+1)
-        List<T> entities = findAllExternal(sql, params, entityClass, query.getJoins());
+        List<T> entities = findAllExternal(sql, params, entityClass);
         return entities;
     }
 
@@ -516,6 +516,24 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
                     ". Please ensure the type is properly configured in the database dialect.");
         }
         return mapper.toDatabase(value);
+    }
+
+    /**
+     * Converts all parameters in a map to their SQL representations using type mappers.
+     */
+    private Map<String, Object> convertParamsToSqlValues(Map<String, Object> params) {
+        Map<String, Object> converted = new HashMap<>();
+        for (Map.Entry<String, Object> entry : params.entrySet()) {
+            converted.put(entry.getKey(), convertToSqlValue(entry.getValue()));
+        }
+        return converted;
+    }
+
+    /**
+     * Returns the first element of a list or null if empty.
+     */
+    private <E> E getFirstOrNull(List<E> results) {
+        return results.isEmpty() ? null : results.get(0);
     }
 
     /**
@@ -644,25 +662,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     }
 
     /**
-     * Executes a custom SQL query and returns a single external object with joins
-     * for nested mapping.
-     * Useful for queries with JOINs that need to map nested objects.
-     *
-     * @param <EXT>       the type of the external object to return
-     * @param sql         the SQL query to execute
-     * @param params      the query parameters
-     * @param resultClass the class of the external object to return
-     * @param joins       the list of joins for nested object mapping
-     * @return the first result or null if not found
-     */
-    protected <EXT> EXT findExternal( String sql,  Map<String, Object> params,
-             Class<EXT> resultClass,  List<Join> joins) {
-        List<EXT> results = jdbcTemplate.query(sql, params,
-                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins, identifierConverter));
-        return results.isEmpty() ? null : results.get(0);
-    }
-
-    /**
      * Executes a custom SQL query and returns a single external object.
      * Useful for reporting, aggregations, and queries returning objects different
      * from the entity type.
@@ -689,28 +688,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      */
     protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
             @NonNull Class<EXT> resultClass) {
-        List<EXT> results = jdbcTemplate.query(sql, params,
-                rowMapperFactory.getRowMapper(resultClass, databaseDialect, identifierConverter));
-        return results.isEmpty() ? null : results.get(0);
-    }
-
-    /**
-     * Executes a custom SQL query and returns a list of external objects with joins
-     * for nested mapping.
-     * Useful for queries with JOINs that need to map nested objects.
-     *
-     * @param <EXT>       the type of the external objects to return
-     * @param sql         the SQL query to execute
-     * @param params      the query parameters
-     * @param resultClass the class of the external objects to return
-     * @param joins       the list of joins for nested object mapping
-     * @return a list of results
-     */
-    @NonNull
-    protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Map<String, Object> params,
-            @NonNull Class<EXT> resultClass, @NonNull List<Join> joins) {
-        return jdbcTemplate.query(sql, params,
-                rowMapperFactory.getRowMapper(resultClass, databaseDialect, joins, identifierConverter));
+        List<EXT> results = findAllExternal(sql, params, resultClass);
+        return getFirstOrNull(results);
     }
 
     /**
@@ -740,7 +719,8 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      */
     protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Map<String, Object> params,
             @NonNull Class<EXT> resultClass) {
-        return jdbcTemplate.query(sql, params,
+        Map<String, Object> convertedParams = convertParamsToSqlValues(params);
+        return jdbcTemplate.query(sql, convertedParams,
                 rowMapperFactory.getRowMapper(resultClass, databaseDialect, identifierConverter));
     }
 
