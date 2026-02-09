@@ -438,11 +438,10 @@ public class FindQuery<T extends Entity<ID>, ID> implements SQLBuilder {
      * @return a map of parameter names to SQL values
      */
     @NonNull
-    public Map<String, Object> getParameters(ValueConverter valueConverter) {
+    public Map<String, Object> getParameters() {
         Map<String, Object> params = new HashMap<>();
         for (Condition condition : whereClause.getConditions()) {
-            Object sqlValue = valueConverter.convert(condition.getValue());
-            params.put(condition.getColumn(), sqlValue);
+            params.put(condition.getColumn(), condition.getValue());
         }
         return params;
     }

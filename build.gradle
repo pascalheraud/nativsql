@@ -8,7 +8,7 @@ plugins {
 
 // Define properties
 def groupId = 'ovh.heraud'
-def projectVersion = '1.3.1'
+def projectVersion = '1.3.2'
 def mainArtifactId = 'nativsql'
 def testFixturesArtifactId = 'nativsql-test-fixtures'
 
@@ -164,7 +164,7 @@ publishing {
                 def bomDep = depMgmtDepsNode.appendNode('dependency')
                 bomDep.appendNode('groupId', 'org.testcontainers')
                 bomDep.appendNode('artifactId', 'testcontainers-bom')
-                bomDep.appendNode('version', '2.0.2')
+                bomDep.appendNode('version', '2.0.3')
                 bomDep.appendNode('type', 'pom')
                 bomDep.appendNode('scope', 'import')
 
