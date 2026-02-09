@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.mysql.MySQLDialect;
-import ovh.heraud.nativsql.domain.Entity;
+import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.GenericRepository;
 
 /**
@@ -18,7 +18,7 @@ import ovh.heraud.nativsql.repository.GenericRepository;
  * @param <T>  the entity type
  * @param <ID> the id type
  */
-public abstract class MariaDBRepository<T extends Entity<ID>, ID> extends GenericRepository<T, ID> {
+public abstract class MariaDBRepository<T extends IEntity<ID>, ID> extends GenericRepository<T, ID> {
 
     @Autowired
     @Qualifier("mariaDBDataSource")

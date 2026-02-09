@@ -9,7 +9,7 @@ import java.util.Map;
 import org.jspecify.annotations.NonNull;
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.db.IdentifierConverter;
-import ovh.heraud.nativsql.domain.Entity;
+import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.GenericRepository;
 
 /**
@@ -24,10 +24,10 @@ import ovh.heraud.nativsql.repository.GenericRepository;
  * .orderByAsc("name")
  * .leftJoin("group", "id", "name")
  *
- * @param <T>  the entity type
+ * @param <T>  the entity type implementing IEntity
  * @param <ID> the entity ID type
  */
-public class FindQuery<T extends Entity<ID>, ID> implements SQLBuilder {
+public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     private final GenericRepository<T, ID> repository;
 
     private final List<String> columns = new ArrayList<>();
@@ -56,7 +56,7 @@ public class FindQuery<T extends Entity<ID>, ID> implements SQLBuilder {
      * @param repository the repository to query (required)
      * @return a new FindQuery builder instance
      */
-    public static <T extends Entity<ID>, ID> FindQuery<T, ID> of(GenericRepository<T, ID> repository) {
+    public static <T extends IEntity<ID>, ID> FindQuery<T, ID> of(GenericRepository<T, ID> repository) {
         return new FindQuery<>(repository);
     }
 

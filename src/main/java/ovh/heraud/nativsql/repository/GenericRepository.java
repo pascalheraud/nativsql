@@ -17,7 +17,7 @@ import jakarta.annotation.PostConstruct;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
-import ovh.heraud.nativsql.domain.Entity;
+import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
@@ -39,10 +39,10 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * using reflection.
  * Subclasses must implement getTableName() to specify the database table.
  *
- * @param <T>  the entity type
+ * @param <T>  the entity type implementing IEntity
  * @param <ID> the entity identifier type
  */
-public abstract class GenericRepository<T extends Entity<ID>, ID> {
+public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     private static final String ID_COLUMN = "id";
 
@@ -545,7 +545,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      *                     configurations.
      *                     If null or empty, no associations are loaded.
      */
-    protected void loadOneToManyAssociations(Entity<ID> entity, List<Association> associations) {
+    protected void loadOneToManyAssociations(IEntity<ID> entity, List<Association> associations) {
         if (applicationContext == null || associations == null || associations.isEmpty()) {
             return; // Cannot load associations without ApplicationContext or if no associations
                     // specified
@@ -562,7 +562,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param entity the entity to load the association for
      * @param config the association configuration
      */
-    private void loadOneToManyAssociation(Entity<ID> entity, Association config) {
+    private void loadOneToManyAssociation(IEntity<ID> entity, Association config) {
         @SuppressWarnings("unchecked")
         List<T> entities = (List<T>) (List<?>) List.of(entity);
         loadAssociationInBatch(entities, config);
@@ -593,7 +593,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * @param entities    the list of entities to load the association for
      * @param association the association configuration
      */
-    private <SUBT extends Entity<ID>> void loadAssociationInBatch(List<T> entities, Association association) {
+    private <SUBT extends IEntity<ID>> void loadAssociationInBatch(List<T> entities, Association association) {
         FieldAccessor fieldAccessor = entityFields.get(association.getName());
         if (fieldAccessor == null) {
             throw new NativSQLException("Association field not found: " + association.getName());
@@ -608,7 +608,7 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
 
         // Create a map of entities by their ID for direct access
         Map<ID, T> entitiesById = entities.stream()
-                .collect(Collectors.toMap(Entity::getId, e -> e));
+                .collect(Collectors.toMap(IEntity::getId, e -> e));
 
         // Get columns to load from association configuration
         List<String> columns = new ArrayList<>(association.getColumns());
