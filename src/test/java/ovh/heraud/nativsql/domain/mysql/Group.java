@@ -2,7 +2,7 @@ package ovh.heraud.nativsql.domain.mysql;
 
 import java.time.LocalDateTime;
 
-import ovh.heraud.nativsql.domain.Entity;
+import ovh.heraud.nativsql.domain.IEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Group implements Entity<Long> {
+public class Group implements IEntity<Long> {
     private Long id;
     private String name;
     private LocalDateTime createdAt;

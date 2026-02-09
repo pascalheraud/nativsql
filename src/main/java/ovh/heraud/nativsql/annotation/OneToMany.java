@@ -17,7 +17,7 @@ import org.jspecify.annotations.NonNull;
  * <pre>
  * {@code
  * @Data
- * public class User implements Entity<Long> {
+ * public class User implements IEntity<Long> {
  *     private Long id;
  *
  *     @OneToMany(mappedBy = "userId", repository = ContactInfoRepository.class)

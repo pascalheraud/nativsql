@@ -8,7 +8,7 @@ import org.postgis.Point;
 
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OneToMany;
-import ovh.heraud.nativsql.domain.Entity;
+import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.postgres.PostgresContactInfoRepository;
 import ovh.heraud.nativsql.repository.postgres.PostgresGroupRepository;
 import lombok.AllArgsConstructor;
@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User implements Entity<Long> {
+public class User implements IEntity<Long> {
     private Long id;
     private String firstName;
     private String lastName;
