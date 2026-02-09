@@ -135,10 +135,13 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         String columnList = SqlUtils.getColumnsList(identifierConverter, columns);
 
         Map<String, Object> params = extractValues(entity, columns);
-        Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
 
         String paramList = Arrays.stream(columns)
-                .map(col -> formatParameter(col, propertyTypes.get(col)))
+                .map(col -> {
+                    FieldAccessor field = entityFields.get(col);
+                    Class<?> fieldType = field != null ? field.getType() : Object.class;
+                    return formatParameter(col, fieldType);
+                })
                 .collect(Collectors.joining(", "));
 
         String sql = formatQuery("INSERT INTO %s (%s) VALUES (%s)",
@@ -198,11 +201,12 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
         Object id = idField != null ? idField.getValue(entity) : null;
         params.put(ID_COLUMN, id);
 
-        Map<String, Class<?>> propertyTypes = getPropertyTypes(entity, columns);
-
         String setClause = Arrays.stream(columns)
-                .map(col -> identifierConverter.toDB(col) + " = "
-                        + formatParameter(col, propertyTypes.get(col)))
+                .map(col -> {
+                    FieldAccessor field = entityFields.get(col);
+                    Class<?> fieldType = field != null ? field.getType() : Object.class;
+                    return identifierConverter.toDB(col) + " = " + formatParameter(col, fieldType);
+                })
                 .collect(Collectors.joining(", "));
 
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
@@ -470,25 +474,6 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
     /**
      * Gets the types of specified properties before SQL conversion.
      */
-    private Map<String, Class<?>> getPropertyTypes(T entity, String... properties) {
-        Map<String, Class<?>> types = new HashMap<>();
-
-        // Create a set of property names for quick lookup
-        Set<String> propertySet = new HashSet<>(Arrays.asList(properties));
-
-        // Get all field accessors and filter by requested properties
-        for (FieldAccessor fieldAccessor : entityFields.list()) {
-            if (propertySet.contains(fieldAccessor.getName())) {
-                Object value = fieldAccessor.getValue(entity);
-                if (value != null) {
-                    types.put(fieldAccessor.getName(), value.getClass());
-                }
-            }
-        }
-
-        return types;
-    }
-
     /**
      * Formats a parameter with appropriate SQL casting for enums and composite
      * types using the TypeMapper.
@@ -501,9 +486,13 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
      * Converts a Java object to its SQL representation.
      * Handles enums, composite types, JSON types, and value objects.
      * For lists, converts each element in the list using the element's type mapper.
+     * Returns null if value is null.
      */
     @SuppressWarnings("unchecked")
     private <PARAM_T> Object convertToSqlValue(PARAM_T value) {
+        if (value == null) {
+            return null;
+        }
         if (value instanceof List<?> list) {
             return list.stream()
                     .map(item -> {
@@ -511,11 +500,21 @@ public abstract class GenericRepository<T extends Entity<ID>, ID> {
                             return null;
                         }
                         ITypeMapper<Object> itemMapper = (ITypeMapper<Object>) databaseDialect.getMapper(item.getClass());
+                        if (itemMapper == null) {
+                            throw new IllegalArgumentException(
+                                    "No TypeMapper found for type: " + item.getClass().getName() +
+                                    ". Please ensure the type is properly configured in the database dialect.");
+                        }
                         return itemMapper.toDatabase(item);
                     })
                     .collect(Collectors.toList());
         }
         ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(value.getClass());
+        if (mapper == null) {
+            throw new IllegalArgumentException(
+                    "No TypeMapper found for type: " + value.getClass().getName() +
+                    ". Please ensure the type is properly configured in the database dialect.");
+        }
         return mapper.toDatabase(value);
     }
 

@@ -1,6 +1,7 @@
 package ovh.heraud.nativsql.repository.postgres;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -543,5 +544,143 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(found.getEmail()).isEqualTo("uuid@example.com");
                 assertThat(found.getFirstName()).isEqualTo("UUIDTest");
                 assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        }
+
+        @Test
+        void testInsertFieldWithNull() {
+                // Given - Create a user with some fields explicitly set to null
+                User user = User.builder()
+                                .firstName("TestUser")
+                                .lastName(null) // Explicitly null
+                                .email("insertwithnull@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .address(null) // Explicitly null
+                                .build();
+
+                // When - Insert with null fields
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "address");
+
+                // Then - Verify the insert worked and null values are preserved
+                assertThat(user.getId()).isNotNull();
+
+                User found = userRepository.findByEmail("insertwithnull@example.com", "id", "firstName", "lastName", "email",
+                                "status", "address");
+                assertThat(found).isNotNull();
+                assertThat(found.getFirstName()).isEqualTo("TestUser");
+                assertThat(found.getLastName()).isNull();
+                assertThat(found.getEmail()).isEqualTo("insertwithnull@example.com");
+                assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
+                assertThat(found.getAddress()).isNull();
+        }
+
+        @Test
+        void testUpdatePointField() throws SQLException {
+                // Given - Create a user with a position (Point)
+                Point initialPoint = new Point("POINT(2.5 48.5)");
+                User user = User.builder()
+                                .firstName("PointUser")
+                                .lastName("Geo")
+                                .email("pointupdate@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .position(initialPoint)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "position");
+
+                User found = userRepository.findByEmail("pointupdate@example.com", "id", "firstName", "position");
+                assertThat(found).isNotNull();
+                assertThat(found.getPosition()).isNotNull();
+                assertThat(found.getPosition().x).isCloseTo(2.5, within(0.0001));
+                assertThat(found.getPosition().y).isCloseTo(48.5, within(0.0001));
+
+                // When - Update the position to a different location
+                Point newPoint = new Point("POINT(4.8 45.7)");
+                found.setPosition(newPoint);
+
+                int rows = userRepository.update(found, "position");
+
+                // Then - Verify the update worked
+                assertThat(rows).isEqualTo(1);
+
+                User updated = userRepository.findByEmail("pointupdate@example.com", "id", "firstName", "position");
+                assertThat(updated).isNotNull();
+                assertThat(updated.getPosition()).isNotNull();
+                assertThat(updated.getPosition().x).isCloseTo(4.8, within(0.0001));
+                assertThat(updated.getPosition().y).isCloseTo(45.7, within(0.0001));
+        }
+
+        @Test
+        void testUpdateEnumField() {
+                // Given - Create a user with ACTIVE status
+                User user = User.builder()
+                                .firstName("EnumTest")
+                                .lastName("Status")
+                                .email("enumupdate@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                User found = userRepository.findByEmail("enumupdate@example.com", "id", "firstName", "lastName", "status");
+                assertThat(found).isNotNull();
+                assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
+
+                // When - Update status to SUSPENDED
+                found.setStatus(UserStatus.SUSPENDED);
+
+                int rows = userRepository.update(found, "status");
+
+                // Then - Verify the enum update worked
+                assertThat(rows).isEqualTo(1);
+
+                User updated = userRepository.findByEmail("enumupdate@example.com", "id", "status");
+                assertThat(updated).isNotNull();
+                assertThat(updated.getStatus()).isEqualTo(UserStatus.SUSPENDED);
+
+                // When - Update status again to INACTIVE
+                updated.setStatus(UserStatus.INACTIVE);
+
+                rows = userRepository.update(updated, "status");
+
+                // Then - Verify the second enum update worked
+                assertThat(rows).isEqualTo(1);
+
+                User finalUser = userRepository.findByEmail("enumupdate@example.com", "id", "status");
+                assertThat(finalUser).isNotNull();
+                assertThat(finalUser.getStatus()).isEqualTo(UserStatus.INACTIVE);
+        }
+
+        @Test
+        void testUpdateFieldToNull() {
+                // Given - Create a user with firstName and address
+                User user = User.builder()
+                                .firstName("OriginalName")
+                                .lastName("LastName")
+                                .email("nulltest@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .address(new Address("123 Main St", "Paris", "75001", "France"))
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "address");
+
+                User found = userRepository.findByEmail("nulltest@example.com", "id", "firstName", "lastName", "email",
+                                "status", "address");
+                assertThat(found).isNotNull();
+                assertThat(found.getFirstName()).isEqualTo("OriginalName");
+                assertThat(found.getAddress()).isNotNull();
+
+                // When - Update firstName and address to null
+                found.setFirstName(null);
+                found.setAddress(null);
+
+                int rows = userRepository.update(found, "firstName", "address");
+
+                // Then - Verify the update worked
+                assertThat(rows).isEqualTo(1);
+
+                User updated = userRepository.findByEmail("nulltest@example.com", "id", "firstName", "lastName", "email",
+                                "status", "address");
+                assertThat(updated).isNotNull();
+                assertThat(updated.getFirstName()).isNull();
+                assertThat(updated.getAddress()).isNull();
+                assertThat(updated.getLastName()).isEqualTo("LastName"); // Unchanged
+                assertThat(updated.getStatus()).isEqualTo(UserStatus.ACTIVE); // Unchanged
         }
 }
