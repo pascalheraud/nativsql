@@ -42,6 +42,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * @param <T>  the entity type implementing IEntity
  * @param <ID> the entity identifier type
  */
+// TODO avoir une meilleure souplesse dans les types entier => double par exemple
+// TODO tester que les reqs des findExternal ne renvoie pas > 1
 public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     private static final String ID_COLUMN = "id";

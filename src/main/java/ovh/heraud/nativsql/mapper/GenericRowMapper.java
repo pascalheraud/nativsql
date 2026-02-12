@@ -134,7 +134,7 @@ public class GenericRowMapper<T> implements RowMapper<T> {
         PropertyMetadata<?> prop = simpleProperties.get(propertyColumnName);
 
         if (prop == null) {
-            throw new NativSQLException("Property metadata not found for column: " + propertyColumnName);
+            throw new NativSQLException("Property "+propertyColumnName+" not found for in class " + targetObject.getClass());
         }
 
         Object value = prop.getTypeMapper().map(rs, columnLabel);
