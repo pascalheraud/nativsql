@@ -109,17 +109,25 @@ public final class ReflectionUtils {
 
     /**
      * Creates a Fields wrapper with all declared fields of a class.
+     * Includes inherited fields from superclasses.
      * Provides fast lookup by field name via a map.
      *
      * @param clazz the class to get fields from
      * @return Fields wrapper with all field accessors
      */
     public static Fields getFields(Class<?> clazz) {
-        Field[] fields = clazz.getDeclaredFields();
-        List<FieldAccessor> accessors = new java.util.ArrayList<>(fields.length);
-        for (Field field : fields) {
-            accessors.add(new FieldAccessor(field));
+        List<FieldAccessor> accessors = new java.util.ArrayList<>();
+
+        // Collect fields from the class hierarchy (including superclasses)
+        Class<?> current = clazz;
+        while (current != null && current != Object.class) {
+            Field[] declaredFields = current.getDeclaredFields();
+            for (Field field : declaredFields) {
+                accessors.add(new FieldAccessor(field));
+            }
+            current = current.getSuperclass();
         }
+
         return new Fields(accessors);
     }
 
@@ -128,29 +136,33 @@ public final class ReflectionUtils {
      */
     @Deprecated
     public static FieldAccessor[] getFieldAccessors(Object instance) {
-        Field[] fields = instance.getClass().getDeclaredFields();
-        FieldAccessor[] accessors = new FieldAccessor[fields.length];
-        for (int i = 0; i < fields.length; i++) {
-            accessors[i] = new FieldAccessor(fields[i]);
-        }
-        return accessors;
+        List<FieldAccessor> list = getFields(instance.getClass()).list();
+        return list.toArray(new FieldAccessor[0]);
     }
 
     /**
      * @deprecated Use {@link #getFields(Class)} instead
      * Creates FieldAccessors for all declared fields of a class.
+     * Includes inherited fields from superclasses.
      *
      * @param clazz the class to get fields from
      * @return array of FieldAccessors
      */
     @Deprecated
     public static FieldAccessor[] getFieldAccessors(Class<?> clazz) {
-        Field[] fields = clazz.getDeclaredFields();
-        FieldAccessor[] accessors = new FieldAccessor[fields.length];
-        for (int i = 0; i < fields.length; i++) {
-            accessors[i] = new FieldAccessor(fields[i]);
+        List<FieldAccessor> accessors = new java.util.ArrayList<>();
+
+        // Collect fields from the class hierarchy (including superclasses)
+        Class<?> current = clazz;
+        while (current != null && current != Object.class) {
+            Field[] declaredFields = current.getDeclaredFields();
+            for (Field field : declaredFields) {
+                accessors.add(new FieldAccessor(field));
+            }
+            current = current.getSuperclass();
         }
-        return accessors;
+
+        return accessors.toArray(new FieldAccessor[0]);
     }
 
     /**
