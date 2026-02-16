@@ -38,7 +38,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
 
     // PostgreSQL
-    implementation 'org.postgresql:postgresql:42.7.9'
+    implementation 'org.postgresql:postgresql:42.7.10'
 
     // MySQL
     implementation 'com.mysql:mysql-connector-j:9.6.0'
