@@ -6,7 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.util.FieldAccessor;
@@ -21,6 +23,9 @@ public class RowMapperFactory {
 
     private final Map<Class<?>, GenericRowMapper<?>> cache = new ConcurrentHashMap<>();
 
+    @Autowired
+    private AnnotationManager annotationManager;
+
     public RowMapperFactory() {
     }
 
@@ -32,7 +37,6 @@ public class RowMapperFactory {
      * @param identifierConverter the identifier converter for column name transformation
      * @return a GenericRowMapper for the class
      */
-    @SuppressWarnings({ "unchecked"})
     public <T> GenericRowMapper<T> getRowMapper(Class<T> clazz, DatabaseDialect dialect, IdentifierConverter identifierConverter) {
         GenericRowMapper<?> cached = cache.get(clazz);
         if (cached != null) {
@@ -55,8 +59,10 @@ public class RowMapperFactory {
         // Get all fields
         for (FieldAccessor fieldAccessor : ReflectionUtils.getFields(clazz).list()) {
 
-            if (fieldAccessor.isSimpleType()) {
-                ITypeMapper<?> typeMapper = dialect.getMapper(fieldAccessor.getType());
+            // A field is simple if it's not annotated with @OneToMany
+            boolean isSimple = annotationManager.getOneToManyInfo(fieldAccessor) == null;
+            if (isSimple) {
+                ITypeMapper<?> typeMapper = dialect.getMapper(fieldAccessor, annotationManager);
 
                 if (typeMapper != null) {
                     // Simple type with a mapper

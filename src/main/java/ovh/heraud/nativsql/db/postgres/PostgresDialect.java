@@ -1,17 +1,22 @@
 package ovh.heraud.nativsql.db.postgres;
 
-import java.lang.annotation.Annotation;
 import java.util.UUID;
 
-import ovh.heraud.nativsql.annotation.EnumMapping;
+import org.jspecify.annotations.NonNull;
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.AbstractChainedDialect;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.generic.GenericDialect;
-import ovh.heraud.nativsql.db.postgres.mapper.PostgresEnumMapper;
 import ovh.heraud.nativsql.db.postgres.mapper.PostgreJSONTypeMapper;
+import ovh.heraud.nativsql.db.postgres.mapper.PostgresByteArrayTypeMapper;
 import ovh.heraud.nativsql.db.postgres.mapper.PostgresCompositeTypeMapper;
+import ovh.heraud.nativsql.db.postgres.mapper.PostgresEnumMapper;
+import ovh.heraud.nativsql.db.postgres.mapper.PostgresStringTypeMapper;
 import ovh.heraud.nativsql.db.postgres.mapper.PostgresUUIDTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.util.EnumMappingInfo;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
  * PostgreSQL-specific implementation of DatabaseDialect.
@@ -22,8 +27,10 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
  * - JSON/JSONB types
  * - UUID types
  *
- * Part of the Chain of Responsibility pattern, chains to DefaultDialect for unmapped types.
- * Can be extended to create specialized PostgreSQL dialects (e.g., with PostGIS support).
+ * Part of the Chain of Responsibility pattern, chains to DefaultDialect for
+ * unmapped types.
+ * Can be extended to create specialized PostgreSQL dialects (e.g., with PostGIS
+ * support).
  */
 public class PostgresDialect extends AbstractChainedDialect {
 
@@ -44,20 +51,14 @@ public class PostgresDialect extends AbstractChainedDialect {
     }
 
     @Override
-    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass) {
-        // Check if enum type is registered programmatically
-        String dbTypeName = enumDbTypes.get(enumClass);
+    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass, AnnotationManager annotationManager) {
+        String dbTypeName = null;
 
-        // If not in map, check for annotation
-        if (dbTypeName == null) {
-            // Look for EnumPGMapping annotation
-            Annotation[] annotations = enumClass.getAnnotations();
-            for (Annotation annotation : annotations) {
-                if (annotation instanceof EnumMapping enumMapping) {
-                    dbTypeName = enumMapping.pgTypeName();
-                    // Cache it in the map for next time
-                    enumDbTypes.put(enumClass, dbTypeName);
-                }
+        // Check for annotation
+        if (annotationManager != null) {
+            EnumMappingInfo enumMappingInfo = annotationManager.getEnumMappingInfo(enumClass);
+            if (enumMappingInfo != null) {
+                dbTypeName = enumMappingInfo.getTypeName();
             }
         }
 
@@ -71,13 +72,14 @@ public class PostgresDialect extends AbstractChainedDialect {
     }
 
     @Override
-    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass) {
-        // Check if composite type is registered programmatically
-        String dbTypeName = compositeTypes.get(compositeClass);
+    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager) {
 
-        if (dbTypeName == null) {
+        ovh.heraud.nativsql.util.CompositeTypeInfo compositeTypeInfo = annotationManager
+                .getCompositeTypeInfo(compositeClass);
+        if (compositeTypeInfo == null) {
             throw new RuntimeException("Composite type not registered: " + compositeClass.getName());
         }
+        String dbTypeName = compositeTypeInfo.getTypeName();
 
         // PostgreSQL uses the dedicated PostgresCompositeTypeMapper
         return new PostgresCompositeTypeMapper<>(compositeClass, dbTypeName);
@@ -85,34 +87,45 @@ public class PostgresDialect extends AbstractChainedDialect {
 
     @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor,@NonNull AnnotationManager annotationManager) {
+        Class<T> targetType = (Class<T>) fieldAccessor.getType();
         // Check for composite types first (PostgreSQL-specific)
-        if (compositeTypes.containsKey(targetType)) {
-            return getCompositeMapper(targetType);
+        if (annotationManager.getCompositeTypeInfo(targetType) != null) {
+            return getCompositeMapper(targetType, annotationManager);
         }
 
         // Check for registered JSON types
-        if (jsonTypes.containsKey(targetType)) {
+        if (annotationManager.getJsonInfo(targetType) != null) {
             return getJsonMapper(targetType);
         }
 
         // Use PostgreSQL-specific UUID mapper
         if (targetType == UUID.class) {
-            return (ITypeMapper<T>) new PostgresUUIDTypeMapper();
+           TypeInfo typeInfo = annotationManager.getTypeInfo(fieldAccessor);
+            return (ITypeMapper<T>) new PostgresUUIDTypeMapper(typeInfo);
+        }
+        // For strings, use the Postgres-specific string mapper which knows how to
+        // wrap UUID literals in PGobject when writing to a UUID column.
+        if (targetType == String.class) {
+            return (ITypeMapper<T>) new PostgresStringTypeMapper();
+        }
+        // For byte[] we also provide a PostgreSQL specialisation supporting UUID
+        if (targetType == byte[].class) {
+            return (ITypeMapper<T>) new PostgresByteArrayTypeMapper();
         }
 
         // Check for enum types (registered or annotated)
         if (targetType.isEnum()) {
             Class<? extends Enum> enumClass = (Class<? extends Enum>) targetType;
-            return (ITypeMapper<T>) getEnumMapperForType(enumClass);
+            return (ITypeMapper<T>) getEnumMapperForType(enumClass, annotationManager);
         }
 
         // Fall back to next dialect in chain for other types
-        return super.getMapper(targetType);
+        return super.getMapper(fieldAccessor, annotationManager);
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    private <E extends Enum<E>> ITypeMapper<E> getEnumMapperForType(Class<? extends Enum> enumClass) {
-        return getEnumMapper((Class<E>) enumClass);
+    private <E extends Enum<E>> ITypeMapper<E> getEnumMapperForType(Class<? extends Enum> enumClass, AnnotationManager annotationManager) {
+        return getEnumMapper((Class<E>) enumClass, annotationManager);
     }
 }

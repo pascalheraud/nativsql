@@ -2,10 +2,12 @@ package ovh.heraud.nativsql.db.postgres.postgis;
 
 import org.postgis.Point;
 
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.AbstractChainedDialect;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.postgres.PostgresDialect;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * PostgreSQL dialect with PostGIS support using Chain of Responsibility
@@ -43,13 +45,13 @@ public class PostgresPostGISDialect extends AbstractChainedDialect {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
         // Handle PostGIS Point type
-        if (targetType == Point.class) {
+        if (fieldAccessor.getType() == Point.class) {
             return (ITypeMapper<T>) new PostgresPointTypeMapper();
         }
 
-        // Delegate to the next dialect in the chain (PostgreSQL dialect)
-        return super.getMapper(targetType);
+        // Delegate to the next dialect in the chain
+        return super.getMapper(fieldAccessor, annotationManager);
     }
 }

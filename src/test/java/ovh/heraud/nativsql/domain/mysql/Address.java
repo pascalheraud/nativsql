@@ -1,8 +1,11 @@
 package ovh.heraud.nativsql.domain.mysql;
 
+import ovh.heraud.nativsql.annotation.Json;
+
 /**
  * Address value object, stored as JSONB in PostgreSQL.
  */
+@Json
 public class Address {
     private String street;
     private String city;

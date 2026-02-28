@@ -3,9 +3,7 @@ package ovh.heraud.nativsql.util;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 
-import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import org.jspecify.annotations.NonNull;
 
 /**
  * Wrapper class that provides convenient access to a field.
@@ -13,7 +11,8 @@ import org.jspecify.annotations.NonNull;
  */
 public class FieldAccessor {
 
-    private final Field field;
+    private Field field;
+    private Class<?> fieldType;
 
     /**
      * Creates a new FieldAccessor.
@@ -23,6 +22,10 @@ public class FieldAccessor {
     public FieldAccessor(Field field) {
         this.field = field;
         this.field.setAccessible(true); // Allow access to private fields
+    }
+
+    public FieldAccessor(Class<?> clazz) {
+        this.fieldType = clazz;
     }
 
     /**
@@ -40,7 +43,7 @@ public class FieldAccessor {
      * @return the field type
      */
     public Class<?> getType() {
-        return field.getType();
+        return field == null ? this.fieldType : field.getType();
     }
 
     /**
@@ -102,26 +105,6 @@ public class FieldAccessor {
      */
     public Field getField() {
         return field;
-    }
-
-    public boolean isSimpleType() {
-        return !this.hasAnnotation(OneToMany.class);
-    }
-
-    /**
-     * Gets the OneToMany association details.
-     *
-     * @return a non-null OneToManyAssociation object
-     * @throws NativSQLException if the @OneToMany annotation is not present on this
-     *                      field
-     */
-    @NonNull
-    public OneToManyAssociation getOneToMany() {
-        OneToMany annotation = field.getAnnotation(OneToMany.class);
-        if (annotation == null) {
-            throw new NativSQLException("Field is not annotated with @OneToMany: " + field.getName());
-        }
-        return new OneToManyAssociation(annotation.mappedBy(), annotation.repository());
     }
 
     @Override

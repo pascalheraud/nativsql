@@ -7,12 +7,12 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation to mark enum types that should be automatically registered
- * as PostgreSQL ENUM types.
+ * as database enum types.
  *
  * <p>Example usage:</p>
  * <pre>
  * {@code
- * @EnumMapping(pgTypeName = "contact_type")
+ * @EnumMapping(typeName = "contact_type")
  * public enum ContactType {
  *     EMAIL, PHONE, FACEBOOK, TWITTER, LINKEDIN, WEBSITE
  * }
@@ -24,9 +24,9 @@ import java.lang.annotation.Target;
 public @interface EnumMapping {
 
     /**
-     * The PostgreSQL enum type name.
+     * The database enum type name.
      *
-     * @return the PostgreSQL type name (e.g., "contact_type")
+     * @return the database type name (e.g., "contact_type")
      */
-    String pgTypeName();
+    String typeName();
 }

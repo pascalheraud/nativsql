@@ -21,6 +21,7 @@ CREATE TABLE users (
     external_id UUID UNIQUE,
     status user_status DEFAULT 'ACTIVE',
     address address_type,
+    age integer,
     preferences JSONB,
     position GEOMETRY(Point, 4326),
     group_id BIGINT REFERENCES user_group(id) ON DELETE SET NULL,
@@ -42,3 +43,74 @@ CREATE INDEX idx_users_status ON users(status);
 CREATE INDEX idx_users_group_id ON users(group_id);
 CREATE INDEX idx_contact_info_user_id ON contact_info(user_id);
 CREATE INDEX idx_contact_info_type ON contact_info(contact_type);
+
+-- Test tables for each data type
+CREATE TABLE data_type_long (
+    id BIGSERIAL PRIMARY KEY,
+    data BIGINT
+);
+
+CREATE TABLE data_type_integer (
+    id BIGSERIAL PRIMARY KEY,
+    data INTEGER
+);
+
+CREATE TABLE data_type_double (
+    id BIGSERIAL PRIMARY KEY,
+    data DOUBLE PRECISION
+);
+
+CREATE TABLE data_type_float (
+    id BIGSERIAL PRIMARY KEY,
+    data REAL
+);
+
+CREATE TABLE data_type_short (
+    id BIGSERIAL PRIMARY KEY,
+    data SMALLINT
+);
+
+CREATE TABLE data_type_byte (
+    id BIGSERIAL PRIMARY KEY,
+    data SMALLINT
+);
+
+CREATE TABLE data_type_big_decimal (
+    id BIGSERIAL PRIMARY KEY,
+    data NUMERIC(19, 10)
+);
+
+CREATE TABLE data_type_big_integer (
+    id BIGSERIAL PRIMARY KEY,
+    data BIGINT
+);
+
+CREATE TABLE data_type_boolean (
+    id BIGSERIAL PRIMARY KEY,
+    data BOOLEAN
+);
+
+CREATE TABLE data_type_string (
+    id BIGSERIAL PRIMARY KEY,
+    data VARCHAR(255)
+);
+
+CREATE TABLE data_type_uuid (
+    id BIGSERIAL PRIMARY KEY,
+    data UUID
+);
+
+CREATE TABLE data_type_local_date (
+    id BIGSERIAL PRIMARY KEY,
+    data DATE
+);
+
+CREATE TABLE data_type_local_datetime (
+    id BIGSERIAL PRIMARY KEY,
+    data TIMESTAMP
+);
+
+CREATE TABLE data_type_byte_array (
+    id BIGSERIAL PRIMARY KEY,
+    data BYTEA
+);

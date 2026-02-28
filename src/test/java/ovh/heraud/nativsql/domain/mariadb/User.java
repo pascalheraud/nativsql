@@ -6,6 +6,8 @@ import java.util.UUID;
 
 import org.postgis.Point;
 
+import ovh.heraud.nativsql.annotation.Type;
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.domain.IEntity;
@@ -31,6 +33,8 @@ public class User implements IEntity<Long> {
     private UUID externalId;
     private UserStatus status;
     private Address address;
+    @Type(DbDataType.BIG_INTEGER)
+    private Integer age;
     private Preferences preferences;
     private Point position;
     private Long groupId;

@@ -2,8 +2,10 @@ package ovh.heraud.nativsql.db.mysql.postgis;
 
 import org.postgis.Point;
 
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.mysql.MySQLDialect;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * MySQL dialect with PostGIS (Geographic Information System) support.
@@ -17,14 +19,13 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
 public class MySQLPostGISDialect extends MySQLDialect {
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
         // Use MySQL-specific Point mapper for spatial coordinates
-        if (targetType == Point.class) {
+        if (fieldAccessor.getType() == Point.class) {
             return (ITypeMapper<T>) new MySQLPointTypeMapper();
         }
 
         // Fall back to parent MySQLDialect implementation
-        return super.getMapper(targetType);
+        return super.getMapper(fieldAccessor, annotationManager);
     }
 }

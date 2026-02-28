@@ -4,10 +4,12 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import ovh.heraud.nativsql.annotation.Json;
 
 /**
  * User preferences, stored as JSON in MySQL.
  */
+@Json
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

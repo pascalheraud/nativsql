@@ -1,8 +1,11 @@
 package ovh.heraud.nativsql.domain.postgres;
 
+import ovh.heraud.nativsql.annotation.CompositeType;
+
 /**
- * Address value object, stored as JSONB in PostgreSQL.
+ * Address value object, stored as composite type in PostgreSQL.
  */
+@CompositeType(typeName = "address_type")
 public class Address {
     private String street;
     private String city;

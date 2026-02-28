@@ -5,6 +5,7 @@ import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
 
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import org.postgresql.util.PGobject;
@@ -75,10 +76,17 @@ public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public Object toDatabase(T value) {
+    public Object toDatabase(T value, DbDataType dataType) {
         if (value == null) {
             return null;
         }
+
+        // Composite types must be converted to PGobject, no other conversion is allowed
+        if (dataType != null) {
+            throw new NativSQLException(
+                    "Cannot convert composite type " + compositeClass.getSimpleName() + " to " + dataType);
+        }
+
         try {
             List<String> fieldValues = new ArrayList<>();
 

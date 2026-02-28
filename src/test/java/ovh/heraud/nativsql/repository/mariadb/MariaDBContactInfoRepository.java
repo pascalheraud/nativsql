@@ -15,7 +15,7 @@ public class MariaDBContactInfoRepository extends MariaDBRepository<ContactInfo,
 
     @Override
     @NonNull
-    protected String getTableName() {
+    public String getTableName() {
         return "contact_info";
     }
 

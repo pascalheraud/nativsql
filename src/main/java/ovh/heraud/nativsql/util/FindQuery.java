@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.jspecify.annotations.NonNull;
-import ovh.heraud.nativsql.annotation.MappedBy;
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.GenericRepository;
@@ -29,6 +29,7 @@ import ovh.heraud.nativsql.repository.GenericRepository;
  */
 public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     private final GenericRepository<T, ID> repository;
+    private final AnnotationManager annotationManager;
 
     private final List<String> columns = new ArrayList<>();
     private final OrderBy orderBy = new OrderBy();
@@ -40,14 +41,14 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Creates a new FindQuery for the specified repository.
      *
      * @param repository the repository to query (required)
-     * @param identifierConverter the identifier converter for name transformation
-     * @throws IllegalArgumentException if repository or converter is null
+     * @throws IllegalArgumentException if repository is null
      */
     private FindQuery(@NonNull GenericRepository<T, ID> repository) {
         if (repository == null) {
             throw new IllegalArgumentException("Repository cannot be null");
         }
         this.repository = repository;
+        this.annotationManager = repository.getAnnotationManager();
     }
 
     /**
@@ -162,14 +163,14 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Adds a LEFT JOIN for a @MappedBy association (ToOne relationship).
      * The MappedBy annotation on the field contains the repository of the joined
      * entity.
-     * 
+     *
      * @param associationName the property name of the association field
      * @param columns         the columns to retrieve from the joined entity
      */
     public FindQuery<T, ID> leftJoin(String associationName, String... columns) {
         FieldAccessor fieldAccessor = repository.getEntityFields().get(associationName);
-        MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
-        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedBy.repository());
+        MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, Arrays.asList(columns), true, joinRepository));
         return this;
     }
@@ -184,8 +185,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      */
     public FindQuery<T, ID> leftJoin(String associationName, List<String> columns) {
         FieldAccessor fieldAccessor = repository.getEntityFields().get(associationName);
-        MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
-        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedBy.repository());
+        MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, columns, true, joinRepository));
         return this;
     }
@@ -200,8 +201,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      */
     public FindQuery<T, ID> innerJoin(String associationName, String... columns) {
         FieldAccessor fieldAccessor = repository.getEntityFields().get(associationName);
-        MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
-        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedBy.repository());
+        MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, Arrays.asList(columns), false, joinRepository));
         return this;
     }
@@ -216,8 +217,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      */
     public FindQuery<T, ID> innerJoin(String associationName, List<String> columns) {
         FieldAccessor fieldAccessor = repository.getEntityFields().get(associationName);
-        MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
-        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedBy.repository());
+        MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, columns, false, joinRepository));
         return this;
     }
@@ -237,7 +238,7 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Gets the table name.
      */
     public String getTableName() {
-        return repository.getTableNameForQuery();
+        return repository.getTableName();
     }
 
     /**
@@ -375,7 +376,7 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
 
         // Add joined table columns with their property name as prefix in aliases
         for (Join join : joins) {
-            String joinTableName = join.getRepository().getTableNameForQuery();
+            String joinTableName = join.getRepository().getTableName();
             String propertyName = join.getName(); // Use the property name (e.g., "group")
             for (String col : join.getColumns()) {
                 String columnWithAlias = buildColumnExpression(identifierConverter, joinTableName, col, propertyName, col);
@@ -395,7 +396,7 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * @param identifierConverter the identifier converter to use for name transformation
      */
     private void buildSql(StringBuilder sb, IdentifierConverter identifierConverter) {
-        String tableName = repository.getTableNameForQuery();
+        String tableName = repository.getTableName();
         List<String> prefixedColumns = buildPrefixedColumns(identifierConverter, tableName);
 
         String columnList = String.join(", ", prefixedColumns);
@@ -407,10 +408,10 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
             Fields entityFields = repository.getEntityFields();
             for (Join join : joins) {
                 FieldAccessor fieldAccessor = entityFields.get(join.getName());
-                if (fieldAccessor.hasAnnotation(MappedBy.class)) {
-                    MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
-                    String foreignKeyColumn = identifierConverter.toDB(mappedBy.value());
-                    String joinTableName = join.getRepository().getTableNameForQuery();
+                MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+                if (mappedByInfo != null) {
+                    String foreignKeyColumn = identifierConverter.toDB(mappedByInfo.getForeignKeyProperty());
+                    String joinTableName = join.getRepository().getTableName();
                     String joinKeyword = join.isLeftJoin() ? "LEFT" : "INNER";
                     sb.append(String.format(" %s JOIN %s ON %s.%s = %s.id",
                             joinKeyword, joinTableName, tableName, foreignKeyColumn, joinTableName));

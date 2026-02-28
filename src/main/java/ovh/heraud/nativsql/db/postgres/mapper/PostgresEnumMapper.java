@@ -2,6 +2,7 @@ package ovh.heraud.nativsql.db.postgres.mapper;
 
 import java.sql.ResultSet;
 
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import lombok.RequiredArgsConstructor;
@@ -44,10 +45,17 @@ public class PostgresEnumMapper<E extends Enum<E>> implements ITypeMapper<E> {
     }
 
     @Override
-    public Object toDatabase(E value) {
+    public Object toDatabase(E value, DbDataType dataType) {
         if (value == null) {
             return null;
         }
+
+        // Enum types must be converted to PGobject, no other conversion is allowed
+        if (dataType != null) {
+            throw new NativSQLException(
+                    "Cannot convert enum " + enumClass.getSimpleName() + " to " + dataType);
+        }
+
         try {
             PGobject pgObject = new PGobject();
             pgObject.setType(dbTypeName);

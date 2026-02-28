@@ -3,12 +3,15 @@ package ovh.heraud.nativsql.config;
 import javax.sql.DataSource;
 
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
+import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.db.mariadb.MariaDBDialect;
 import ovh.heraud.nativsql.db.mysql.MySQLDialect;
 import ovh.heraud.nativsql.db.postgres.PostgresDialect;
 import ovh.heraud.nativsql.db.postgres.postgis.PostgresPostGISDialect;
@@ -17,51 +20,53 @@ import ovh.heraud.nativsql.domain.postgres.Preferences;
 import ovh.heraud.nativsql.domain.postgres.UserStatus;
 
 /**
- * Test configuration component that registers example domain types for testing.
+ * Test configuration component for NativSQL dialects.
  *
  * <p>
- * This implementation of {@link INativSQLConfiguration} demonstrates how
- * applications
- * should configure NativSQL by implementing the interface and providing type
- * mappings.
+ * Domain types are registered programmatically via dialect registration methods.
+ * Annotations (@Json, @CompositeType, @EnumMapping) are automatically detected by dialects
+ * and can be overridden with explicit programmatic registration here.
  * </p>
  */
 @Component
 public class TestNativSqlConfig {
+
+    @Autowired
+    private AnnotationManager annotationManager;
 
     @Bean
     public PostgresPostGISDialect postgresDialect() {
         PostgresDialect baseDialect = new PostgresDialect();
         PostgresPostGISDialect postgisDialect = new PostgresPostGISDialect(baseDialect);
 
-        // Configure PostgreSQL dialect with composite, JSON, and enum types
-        postgisDialect.registerCompositeType(Address.class, "address_type");
-        postgisDialect.registerJsonType(Preferences.class);
-        postgisDialect.registerEnumType(UserStatus.class, "user_status");
+        // Configure types via AnnotationManager (annotations can be overridden here)
+        annotationManager.setCompositeTypeInfo(Address.class, "address_type");
+        annotationManager.setJsonInfo(Preferences.class);
+        annotationManager.setEnumMappingInfo(UserStatus.class, "user_status");
 
         return postgisDialect;
     }
 
     @Bean(name = "mySQLDialect")
     public MySQLDialect mySQLDialect() {
-        MySQLDialect mySQLDialect = new MySQLDialect();
+        MySQLDialect dialect = new MySQLDialect();
 
-        // Configure MySQL dialect with JSON types
-        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mysql.Address.class);
-        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mysql.Preferences.class);
+        // Configure types via AnnotationManager (annotations can be overridden here)
+        annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.mysql.Address.class);
+        annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.mysql.Preferences.class);
 
-        return mySQLDialect;
+        return dialect;
     }
 
     @Bean(name = "mariaDBDialect")
-    public MySQLDialect mariaDBDialect() {
-        MySQLDialect mySQLDialect = new MySQLDialect();
+    public MariaDBDialect mariaDBDialect() {
+        MariaDBDialect dialect = new MariaDBDialect();
 
-        // Configure MySQL dialect with JSON types (MariaDB is compatible with MySQL)
-        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mariadb.Address.class);
-        mySQLDialect.registerJsonType(ovh.heraud.nativsql.domain.mariadb.Preferences.class);
+        // Configure types via AnnotationManager (annotations can be overridden here)
+        annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.mariadb.Address.class);
+        annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.mariadb.Preferences.class);
 
-        return mySQLDialect;
+        return dialect;
     }
 
     /**

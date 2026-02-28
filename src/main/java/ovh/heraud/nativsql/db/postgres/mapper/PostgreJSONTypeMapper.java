@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import org.postgresql.util.PGobject;
@@ -55,10 +56,22 @@ public class PostgreJSONTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public Object toDatabase(T value) {
+    public Object toDatabase(T value, DbDataType dataType) {
         if (value == null) {
             return null;
         }
+
+        // For IDENTITY type, return as-is
+        if (dataType == DbDataType.IDENTITY) {
+            return value;
+        }
+        
+        // JSON types must be converted to JSON/JSONB, no other conversion is allowed
+        if (dataType != null) {
+            throw new NativSQLException(
+                    "Cannot convert JSON to " + dataType);
+        }
+
         try {
             PGobject pgObject = new PGobject();
             pgObject.setType("jsonb");
@@ -67,11 +80,5 @@ public class PostgreJSONTypeMapper<T> implements ITypeMapper<T> {
         } catch (Exception e) {
             throw new NativSQLException("Failed to convert to JSONB", e);
         }
-    }
-
-    @Override
-    public String formatParameter(String paramName) {
-        // PostgreSQL JSON doesn't need special casting, just return the parameter
-        return ":" + paramName;
     }
 }

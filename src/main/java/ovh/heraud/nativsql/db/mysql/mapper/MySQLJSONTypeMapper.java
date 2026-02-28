@@ -4,6 +4,7 @@ import java.sql.ResultSet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 
@@ -52,20 +53,26 @@ public class MySQLJSONTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public Object toDatabase(T value) {
+    public Object toDatabase(T value, DbDataType dataType) {
         if (value == null) {
             return null;
         }
+
+        // For IDENTITY type, return as-is
+        if (dataType == DbDataType.IDENTITY) {
+            return value;
+        }
+        
+        // JSON types must be converted to JSON, no other conversion is allowed
+        if (dataType != null) {
+            throw new NativSQLException(
+                    "Cannot convert JSON to " + dataType);
+        }
+
         try {
             return objectMapper.writeValueAsString(value);
         } catch (Exception e) {
             throw new NativSQLException("Failed to convert to JSON", e);
         }
-    }
-
-    @Override
-    public String formatParameter(String paramName) {
-        // MySQL JSON doesn't need special casting, just return the parameter
-        return ":" + paramName;
     }
 }

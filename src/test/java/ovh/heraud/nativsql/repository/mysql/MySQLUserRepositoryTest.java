@@ -443,4 +443,79 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
         assertThat(found.getFirstName()).isEqualTo("UUIDTest");
         assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
     }
+
+    @Test
+    void testInsertUserWithAge() {
+        // Given - Create a user with age (Integer) stored as BIGINT in DB
+        User user = User.builder()
+                .firstName("AgeTester")
+                .lastName("ConvertTest")
+                .email("agetest@example.com")
+                .status(UserStatus.ACTIVE)
+                .age(30)
+                .build();
+
+        // When - Insert the user with age field (30 (Integer) -> BIGINT in DB)
+        userRepository.insert(user, "firstName", "lastName", "email", "status", "age");
+
+        // Then - Verify the insert worked and age is set correctly
+        assertThat(user.getId()).isNotNull();
+
+        User found = userRepository.findByEmail("agetest@example.com", "id", "firstName", "lastName", "email",
+                "status", "age");
+        assertThat(found).isNotNull();
+        assertThat(found.getFirstName()).isEqualTo("AgeTester");
+        assertThat(found.getAge()).isEqualTo(30);
+    }
+
+    @Test
+    void testUpdateUserAge() {
+        // Given - Create a user with age = 25
+        User user = User.builder()
+                .firstName("AgeUpdater")
+                .lastName("ConvertTest")
+                .email("ageupdate@example.com")
+                .status(UserStatus.ACTIVE)
+                .age(25)
+                .build();
+        userRepository.insert(user, "firstName", "lastName", "email", "status", "age");
+
+        User found = userRepository.findByEmail("ageupdate@example.com", "id", "firstName", "age");
+        assertThat(found).isNotNull();
+        assertThat(found.getAge()).isEqualTo(25);
+
+        // When - Update the age to 35
+        found.setAge(35);
+        int rows = userRepository.update(found, "age");
+
+        // Then - Verify the update worked
+        assertThat(rows).isEqualTo(1);
+
+        User updated = userRepository.findByEmail("ageupdate@example.com", "id", "age");
+        assertThat(updated).isNotNull();
+        assertThat(updated.getAge()).isEqualTo(35);
+    }
+
+    @Test
+    void testInsertUserWithNullAge() {
+        // Given - Create a user with null age
+        User user = User.builder()
+                .firstName("NoAge")
+                .lastName("NullTest")
+                .email("noage@example.com")
+                .status(UserStatus.ACTIVE)
+                .age(null)
+                .build();
+
+        // When - Insert the user with null age
+        userRepository.insert(user, "firstName", "lastName", "email", "status", "age");
+
+        // Then - Verify the insert worked and age is null
+        assertThat(user.getId()).isNotNull();
+
+        User found = userRepository.findByEmail("noage@example.com", "id", "firstName", "age");
+        assertThat(found).isNotNull();
+        assertThat(found.getFirstName()).isEqualTo("NoAge");
+        assertThat(found.getAge()).isNull();
+    }
 }

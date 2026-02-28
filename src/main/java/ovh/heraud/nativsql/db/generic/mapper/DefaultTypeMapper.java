@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.db.generic.mapper;
 import java.math.BigDecimal;
 import java.sql.ResultSet;
 
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import org.springframework.jdbc.support.JdbcUtils;
@@ -47,13 +48,7 @@ public class DefaultTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public Object toDatabase(T value) {
+    public Object toDatabase(T value, DbDataType dataType) {
         return value;
     }
-
-    @Override
-    public String formatParameter(String paramName) {
-        return ":" + paramName;
-    }
-
 }

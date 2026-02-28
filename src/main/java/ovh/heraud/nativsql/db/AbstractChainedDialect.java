@@ -1,10 +1,10 @@
 package ovh.heraud.nativsql.db;
 
-import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * Abstract base class implementing the Chain of Responsibility pattern for
@@ -26,9 +26,6 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
 public abstract class AbstractChainedDialect implements DatabaseDialect {
 
     protected DatabaseDialect nextDialect;
-    protected final Map<Class<?>, String> jsonTypes = new HashMap<>();
-    protected final Map<Class<?>, String> enumDbTypes = new ConcurrentHashMap<>();
-    protected final Map<Class<?>, String> compositeTypes = new ConcurrentHashMap<>();
 
     /**
      * Create a chained dialect with a next dialect to delegate to.
@@ -47,66 +44,21 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
         this.nextDialect = null;
     }
 
-    /**
-     * Register a JSON type for this dialect.
-     * The registration is propagated through the dialect chain.
-     *
-     * @param jsonClass the JSON class to register
-     * @param <T>       the type
-     */
-    @Override
-    public <T> void registerJsonType(Class<T> jsonClass) {
-        jsonTypes.putIfAbsent(jsonClass, jsonClass.getSimpleName());
-        if (nextDialect != null) {
-            nextDialect.registerJsonType(jsonClass);
-        }
-    }
-
-    /**
-     * Register an enum type for this dialect.
-     * The registration is propagated through the dialect chain.
-     *
-     * @param enumClass  the enum class to register
-     * @param dbTypeName the database type name for this enum
-     * @param <E>        the enum type
-     */
-    @Override
-    public <E extends Enum<E>> void registerEnumType(Class<E> enumClass, String dbTypeName) {
-        enumDbTypes.put(enumClass, dbTypeName);
-        if (nextDialect != null) {
-            nextDialect.registerEnumType(enumClass, dbTypeName);
-        }
-    }
-
-    /**
-     * Register a composite type for this dialect.
-     * The registration is propagated through the dialect chain.
-     *
-     * @param compositeClass the composite class to register
-     * @param dbTypeName     the database type name for this composite
-     * @param <T>            the type
-     */
-    @Override
-    public <T> void registerCompositeType(Class<T> compositeClass, String dbTypeName) {
-        compositeTypes.put(compositeClass, dbTypeName);
-        if (nextDialect != null) {
-            nextDialect.registerCompositeType(compositeClass, dbTypeName);
-        }
-    }
 
     /**
      * Gets the appropriate TypeMapper for the given class.
      * Default implementation delegates to the next dialect in the chain.
      * Subclasses can override to provide dialect-specific type mappings.
      *
-     * @param targetType the type to get a mapper for
+     * @param fieldAccessor the field accessor for the type to get a mapper for
+     * @param annotationManager the annotation manager for type detection
      * @return a TypeMapper for the type, or null if not found
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
         if (nextDialect != null) {
-            return nextDialect.getMapper(targetType);
+            return nextDialect.getMapper(fieldAccessor, annotationManager);
         }
         return null;
     }
@@ -117,13 +69,14 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * Subclasses can override to provide dialect-specific enum mapping.
      *
      * @param enumClass the enum class
+     * @param annotationManager the annotation manager for type detection
      * @return a mapper for the enum
      * @param <E> the enum type
      */
     @Override
-    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass) {
+    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass, AnnotationManager annotationManager) {
         if (nextDialect != null) {
-            return nextDialect.getEnumMapper(enumClass);
+            return nextDialect.getEnumMapper(enumClass, annotationManager);
         }
         return null;
     }
@@ -155,10 +108,18 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass) {
+    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager) {
         if (nextDialect != null) {
-            return nextDialect.getCompositeMapper(compositeClass);
+            return nextDialect.getCompositeMapper(compositeClass, annotationManager);
         }
         return null;
+    }
+
+    @Override
+    public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
+        if (nextDialect != null) {
+            return nextDialect.getGeneratedKey(keys, idColumn);
+        }
+        return (ID) keys.get(idColumn);
     }
 }
