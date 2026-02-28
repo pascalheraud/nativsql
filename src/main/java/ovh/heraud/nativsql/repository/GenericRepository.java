@@ -592,7 +592,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
 
         // Get the mapper for the actual value type
-        ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(fieldAccessor, annotationManager);
+        ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(fieldAccessor,
+                annotationManager);
         if (mapper == null) {
             throw new IllegalArgumentException(
                     "No TypeMapper found for type: " + value.getClass().getName() +
@@ -620,7 +621,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                 if (typeInfo != null && typeInfo.getDataType() != null) {
                     dbDataType = typeInfo.getDataType();
                 }
-            } else {
+            } else if (entry.getValue() != null) {
                 field = new FieldAccessor(entry.getValue().getClass());
             }
 

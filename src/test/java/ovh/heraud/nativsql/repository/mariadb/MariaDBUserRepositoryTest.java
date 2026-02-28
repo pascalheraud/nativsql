@@ -511,4 +511,28 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         assertThat(found.getFirstName()).isEqualTo("NoAge");
         assertThat(found.getAge()).isNull();
     }
+
+    @Test
+    void testFindAllExternalWithNullParam() {
+        // Given - Insert a test user
+        User user = User.builder()
+                .firstName("TestUser")
+                .lastName("NullParam")
+                .email("nullparam@example.com")
+                .status(UserStatus.ACTIVE)
+                .build();
+        userRepository.insert(user, "firstName", "lastName", "email", "status");
+        Long userId = user.getId();
+        assertThat(userId).isNotNull();
+
+        // When - Call a custom query with null parameter
+        // This tests how the repository handles null param values in custom queries
+        // MariaDB doesn't require type casting for NULL inference
+        List<User> results = userRepository.findByIdWithNullParam(userId, null);
+
+        // Then - Should not throw NullPointerException and return the user
+        assertThat(results).isNotNull().isNotEmpty();
+        assertThat(results.get(0).getId()).isEqualTo(userId);
+        assertThat(results.get(0).getEmail()).isEqualTo("nullparam@example.com");
+    }
 }
