@@ -16,7 +16,7 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
 
     @Override
     @NonNull
-    protected String getTableName() {
+    public String getTableName() {
         return "users";
     }
 

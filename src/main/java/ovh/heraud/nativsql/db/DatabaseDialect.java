@@ -1,12 +1,18 @@
 package ovh.heraud.nativsql.db;
 
+import java.util.Map;
+
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * Abstraction for database-specific SQL operations and type conversions.
  *
- * This interface defines how database-specific features (enum casting, composite types,
- * JSON handling) are formatted in SQL and converted between Java objects and database values.
+ * This interface defines how database-specific features (enum casting,
+ * composite types,
+ * JSON handling) are formatted in SQL and converted between Java objects and
+ * database values.
  *
  * Implementations handle database-specific syntax and type marshalling.
  */
@@ -14,24 +20,26 @@ public interface DatabaseDialect {
 
     /**
      * Gets the appropriate TypeMapper for the given class.
-     * Checks enum types, JSON types, and composite types.
+     * Checks enum types, JSON types, and composite types via AnnotationManager.
      * Returns null if no dialect-specific mapper is found.
      *
-     * @param targetType the type to get a mapper for
+     * @param fieldAccessor     the field accessor for the type to get a mapper for
+     * @param annotationManager the annotation manager for type detection
      * @return a TypeMapper for the type, or null if not found
      * @param <T> the type
      */
-    <T> ITypeMapper<T> getMapper(Class<T> targetType);
+    <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager);
 
     /**
      * Creates a TypeMapper for the specified enum class.
      * The mapper handles both reading from and writing to the database.
      *
-     * @param enumClass the enum class
+     * @param enumClass         the enum class
+     * @param annotationManager the annotation manager for type detection
      * @return a mapper for the enum
      * @param <E> the enum type
      */
-    <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass);
+    <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass, AnnotationManager annotationManager);
 
     /**
      * Creates a TypeMapper for the specified JSON type class.
@@ -51,34 +59,16 @@ public interface DatabaseDialect {
      * @return a mapper for the composite
      * @param <T> the type
      */
-    <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass);
+    <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager);
 
     /**
-     * Register a JSON type for this dialect.
-     * The registration is propagated through the dialect chain.
-     *
-     * @param jsonClass the JSON class to register
-     * @param <T> the type
+     * Extracts the generated key from the database after an insert operation.
+     * 
+     * @param <ID>
+     * @param keys
+     * @param idColumn the name of the ID column to extract from the keys map
+     * @return the generated key value, or null if not found
      */
-    <T> void registerJsonType(Class<T> jsonClass);
+    <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn);
 
-    /**
-     * Register an enum type for this dialect.
-     * The registration is propagated through the dialect chain.
-     *
-     * @param enumClass the enum class to register
-     * @param dbTypeName the database type name for this enum
-     * @param <E> the enum type
-     */
-    <E extends Enum<E>> void registerEnumType(Class<E> enumClass, String dbTypeName);
-
-    /**
-     * Register a composite type for this dialect.
-     * The registration is propagated through the dialect chain.
-     *
-     * @param compositeClass the composite class to register
-     * @param dbTypeName the database type name for this composite
-     * @param <T> the type
-     */
-    <T> void registerCompositeType(Class<T> compositeClass, String dbTypeName);
 }

@@ -1,4 +1,46 @@
-# NativeSQL Code Guidelines
+# NativSQL Development Rules
+
+## GOLDEN RULE - NO GIT OPERATIONS
+NEVER perform any git operations (commit, push, rebase, reset, branch deletion, force operations, etc.).
+This is strictly forbidden and non-negotiable.
+
+If code needs modification, use file editing tools only (Read, Edit, Write tools).
+Do not use git under any circumstances.
+
+This projects builds with gradle.
+
+## Code Modification Guidelines
+- Always use Read/Edit/Write tools for file changes
+- Prefer editing existing files over creating new ones
+- Never create unnecessary files or documentation unless explicitly requested
+- Avoid over-engineering - keep solutions simple and focused on the immediate task
+
+## File Operations
+- Before editing, read the file first with the Read tool
+- Use Edit tool for targeted replacements with clear context
+- Use Write tool only when overwriting entire files or creating new ones
+- Always specify absolute paths, never relative paths
+
+## Task Management
+- Use TodoWrite tool to track progress on multi-step tasks
+- Mark tasks as in_progress before starting work
+- Mark tasks as completed immediately after finishing
+- Only have ONE task in_progress at a time
+
+## When to Use Agents
+- Use Task tool with specialized agents (Explore, Plan, Bash) for complex multi-step operations
+- Use Bash agent for terminal operations and command execution
+- Use Explore agent for codebase navigation and search operations
+- Never use agents for simple file edits that can be done with Read/Edit/Write
+
+## Communication Style
+- Output text directly for communication (no tool use for printing messages)
+- Be concise and clear
+- Provide code references in markdown format: `file.java:42` or [FileName.java:42](path/to/FileName.java#L42)
+
+---
+
+# NativeSQL Coding Standards
 
 ## Exception Handling
 - Never use `catch(Exception e)` - be specific about exceptions you catch
@@ -51,11 +93,9 @@
 - Trust internal code and framework guarantees
 - Validate only at system boundaries (user input, external APIs)
 
-# NativeSQL Coding Standards
-
 ## CRITICAL RULES (Non-negotiable)
 
-### 1. Explicit Braces ALWAYS
+### Explicit Braces ALWAYS
 ```java
 // ✅ REQUIRED
 if (condition) {
@@ -64,27 +104,18 @@ if (condition) {
 
 // ❌ NEVER
 if (condition) statement;
+```
 
-### 2. Jakarta Annotations ONLY
+### Jakarta Annotations ONLY
+Use Jakarta namespace annotations, not javax
 
-// ✅ CORRECT
-import org.springframework.lang.NonNull;
-@NonNull public String getValue() { ... }
+### Database-Agnostic Names
+- Use dbTypeName not pgTypeName
+- Use "database" not "PostgreSQL" in comments
+- Use DatabaseDialect interface (generic code)
+- Use PostgresDialect implementation (only in db/postgres/ package)
 
-// ❌ WRONG
-import org.springframework.lang.NonNull;
-@NonNull public String getValue() { ... }
-
-### 3. Database-Agnostic Names
-Use dbTypeName not pgTypeName
-Use "database" not "PostgreSQL" in comments
-Use DatabaseDialect interface (generic code)
-Use PostgresDialect implementation (only in db/postgres/ package)
-4. PGobject ONLY in db/postgres/ Package
-❌ Never import org.postgresql.util.PGobject outside postgres/
-❌ Never use :: casting syntax outside PostgresDialect
-✅ Always delegate through DatabaseDialect interface
-
-This projects build with gradle
-
-Do not run git commands in any way
+### PGobject ONLY in db/postgres/ Package
+- ❌ Never import org.postgresql.util.PGobject outside postgres/
+- ❌ Never use :: casting syntax outside PostgresDialect
+- ✅ Always delegate through DatabaseDialect interface

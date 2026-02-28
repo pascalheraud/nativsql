@@ -1,10 +1,14 @@
 package ovh.heraud.nativsql.db.mysql;
 
+import java.util.Map;
+
+import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.AbstractChainedDialect;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.generic.GenericDialect;
 import ovh.heraud.nativsql.db.mysql.mapper.MySQLJSONTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * MySQL/MariaDB specific implementation of DatabaseDialect.
@@ -39,14 +43,14 @@ public class MySQLDialect extends AbstractChainedDialect {
     }
 
     @Override
-    public <T> ITypeMapper<T> getMapper(Class<T> targetType) {
-        // Check for registered JSON types
-        if (jsonTypes.containsKey(targetType)) {
-            return getJsonMapper(targetType);
+    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
+        // Check for JSON types via AnnotationManager
+        if (annotationManager != null && annotationManager.getJsonInfo(fieldAccessor.getType()) != null) {
+            return (ITypeMapper<T>) getJsonMapper(fieldAccessor.getType());
         }
 
         // Fall back to next dialect in chain for other types
-        return super.getMapper(targetType);
+        return super.getMapper(fieldAccessor, annotationManager);
     }
 
     @Override
@@ -56,10 +60,15 @@ public class MySQLDialect extends AbstractChainedDialect {
     }
 
     @Override
-    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass) {
+    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager) {
         // MySQL does not support native composite types like PostgreSQL
         throw new UnsupportedOperationException(
                 "MySQL does not support native composite types. " +
                         "Use JSON columns instead for composite data: " + compositeClass.getSimpleName());
+    }
+
+        @Override
+    public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
+        return (ID) keys.get("GENERATED_KEY");
     }
 }

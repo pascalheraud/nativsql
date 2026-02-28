@@ -15,7 +15,7 @@ public class MySQLContactInfoRepository extends MySQLRepository<ContactInfo, Lon
 
     @Override
     @NonNull
-    protected String getTableName() {
+    public String getTableName() {
         return "contact_info";
     }
 

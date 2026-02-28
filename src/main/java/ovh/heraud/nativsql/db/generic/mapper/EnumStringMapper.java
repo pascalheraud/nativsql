@@ -1,5 +1,6 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 
@@ -41,16 +42,19 @@ public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
     }
 
     @Override
-    public Object toDatabase(E value) {
+    public Object toDatabase(E value, DbDataType dataType) {
         if (value == null) {
             return null;
         }
-        return value.name();
-    }
 
-    @Override
-    public String formatParameter(String paramName) {
-        // MySQL and default behavior: just return the parameter name without casting
-        return ":" + paramName;
+        if (dataType == null) {
+            return value.name();
+        }
+
+        return switch (dataType) {
+            case STRING -> value.name();
+            case IDENTITY -> throw new NativSQLException("IDENTITY type should not be passed to toDatabase");
+            default -> throw new NativSQLException("Cannot convert Enum to " + dataType);
+        };
     }
 }

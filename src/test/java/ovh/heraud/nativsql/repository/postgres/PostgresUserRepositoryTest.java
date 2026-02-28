@@ -1,12 +1,14 @@
 package ovh.heraud.nativsql.repository.postgres;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.within;
-
+import java.math.BigInteger;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
 
+import org.junit.jupiter.api.Test;
+import org.postgis.Point;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import ovh.heraud.nativsql.domain.postgres.Address;
 import ovh.heraud.nativsql.domain.postgres.ContactInfo;
 import ovh.heraud.nativsql.domain.postgres.ContactType;
@@ -15,10 +17,9 @@ import ovh.heraud.nativsql.domain.postgres.Preferences;
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
 import ovh.heraud.nativsql.domain.postgres.UserStatus;
-import org.junit.jupiter.api.Test;
-import org.postgis.Point;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 /**
  * Integration tests for UserRepository using Testcontainers.
@@ -34,37 +35,40 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
         @Autowired
         private PostgresGroupRepository groupRepository;
 
-    @Test
-    void testInsertUser() throws SQLException {
-        // Given
-        User user = User.builder()
-                .firstName("Alice")
-                .lastName("Wonder")
-                .email("alice@example.com")
-                .status(UserStatus.ACTIVE)
-                .address(new Address("123 Main St", "Paris", "75001", "France"))
-                .preferences(Preferences.builder().language("fr").theme("dark").notifications(true).build())
-                .position(new Point("POINT(4 45)"))
-                .build();
+        @Test
+        void testInsertUser() throws SQLException {
+                // Given
+                User user = User.builder()
+                                .firstName("Alice")
+                                .lastName("Wonder")
+                                .email("alice@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .address(new Address("123 Main St", "Paris", "75001", "France"))
+                                .preferences(Preferences.builder().language("fr").theme("dark").notifications(true)
+                                                .build())
+                                .position(new Point("POINT(4 45)"))
+                                .build();
 
-        // When
-        userRepository.insert(user, "firstName", "lastName", "email", "status", "address", "preferences", "position");
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "address", "preferences",
+                                "position");
 
-        // Then
-        assertThat(user.getId()).isNotNull();
+                // Then
+                assertThat(user.getId()).isNotNull();
 
-        User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email", "status",
-                "address", "preferences", "position");
-        assertThat(found).isNotNull();
-        assertThat(found.getFirstName()).isEqualTo("Alice");
-        assertThat(found.getLastName()).isEqualTo("Wonder");
-        assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
-        assertThat(found.getAddress()).isNotNull();
-        assertThat(found.getAddress().getCity()).isEqualTo("Paris");
-        assertThat(found.getPreferences()).isNotNull();
-        assertThat(found.getPreferences().getTheme()).isEqualTo("dark");
-        assertThat(found.getPosition().toString()).isEqualTo("SRID=4326;POINT(4 45)");
-    }
+                User found = userRepository.findByEmail("alice@example.com", "id", "firstName", "lastName", "email",
+                                "status",
+                                "address", "preferences", "position");
+                assertThat(found).isNotNull();
+                assertThat(found.getFirstName()).isEqualTo("Alice");
+                assertThat(found.getLastName()).isEqualTo("Wonder");
+                assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
+                assertThat(found.getAddress()).isNotNull();
+                assertThat(found.getAddress().getCity()).isEqualTo("Paris");
+                assertThat(found.getPreferences()).isNotNull();
+                assertThat(found.getPreferences().getTheme()).isEqualTo("dark");
+                assertThat(found.getPosition().toString()).isEqualTo("SRID=4326;POINT(4 45)");
+        }
 
         @Test
         void testInsertUserWithAllFields() {
@@ -563,7 +567,8 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 // Then - Verify the insert worked and null values are preserved
                 assertThat(user.getId()).isNotNull();
 
-                User found = userRepository.findByEmail("insertwithnull@example.com", "id", "firstName", "lastName", "email",
+                User found = userRepository.findByEmail("insertwithnull@example.com", "id", "firstName", "lastName",
+                                "email",
                                 "status", "address");
                 assertThat(found).isNotNull();
                 assertThat(found.getFirstName()).isEqualTo("TestUser");
@@ -619,7 +624,8 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                                 .build();
                 userRepository.insert(user, "firstName", "lastName", "email", "status");
 
-                User found = userRepository.findByEmail("enumupdate@example.com", "id", "firstName", "lastName", "status");
+                User found = userRepository.findByEmail("enumupdate@example.com", "id", "firstName", "lastName",
+                                "status");
                 assertThat(found).isNotNull();
                 assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
 
@@ -675,7 +681,8 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 // Then - Verify the update worked
                 assertThat(rows).isEqualTo(1);
 
-                User updated = userRepository.findByEmail("nulltest@example.com", "id", "firstName", "lastName", "email",
+                User updated = userRepository.findByEmail("nulltest@example.com", "id", "firstName", "lastName",
+                                "email",
                                 "status", "address");
                 assertThat(updated).isNotNull();
                 assertThat(updated.getFirstName()).isNull();
@@ -736,5 +743,80 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(report.getTotalUsers()).isEqualTo(3);
                 assertThat(report.getUsersWithEmailContact()).isEqualTo(1);
                 assertThat(report.getUsersWithFrenchPreference()).isEqualTo(2);
+        }
+
+        @Test
+        void testInsertUserWithAge() {
+                // Given - Create a user with age (int) stored as BIGINT in DB
+                User user = User.builder()
+                                .firstName("AgeTester")
+                                .lastName("ConvertTest")
+                                .email("agetest@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .age(30)
+                                .build();
+
+                // When - Insert the user with age field (30 (int) -> BIGINT in DB)
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "age");
+
+                // Then - Verify the insert worked and age is set correctly
+                assertThat(user.getId()).isNotNull();
+
+                User found = userRepository.findByEmail("agetest@example.com", "id", "firstName", "lastName", "email",
+                                "status", "age");
+                assertThat(found).isNotNull();
+                assertThat(found.getFirstName()).isEqualTo("AgeTester");
+                assertThat(found.getAge()).isEqualTo(30);
+        }
+
+        @Test
+        void testUpdateUserAge() {
+                // Given - Create a user with age = 25
+                User user = User.builder()
+                                .firstName("AgeUpdater")
+                                .lastName("ConvertTest")
+                                .email("ageupdate@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .age(25)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "age");
+
+                User found = userRepository.findByEmail("ageupdate@example.com", "id", "firstName", "age");
+                assertThat(found).isNotNull();
+                assertThat(found.getAge()).isEqualTo(25);
+
+                // When - Update the age to 35
+                found.setAge(35);
+                int rows = userRepository.update(found, "age");
+
+                // Then - Verify the update worked
+                assertThat(rows).isEqualTo(1);
+
+                User updated = userRepository.findByEmail("ageupdate@example.com", "id", "age");
+                assertThat(updated).isNotNull();
+                assertThat(updated.getAge()).isEqualTo(35);
+        }
+
+        @Test
+        void testInsertUserWithZeroAge() {
+                // Given - Create a user with age = 0 (primitive int default)
+                User user = User.builder()
+                                .firstName("ZeroAge")
+                                .lastName("MinTest")
+                                .email("zeroage@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .age(0)
+                                .build();
+
+                // When - Insert the user with age = 0
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "age");
+
+                // Then - Verify the insert worked and age is 0
+                assertThat(user.getId()).isNotNull();
+
+                User found = userRepository.findByEmail("zeroage@example.com", "id", "firstName", "age");
+                assertThat(found).isNotNull();
+                assertThat(found.getFirstName()).isEqualTo("ZeroAge");
+                assertThat(found.getAge()).isEqualTo(0);
         }
 }

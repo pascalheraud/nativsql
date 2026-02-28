@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.postgis.Point;
-
+import ovh.heraud.nativsql.domain.data.IData;
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
 import org.jspecify.annotations.NonNull;
@@ -20,7 +20,7 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
 
     @Override
     @NonNull
-    protected String getTableName() {
+    public String getTableName() {
         return "users";
     }
 
@@ -131,7 +131,8 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
      * Generates a user statistics report for users within 10km of a given point.
      *
      * @param point the geographic point to search around
-     * @return the user report with stats on total users within 10km, users with email contacts,
+     * @return the user report with stats on total users within 10km, users with
+     *         email contacts,
      *         and users with French preferences
      */
     public UserReport getUsersReportAroundPoint(Point point) {
@@ -166,7 +167,8 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
 
     /**
      * Generates a hierarchical user statistics report with group details.
-     * The report includes nested group statistics for the group with the most users.
+     * The report includes nested group statistics for the group with the most
+     * users.
      *
      * @return the user report with group statistics
      */
@@ -210,6 +212,30 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 LIMIT 1
                 """;
         return findExternal(sql, UserReport.class);
+    }
+
+    public <T> IData<T> getValue(Class<? extends IData<T>> clazz) {
+        String tableName = getTableNameForDataType(clazz);
+        return findExternal("select data from " + tableName + " limit 1", clazz);
+    }
+
+    public void insertValue(Class<?> dataTypeClass, Object value) {
+        String tableName = getTableNameForDataType(dataTypeClass);
+        executeUpdate("insert into " + tableName + "(data) values (:v)", Map.of("v", value));
+    }
+
+    public void deleteValue(Class<?> dataTypeClass) {
+        String tableName = getTableNameForDataType(dataTypeClass);
+        executeUpdate("delete from " + tableName, Map.of());
+    }
+
+    private String getTableNameForDataType(Class<?> clazz) {
+        String simpleName = clazz.getSimpleName();
+        // Convert DataTypeLong -> data_type_long
+        return "data_type_" + simpleName
+                .substring("DataType".length())
+                .replaceAll("([a-z])([A-Z])", "$1_$2")
+                .toLowerCase();
     }
 
 }

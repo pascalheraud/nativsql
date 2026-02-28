@@ -14,6 +14,16 @@ import javax.sql.DataSource;
 
 import jakarta.annotation.PostConstruct;
 
+import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
@@ -29,10 +39,6 @@ import ovh.heraud.nativsql.util.OneToManyAssociation;
 import ovh.heraud.nativsql.util.OrderBy;
 import ovh.heraud.nativsql.util.ReflectionUtils;
 import ovh.heraud.nativsql.util.SqlUtils;
-import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 /**
  * Generic repository base class that provides insert and update operations
@@ -42,7 +48,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
  * @param <T>  the entity type implementing IEntity
  * @param <ID> the entity identifier type
  */
-// TODO avoir une meilleure souplesse dans les types entier => double par exemple
 // TODO tester que les reqs des findExternal ne renvoie pas > 1
 public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
@@ -53,6 +58,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     @Autowired
     @NonNull
     private RowMapperFactory rowMapperFactory;
+
+    @Autowired
+    @NonNull
+    private AnnotationManager annotationManager;
 
     private DatabaseDialect databaseDialect;
 
@@ -66,9 +75,28 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     private Fields entityFields;
 
+    protected String tableName;
+
     protected GenericRepository() {
         this.entityClass = getEntityClass();
         this.entityFields = ReflectionUtils.getFields(entityClass);
+    }
+
+    /**
+     * Constructor for programmatic instantiation (without Spring).
+     * Used by subclasses that need to be instantiated directly.
+     *
+     * @param entityClass      the entity class
+     * @param tableName        the database table name
+     * @param rowMapperFactory the row mapper factory
+     */
+    protected GenericRepository(Class<T> entityClass, String tableName, RowMapperFactory rowMapperFactory,
+            AnnotationManager annotationManager) {
+        this.entityClass = entityClass;
+        this.tableName = tableName;
+        this.entityFields = ReflectionUtils.getFields(entityClass);
+        this.rowMapperFactory = rowMapperFactory;
+        this.annotationManager = annotationManager;
     }
 
     @PostConstruct
@@ -87,9 +115,16 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     /**
      * Returns the name of the database table.
+     * Uses the tableName field if provided via constructor, otherwise must be
+     * overridden by subclasses.
      */
-    @NonNull /*  */
-    protected abstract String getTableName();
+    @NonNull
+    public String getTableName() {
+        if (tableName != null) {
+            return tableName;
+        }
+        throw new UnsupportedOperationException("getTableName() must be implemented or initialized via constructor");
+    }
 
     /**
      * Returns the entity fields metadata.
@@ -97,14 +132,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      */
     public Fields getEntityFields() {
         return entityFields;
-    }
-
-    /**
-     * Returns the name of the database table.
-     * Used by FindQuery builder.
-     */
-    public String getTableNameForQuery() {
-        return getTableName();
     }
 
     /**
@@ -126,6 +153,16 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
+     * Returns the annotation manager for this repository.
+     *
+     * @return the annotation manager instance
+     */
+    @NonNull
+    public AnnotationManager getAnnotationManager() {
+        return annotationManager;
+    }
+
+    /**
      * Inserts an entity with specified columns and populates the generated ID.
      *
      * @param entity  the entity to insert (will be modified with generated ID)
@@ -140,35 +177,62 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         String paramList = Arrays.stream(columns)
                 .map(col -> {
                     FieldAccessor field = entityFields.get(col);
-                    Class<?> fieldType = field != null ? field.getType() : Object.class;
-                    return formatParameter(col, fieldType);
+                    return formatParameter(col, field);
                 })
                 .collect(Collectors.joining(", "));
 
         String sql = formatQuery("INSERT INTO %s (%s) VALUES (%s)",
                 getTableName(), columnList, paramList);
 
-        executeUpdate(sql, params);
+        // Try to retrieve generated ID using GeneratedKeyHolder for better reliability
+        ID generatedId = insertWithGeneratedKey(sql, params);
 
-        // Retrieve and set the generated ID on the entity
-        Long generatedId = getLastInsertedId();
-        if (generatedId != null) {
-            FieldAccessor idField = entityFields.get(ID_COLUMN);
-            if (idField != null) {
-                @SuppressWarnings("unchecked")
-                ID id = (ID) generatedId;
-                idField.setValue(entity, id);
-            }
-        }
+        entity.setId(generatedId);
     }
 
     /**
-     * Retrieves the last inserted ID from the database.
-     * This method must be implemented by database-specific repositories.
+     * Inserts data using GeneratedKeyHolder to capture the generated ID.
+     * Uses keyHolder.getKey() which is database-agnostic (works with both
+     * PostgreSQL returning "id" and MySQL returning "GENERATED_KEY").
+     * The raw key value is converted to the ID type using the appropriate
+     * TypeMapper.
      *
-     * @return the last inserted ID
+     * @param sql    the INSERT SQL statement
+     * @param params the parameter map
+     * @return the generated ID
+     * @throws NativSQLException if no generated key was returned
      */
-    protected abstract Long getLastInsertedId();
+    protected ID insertWithGeneratedKey(@NonNull String sql, @NonNull Map<String, Object> params) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+        MapSqlParameterSource source = new MapSqlParameterSource(params);
+        // Specify the 'id' column to avoid returning all columns
+        try {
+            this.jdbcTemplate.update(sql, source, keyHolder, new String[] { ID_COLUMN });
+        } catch (DataAccessException e) {
+            throw new NativSQLException("Error executing INSERT into " + getTableName() + ": " + e.getMessage(), e);
+        }
+
+        Map<String, Object> keys = keyHolder.getKeys();
+        if (keys == null || keys.isEmpty()) {
+            throw new NativSQLException("No generated key returned after INSERT into " + getTableName()
+                    + ". Make sure the table has an auto-generated primary key.");
+        }
+
+        ID idValue = getDatabaseDialect().getGeneratedKey(keys, ID_COLUMN);
+        if (idValue == null) {
+            throw new NativSQLException("No " + ID_COLUMN + " column in generated keys for table " + getTableName());
+        }
+
+        FieldAccessor idField = entityFields.get(ID_COLUMN);
+        if (idField != null) {
+            ITypeMapper<ID> idMapper = (ITypeMapper<ID>) databaseDialect.getMapper(idField,
+                    annotationManager);
+            if (idMapper != null) {
+                return idMapper.fromValue(idValue);
+            }
+        }
+        return idValue;
+    }
 
     @NonNull
     private String formatQuery(String sql, Object... params) {
@@ -186,7 +250,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the number of rows affected
      */
     protected int executeUpdate(@NonNull String sql, @NonNull Map<String, Object> params) {
-        return jdbcTemplate.update(sql, params);
+        try {
+            return jdbcTemplate.update(sql, params);
+        } catch (DataAccessException e) {
+            throw new NativSQLException("Error executing update on " + getTableName() + ": " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -205,8 +273,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         String setClause = Arrays.stream(columns)
                 .map(col -> {
                     FieldAccessor field = entityFields.get(col);
-                    Class<?> fieldType = field != null ? field.getType() : Object.class;
-                    return identifierConverter.toDB(col) + " = " + formatParameter(col, fieldType);
+                    return identifierConverter.toDB(col) + " = " + formatParameter(col, field);
                 })
                 .collect(Collectors.joining(", "));
 
@@ -262,7 +329,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Finds all entities by a list of IDs with specified columns (assumes ID column is named "id").
+     * Finds all entities by a list of IDs with specified columns (assumes ID column
+     * is named "id").
      *
      * @param ids     the list of ID values
      * @param columns the property names (camelCase) to retrieve
@@ -315,7 +383,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return list of matching entities
      */
     /**
-     * Finds all entities by a list of property values using IN clause (batch loading).
+     * Finds all entities by a list of property values using IN clause (batch
+     * loading).
      *
      * @param property the property name (camelCase) to filter by
      * @param values   the list of values to search for (uses IN clause)
@@ -434,8 +503,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         // Execute query with joins for nested object mapping (no association loading to
         // avoid N+1)
-        List<T> entities = findAllExternal(sql, params, entityClass);
-        return entities;
+        return findAllExternal(sql, params, entityClass);
     }
 
     // ==================== Protected Helper Methods ====================
@@ -465,7 +533,15 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         for (FieldAccessor fieldAccessor : entityFields.list()) {
             if (propertySet.contains(fieldAccessor.getName())) {
                 Object value = fieldAccessor.getValue(entity);
-                value = convertToSqlValue(value);
+
+                // Get the declared DbDataType from @Type annotation, or null as default
+                DbDataType dbDataType = null;
+                var typeInfo = annotationManager.getTypeInfo(fieldAccessor);
+                if (typeInfo != null && typeInfo.getDataType() != null) {
+                    dbDataType = typeInfo.getDataType();
+                }
+
+                value = convertToSqlValue(value, fieldAccessor, dbDataType);
                 params.put(fieldAccessor.getName(), value);
             }
         }
@@ -480,53 +556,75 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Formats a parameter with appropriate SQL casting for enums and composite
      * types using the TypeMapper.
      */
-    private <PARAM_T> String formatParameter(String paramName, Class<PARAM_T> type) {
-        return databaseDialect.getMapper(type).formatParameter(paramName);
+    private <PARAM_T> String formatParameter(String paramName, FieldAccessor fieldAccessor) {
+        return databaseDialect.getMapper(fieldAccessor, annotationManager).formatParameter(paramName);
     }
 
     /**
-     * Converts a Java object to its SQL representation.
+     * Converts a Java object to its SQL representation based on the declared
+     * DbDataType.
      * Handles enums, composite types, JSON types, and value objects.
      * For lists, converts each element in the list using the element's type mapper.
      * Returns null if value is null.
+     * If dataType is null, the mapper will use its default behavior.
      */
-    @SuppressWarnings("unchecked")
-    private <PARAM_T> Object convertToSqlValue(PARAM_T value) {
+    private <PARAM_T> Object convertToSqlValue(PARAM_T value, FieldAccessor fieldAccessor, DbDataType dataType) {
         if (value == null) {
             return null;
         }
+
         if (value instanceof List<?> list) {
             return list.stream()
                     .map(item -> {
                         if (item == null) {
                             return null;
                         }
-                        ITypeMapper<Object> itemMapper = (ITypeMapper<Object>) databaseDialect.getMapper(item.getClass());
+                        ITypeMapper<Object> itemMapper = (ITypeMapper<Object>) databaseDialect
+                                .getMapper(fieldAccessor, annotationManager);
                         if (itemMapper == null) {
                             throw new IllegalArgumentException(
                                     "No TypeMapper found for type: " + item.getClass().getName() +
-                                    ". Please ensure the type is properly configured in the database dialect.");
+                                            ". Please ensure the type is properly configured in the database dialect.");
                         }
-                        return itemMapper.toDatabase(item);
+                        return itemMapper.toDatabase(item, dataType);
                     })
                     .collect(Collectors.toList());
         }
-        ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(value.getClass());
+
+        // Get the mapper for the actual value type
+        ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(fieldAccessor, annotationManager);
         if (mapper == null) {
             throw new IllegalArgumentException(
                     "No TypeMapper found for type: " + value.getClass().getName() +
-                    ". Please ensure the type is properly configured in the database dialect.");
+                            ". Please ensure the type is properly configured in the database dialect.");
         }
-        return mapper.toDatabase(value);
+        // Use toDatabase with the declared dataType (or null if no specific type
+        // declared)
+        return mapper.toDatabase(value, dataType);
     }
 
     /**
-     * Converts all parameters in a map to their SQL representations using type mappers.
+     * Converts all parameters in a map to their SQL representations using type
+     * mappers. Checks for @Type annotations on entity fields to determine the
+     * appropriate database type for conversion.
      */
     private Map<String, Object> convertParamsToSqlValues(Map<String, Object> params) {
         Map<String, Object> converted = new HashMap<>();
         for (Map.Entry<String, Object> entry : params.entrySet()) {
-            converted.put(entry.getKey(), convertToSqlValue(entry.getValue()));
+            DbDataType dbDataType = null;
+
+            // Try to find the field in the entity and get its declared DbDataType
+            FieldAccessor field = entityFields.get(entry.getKey());
+            if (field != null) {
+                var typeInfo = annotationManager.getTypeInfo(field);
+                if (typeInfo != null && typeInfo.getDataType() != null) {
+                    dbDataType = typeInfo.getDataType();
+                }
+            } else {
+                field = new FieldAccessor(entry.getValue().getClass());
+            }
+
+            converted.put(entry.getKey(), convertToSqlValue(entry.getValue(), field, dbDataType));
         }
         return converted;
     }
@@ -601,7 +699,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
             throw new NativSQLException("Association field not found: " + association.getName());
         }
 
-        OneToManyAssociation associationAnnotation = fieldAccessor.getOneToMany();
+        OneToManyAssociation associationAnnotation = annotationManager.getOneToManyInfo(fieldAccessor);
+        if (associationAnnotation == null) {
+            throw new NativSQLException("Field is not annotated with @OneToMany: " + association.getName());
+        }
 
         // Get the repository for the associated entity
         @SuppressWarnings("unchecked")

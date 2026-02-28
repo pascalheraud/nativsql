@@ -3,9 +3,9 @@ package ovh.heraud.nativsql.domain.postgres;
 import ovh.heraud.nativsql.annotation.EnumMapping;
 
 /**
- * Contact type enum that maps to PostgreSQL ENUM type.
+ * Contact type enum that maps to database ENUM type.
  */
-@EnumMapping(pgTypeName = "contact_type")
+@EnumMapping(typeName = "contact_type")
 public enum ContactType {
     EMAIL,
     PHONE,

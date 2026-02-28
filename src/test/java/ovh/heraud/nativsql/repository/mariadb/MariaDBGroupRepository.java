@@ -12,7 +12,7 @@ public class MariaDBGroupRepository extends MariaDBRepository<Group, Long> {
 
     @Override
     @NonNull
-    protected String getTableName() {
+    public String getTableName() {
         return "user_group";
     }
 
