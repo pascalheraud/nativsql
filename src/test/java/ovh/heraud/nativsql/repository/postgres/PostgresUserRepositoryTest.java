@@ -1,6 +1,5 @@
 package ovh.heraud.nativsql.repository.postgres;
 
-import java.math.BigInteger;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.UUID;
@@ -818,5 +817,29 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(found).isNotNull();
                 assertThat(found.getFirstName()).isEqualTo("ZeroAge");
                 assertThat(found.getAge()).isEqualTo(0);
+        }
+
+        @Test
+        void testFindAllExternalWithNullParam() {
+                // Given - Insert a test user
+                User user = User.builder()
+                                .firstName("TestUser")
+                                .lastName("NullParam")
+                                .email("nullparam@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+                Long userId = user.getId();
+                assertThat(userId).isNotNull();
+
+                // When - Call a custom query with null parameter
+                // This tests how the repository handles null param values in custom queries
+                // PostgreSQL requires COALESCE with type casting for NULL inference
+                List<User> results = userRepository.findByIdWithNullParam(userId, null);
+
+                // Then - Should not throw NullPointerException and return the user
+                assertThat(results).isNotNull().isNotEmpty();
+                assertThat(results.get(0).getId()).isEqualTo(userId);
+                assertThat(results.get(0).getEmail()).isEqualTo("nullparam@example.com");
         }
 }

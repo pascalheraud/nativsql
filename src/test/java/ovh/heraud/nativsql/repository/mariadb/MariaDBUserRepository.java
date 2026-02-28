@@ -144,4 +144,25 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
         return findExternal(sql, UserReport.class);
     }
 
+    /**
+     * Finds users by ID with a custom query that includes a null parameter.
+     * This tests how the repository handles null values in custom findExternal
+     * queries. MariaDB doesn't require type casting for NULL.
+     *
+     * @param userId    the user ID
+     * @param nullParam a null parameter to test null handling
+     * @return list of users found
+     */
+    public List<User> findByIdWithNullParam(Long userId, Object nullParam) {
+        String sql = """
+                SELECT id, first_name as "firstName", email
+                FROM users
+                WHERE id = :userId OR :nullParam IS NULL
+                    """;
+        java.util.Map<String, Object> params = new java.util.HashMap<>();
+        params.put("userId", userId);
+        params.put("nullParam", nullParam); // This is null - tests the bug
+        return findAllExternal(sql, params, User.class);
+    }
+
 }

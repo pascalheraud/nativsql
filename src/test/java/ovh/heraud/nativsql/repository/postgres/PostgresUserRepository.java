@@ -238,4 +238,25 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 .toLowerCase();
     }
 
+    /**
+     * Finds users by ID with a custom query that includes a null parameter.
+     * This tests how the repository handles null values in custom findExternal
+     * queries. PostgreSQL requires a cast for NULL type inference.
+     *
+     * @param userId    the user ID
+     * @param nullParam a null parameter to test null handling
+     * @return list of users found
+     */
+    public List<User> findByIdWithNullParam(Long userId, Object nullParam) {
+        String sql = """
+                SELECT id, first_name as "firstName", email
+                FROM users
+                WHERE id = :userId OR :nullParam::varchar IS NULL
+                    """;
+        Map<String, Object> params = new HashMap<>();
+        params.put("userId", userId);
+        params.put("nullParam", nullParam); // This is null - tests the bug
+        return findAllExternal(sql, params, User.class);
+    }
+
 }
