@@ -1,5 +1,7 @@
 package ovh.heraud.nativsql.util;
 
+import java.io.Serializable;
+import java.lang.invoke.SerializedLambda;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -176,5 +178,113 @@ public final class ReflectionUtils {
             return str;
         }
         return str.substring(0, 1).toUpperCase() + str.substring(1);
+    }
+
+    /**
+     * Extract the method name from a getter method reference.
+     * Uses SerializedLambda to inspect the underlying method.
+     *
+     * IMPORTANT: The method reference MUST be assigned to a variable for this to work.
+     * This is a limitation of Java's SerializedLambda mechanism.
+     *
+     * Example:
+     *   var email = User::getEmail;  // OK - assigned to variable
+     *   method(User::getEmail);       // NOT OK - inline method reference won't work
+     *
+     * Best practice: Define constants in a companion class:
+     *   public class UserColumns {
+     *       public static final Getter<User> EMAIL = User::getEmail;
+     *       public static final Getter<User> ID = User::getId;
+     *   }
+     *
+     * @param getter the getter method reference (must be assigned to a variable)
+     * @return the method name (e.g., "getEmail", "getId", "isActive")
+     * @throws NativSQLException if the method name cannot be extracted
+     */
+    public static <T> String extractMethodName(Getter<T> getter) {
+        try {
+            Method writeReplace = getter.getClass().getDeclaredMethod("writeReplace");
+            writeReplace.setAccessible(true);
+            Object serializedLambda = writeReplace.invoke(getter);
+
+            if (serializedLambda instanceof SerializedLambda lambda) {
+                return lambda.getImplMethodName();
+            }
+            throw new NativSQLException("Could not extract method name from getter");
+        } catch (Exception e) {
+            throw new NativSQLException("Failed to extract method name from getter. " +
+                    "Make sure the getter is assigned to a variable (e.g., var email = User::getEmail;)", e);
+        }
+    }
+
+    /**
+     * Convert Java getter method name to database column name.
+     * Handles both "get" and "is" prefixes.
+     *
+     * Examples:
+     *   getEmail -> email
+     *   getId -> id
+     *   isActive -> active
+     *
+     * @param methodName the getter method name
+     * @return the database column name
+     */
+    public static String convertToColumnName(String methodName) {
+        if (methodName.startsWith("get")) {
+            return Character.toLowerCase(methodName.charAt(3)) + methodName.substring(4);
+        } else if (methodName.startsWith("is")) {
+            return Character.toLowerCase(methodName.charAt(2)) + methodName.substring(3);
+        }
+        return methodName;
+    }
+
+    /**
+     * Get the database column name from a getter method reference.
+     * Combines extractMethodName and convertToColumnName in one call.
+     *
+     * Examples:
+     *   User::getEmail -> "email"
+     *   User::getId -> "id"
+     *   User::isActive -> "active"
+     *
+     * @param getter the getter method reference
+     * @return the database column name
+     * @throws NativSQLException if the column name cannot be determined
+     */
+    public static <T> String getColumnName(Getter<T> getter) {
+        String methodName = extractMethodName(getter);
+        return convertToColumnName(methodName);
+    }
+
+    /**
+     * Get database column names from multiple getter method references.
+     * Converts each getter reference to its corresponding column name.
+     *
+     * Examples:
+     *   User::getEmail, User::getId -> ["email", "id"]
+     *   User::getFirstName, User::getLastName -> ["firstName", "lastName"]
+     *
+     * @param getters the getter method references
+     * @return an array of database column names
+     * @throws NativSQLException if any column name cannot be determined
+     */
+    @SafeVarargs
+    public static <T> String[] getColumnNames(Getter<T>... getters) {
+        String[] columns = new String[getters.length];
+        for (int i = 0; i < getters.length; i++) {
+            columns[i] = getColumnName(getters[i]);
+        }
+        return columns;
+    }
+
+    /**
+     * Functional interface for getter method references.
+     * Allows passing method references like User::getId, User::getEmail, etc.
+     *
+     * @param <T> the type of the object containing the getter
+     */
+    @FunctionalInterface
+    public interface Getter<T> extends Serializable {
+        Object get(T obj);
     }
 }

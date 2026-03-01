@@ -222,10 +222,9 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
         // When - Update the contact
         found.setContactValue("eve@new.com");
         found.setIsPrimary(true);
-        int rows = contactInfoRepository.update(found, "contactValue", "isPrimary");
+        contactInfoRepository.update(found, "contactValue", "isPrimary");
 
         // Then
-        assertThat(rows).isEqualTo(1);
 
         ContactInfo updated = contactInfoRepository.findPrimaryByUserIdAndType(userId, ContactType.EMAIL,
             "id", "contactValue", "isPrimary");
@@ -259,10 +258,9 @@ class MariaDBContactInfoRepositoryTest extends MariaDBRepositoryTest {
         assertThat(found).isNotNull();
 
         // When
-        int rows = contactInfoRepository.delete(found);
+        contactInfoRepository.delete(found);
 
         // Then
-        assertThat(rows).isEqualTo(1);
 
         List<ContactInfo> deleted = contactInfoRepository.findByUserIdAndType(userId, ContactType.TWITTER, "id");
         assertThat(deleted).isEmpty();

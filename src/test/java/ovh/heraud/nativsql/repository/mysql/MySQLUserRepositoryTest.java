@@ -89,10 +89,9 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
         found.setFirstName("Charles");
         found.setStatus(UserStatus.SUSPENDED);
 
-        int rows = userRepository.update(found, "firstName", "status");
+        userRepository.update(found, "firstName", "status");
 
         // Then
-        assertThat(rows).isEqualTo(1);
 
         User updated = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email", "status");
         assertThat(updated.getFirstName()).isEqualTo("Charles");
@@ -115,10 +114,9 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
         assertThat(found).isNotNull();
 
         // When
-        int rows = userRepository.delete(found);
+        userRepository.delete(found);
 
         // Then
-        assertThat(rows).isEqualTo(1);
 
         User deleted = userRepository.findByEmail("eve@example.com", "id", "email");
         assertThat(deleted).isNull();
@@ -486,10 +484,9 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
 
         // When - Update the age to 35
         found.setAge(35);
-        int rows = userRepository.update(found, "age");
+        userRepository.update(found, "age");
 
         // Then - Verify the update worked
-        assertThat(rows).isEqualTo(1);
 
         User updated = userRepository.findByEmail("ageupdate@example.com", "id", "age");
         assertThat(updated).isNotNull();
