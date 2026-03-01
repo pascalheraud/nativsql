@@ -115,10 +115,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 Address newAddress = new Address("456 Oak Ave", "Lyon", "69001", "France");
                 found.setAddress(newAddress);
 
-                int rows = userRepository.update(found, "firstName", "status", "address");
+                userRepository.update(found, "firstName", "status", "address");
 
                 // Then
-                assertThat(rows).isEqualTo(1);
 
                 User updated = userRepository.findByEmail("charlie@example.com", "id", "firstName", "lastName", "email",
                                 "status", "address");
@@ -147,10 +146,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 found.setLastName("Davies");
                 found.setStatus(UserStatus.INACTIVE);
 
-                int rows = userRepository.update(found, "lastName", "status");
+                userRepository.update(found, "lastName", "status");
 
                 // Then
-                assertThat(rows).isEqualTo(1);
 
                 User updated = userRepository.findByEmail("dave@example.com", "id", "lastName", "email", "status");
                 assertThat(updated.getLastName()).isEqualTo("Davies");
@@ -172,10 +170,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(found).isNotNull();
 
                 // When
-                int rows = userRepository.delete(found);
+                userRepository.delete(found);
 
                 // Then
-                assertThat(rows).isEqualTo(1);
 
                 User deleted = userRepository.findByEmail("eve@example.com", "id", "email");
                 assertThat(deleted).isNull();
@@ -600,10 +597,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 Point newPoint = new Point("POINT(4.8 45.7)");
                 found.setPosition(newPoint);
 
-                int rows = userRepository.update(found, "position");
+                userRepository.update(found, "position");
 
                 // Then - Verify the update worked
-                assertThat(rows).isEqualTo(1);
 
                 User updated = userRepository.findByEmail("pointupdate@example.com", "id", "firstName", "position");
                 assertThat(updated).isNotNull();
@@ -631,10 +627,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 // When - Update status to SUSPENDED
                 found.setStatus(UserStatus.SUSPENDED);
 
-                int rows = userRepository.update(found, "status");
+                userRepository.update(found, "status");
 
                 // Then - Verify the enum update worked
-                assertThat(rows).isEqualTo(1);
 
                 User updated = userRepository.findByEmail("enumupdate@example.com", "id", "status");
                 assertThat(updated).isNotNull();
@@ -643,10 +638,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 // When - Update status again to INACTIVE
                 updated.setStatus(UserStatus.INACTIVE);
 
-                rows = userRepository.update(updated, "status");
+                userRepository.update(updated, "status");
 
                 // Then - Verify the second enum update worked
-                assertThat(rows).isEqualTo(1);
 
                 User finalUser = userRepository.findByEmail("enumupdate@example.com", "id", "status");
                 assertThat(finalUser).isNotNull();
@@ -675,10 +669,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 found.setFirstName(null);
                 found.setAddress(null);
 
-                int rows = userRepository.update(found, "firstName", "address");
+                userRepository.update(found, "firstName", "address");
 
                 // Then - Verify the update worked
-                assertThat(rows).isEqualTo(1);
 
                 User updated = userRepository.findByEmail("nulltest@example.com", "id", "firstName", "lastName",
                                 "email",
@@ -786,10 +779,9 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
 
                 // When - Update the age to 35
                 found.setAge(35);
-                int rows = userRepository.update(found, "age");
+                userRepository.update(found, "age");
 
                 // Then - Verify the update worked
-                assertThat(rows).isEqualTo(1);
 
                 User updated = userRepository.findByEmail("ageupdate@example.com", "id", "age");
                 assertThat(updated).isNotNull();
@@ -841,5 +833,57 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(results).isNotNull().isNotEmpty();
                 assertThat(results.get(0).getId()).isEqualTo(userId);
                 assertThat(results.get(0).getEmail()).isEqualTo("nullparam@example.com");
+        }
+
+        @Test
+        void testInsertUserWithGetterReferences() {
+                // Given - Create a user
+                User user = User.builder()
+                                .firstName("GetterTest")
+                                .lastName("References")
+                                .email("getter@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+
+                // When - Insert using type-safe column references from UserColumns
+                userRepository.insert(user, User::getFirstName, User::getLastName, User::getEmail,
+                                User::getStatus);
+
+                // Then - Verify the insert worked
+                assertThat(user.getId()).isNotNull();
+
+                User found = userRepository.findByEmail("getter@example.com", "id", "firstName", "lastName", "email",
+                                "status");
+                assertThat(found).isNotNull();
+                assertThat(found.getFirstName()).isEqualTo("GetterTest");
+                assertThat(found.getLastName()).isEqualTo("References");
+                assertThat(found.getEmail()).isEqualTo("getter@example.com");
+                assertThat(found.getStatus()).isEqualTo(UserStatus.ACTIVE);
+        }
+
+        @Test
+        void testInsertUserWithMixedGettersAndStrings() {
+                // Given - Create a user with composite type
+                User user = User.builder()
+                                .firstName("MixedTest")
+                                .lastName("Mode")
+                                .email("mixed@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .address(new Address("789 Mixed St", "Toulouse", "31000", "France"))
+                                .build();
+
+                // When - Insert using type-safe column references
+                userRepository.insert(user, User::getFirstName, User::getLastName, User::getEmail,
+                                User::getStatus, User::getAddress);
+
+                // Then - Verify the insert worked with address
+                assertThat(user.getId()).isNotNull();
+
+                User found = userRepository.findByEmail("mixed@example.com", "id", "firstName", "lastName", "email",
+                                "status", "address");
+                assertThat(found).isNotNull();
+                assertThat(found.getFirstName()).isEqualTo("MixedTest");
+                assertThat(found.getAddress()).isNotNull();
+                assertThat(found.getAddress().getCity()).isEqualTo("Toulouse");
         }
 }
