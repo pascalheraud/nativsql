@@ -28,7 +28,7 @@ public interface DatabaseDialect {
      * @return a TypeMapper for the type, or null if not found
      * @param <T> the type
      */
-    <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager);
+    <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, AnnotationManager annotationManager);
 
     /**
      * Creates a TypeMapper for the specified enum class.

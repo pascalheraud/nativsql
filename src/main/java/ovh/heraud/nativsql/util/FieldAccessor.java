@@ -9,10 +9,10 @@ import ovh.heraud.nativsql.exception.NativSQLException;
  * Wrapper class that provides convenient access to a field.
  * Operates on any object instance passed to its methods.
  */
-public class FieldAccessor {
+public class FieldAccessor<T> {
 
     private Field field;
-    private Class<?> fieldType;
+    private Class<T> fieldType;
 
     /**
      * Creates a new FieldAccessor.
@@ -24,8 +24,9 @@ public class FieldAccessor {
         this.field.setAccessible(true); // Allow access to private fields
     }
 
+    @SuppressWarnings("unchecked")
     public FieldAccessor(Class<?> clazz) {
-        this.fieldType = clazz;
+        this.fieldType = (Class<T>) clazz;
     }
 
     /**
@@ -42,8 +43,9 @@ public class FieldAccessor {
      *
      * @return the field type
      */
-    public Class<?> getType() {
-        return field == null ? this.fieldType : field.getType();
+    @SuppressWarnings("unchecked")
+    public Class<T> getType() {
+        return field == null ? this.fieldType : (Class<T>) field.getType();
     }
 
     /**
@@ -54,7 +56,7 @@ public class FieldAccessor {
      * @throws RuntimeException if access fails
      */
     @SuppressWarnings("unchecked")
-    public <T> T getValue(Object instance) {
+    public T getValue(Object instance) {
         try {
             return (T) field.get(instance);
         } catch (IllegalAccessException e) {
@@ -80,11 +82,11 @@ public class FieldAccessor {
     /**
      * Gets an annotation from the field.
      *
-     * @param <T>             the annotation type
+     * @param <AT>            the annotation type
      * @param annotationClass the annotation class
      * @return the annotation if present, null otherwise
      */
-    public <T extends Annotation> T getAnnotation(Class<T> annotationClass) {
+    public <AT extends Annotation> AT getAnnotation(Class<AT> annotationClass) {
         return field.getAnnotation(annotationClass);
     }
 

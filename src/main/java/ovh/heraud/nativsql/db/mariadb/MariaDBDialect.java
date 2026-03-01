@@ -20,6 +20,7 @@ public class MariaDBDialect extends MySQLDialect {
         super();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
         return (ID) keys.get("insert_id");

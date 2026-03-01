@@ -18,8 +18,9 @@ import ovh.heraud.nativsql.util.FieldAccessor;
  */
 public class MySQLPostGISDialect extends MySQLDialect {
 
+    @SuppressWarnings("unchecked")
     @Override
-    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, AnnotationManager annotationManager) {
         // Use MySQL-specific Point mapper for spatial coordinates
         if (fieldAccessor.getType() == Point.class) {
             return (ITypeMapper<T>) new MySQLPointTypeMapper();

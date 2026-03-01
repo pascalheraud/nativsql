@@ -43,7 +43,7 @@ public class MySQLDialect extends AbstractChainedDialect {
     }
 
     @Override
-    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor<T>fieldAccessor, AnnotationManager annotationManager) {
         // Check for JSON types via AnnotationManager
         if (annotationManager != null && annotationManager.getJsonInfo(fieldAccessor.getType()) != null) {
             return (ITypeMapper<T>) getJsonMapper(fieldAccessor.getType());
@@ -67,6 +67,7 @@ public class MySQLDialect extends AbstractChainedDialect {
                         "Use JSON columns instead for composite data: " + compositeClass.getSimpleName());
     }
 
+        @SuppressWarnings("unchecked")
         @Override
     public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
         return (ID) keys.get("GENERATED_KEY");

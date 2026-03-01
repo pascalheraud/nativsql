@@ -9,11 +9,11 @@ import lombok.Getter;
  */
 @Getter
 public class PropertyMetadata<T> {
-    private final FieldAccessor fieldAccessor; // camelCase (e.g., "firstName")
+    private final FieldAccessor<?> fieldAccessor; // camelCase (e.g., "firstName")
     private final ITypeMapper<T> typeMapper;
     private final IdentifierConverter identifierConverter;
 
-    public PropertyMetadata(FieldAccessor fieldAccessor, ITypeMapper<T> typeMapper, IdentifierConverter identifierConverter) {
+    public PropertyMetadata(FieldAccessor<?> fieldAccessor, ITypeMapper<T> typeMapper, IdentifierConverter identifierConverter) {
         this.fieldAccessor = fieldAccessor;
         this.typeMapper = typeMapper;
         this.identifierConverter = identifierConverter;

@@ -10,13 +10,13 @@ import java.util.Map;
  * Wrapper around a list of FieldAccessors with fast lookup by name.
  */
 public class Fields {
-    private final List<FieldAccessor> fields;
-    private final Map<String, FieldAccessor> fieldsByName;
+    private final List<FieldAccessor<?>> fields;
+    private final Map<String, FieldAccessor<?>> fieldsByName;
 
-    public Fields(List<FieldAccessor> fields) {
+    public Fields(List<FieldAccessor<?>> fields) {
         this.fields = new ArrayList<>(fields);
         this.fieldsByName = new HashMap<>();
-        for (FieldAccessor field : fields) {
+        for (FieldAccessor<?> field : fields) {
             fieldsByName.put(field.getName(), field);
         }
     }
@@ -24,14 +24,15 @@ public class Fields {
     /**
      * Gets a field by name.
      */
-    public FieldAccessor get(String name) {
-        return fieldsByName.get(name);
+    @SuppressWarnings("unchecked")
+    public <T> FieldAccessor<T> get(String name) {
+        return (FieldAccessor<T>) fieldsByName.get(name);
     }
 
     /**
      * Gets all fields as a list.
      */
-    public List<FieldAccessor> list() {
+    public List<FieldAccessor<?>> list() {
         return Collections.unmodifiableList(fields);
     }
 
