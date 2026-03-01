@@ -38,6 +38,7 @@ import ovh.heraud.nativsql.mapper.RowMapperFactory;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.fail;
 
+@SuppressWarnings("unchecked")
 public interface IDataTypeTests {
         String[] BOOLEAN_FALSE_STRINGS = { "false", "f", "no", "n" };
         String[] BOOLEAN_TRUE_STRINGS = { "true", "t", "yes", "y" };
@@ -56,7 +57,6 @@ public interface IDataTypeTests {
                 getAnnotationManager().clearCache();
         }
 
-        @SuppressWarnings("unchecked")
         default <I, T> T testIt(Class<?> valueToInsertDataTypeClass, I valueToInsert, Class<?> expectedDataTypeClass,
                         String tableName, T expectedValue, DbDataType writingDataType)
                         throws TestError {
@@ -1382,7 +1382,8 @@ public interface IDataTypeTests {
                 // This conversion will not behave as expected.
                 // The UUID will be converted to byte array, but byte array will be read from
                 // string and will provide the toString() of the original UUID
-                testReadingFromDB(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"), "550e8400-e29b-41d4-a716-446655440000".getBytes());
+                testReadingFromDB(UUID.fromString("550e8400-e29b-41d4-a716-446655440000"),
+                                "550e8400-e29b-41d4-a716-446655440000".getBytes());
         }
 
         @Test

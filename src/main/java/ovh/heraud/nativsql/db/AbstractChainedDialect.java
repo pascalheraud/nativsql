@@ -56,7 +56,7 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, AnnotationManager annotationManager) {
         if (nextDialect != null) {
             return nextDialect.getMapper(fieldAccessor, annotationManager);
         }
@@ -115,6 +115,7 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
         return null;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
         if (nextDialect != null) {

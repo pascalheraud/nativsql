@@ -45,7 +45,7 @@ public class PostgresPostGISDialect extends AbstractChainedDialect {
 
     @Override
     @SuppressWarnings("unchecked")
-    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, AnnotationManager annotationManager) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, AnnotationManager annotationManager) {
         // Handle PostGIS Point type
         if (fieldAccessor.getType() == Point.class) {
             return (ITypeMapper<T>) new PostgresPointTypeMapper();

@@ -116,14 +116,14 @@ public final class ReflectionUtils {
      * @return Fields wrapper with all field accessors
      */
     public static Fields getFields(Class<?> clazz) {
-        List<FieldAccessor> accessors = new java.util.ArrayList<>();
+        List<FieldAccessor<?>> accessors = new java.util.ArrayList<>();
 
         // Collect fields from the class hierarchy (including superclasses)
         Class<?> current = clazz;
         while (current != null && current != Object.class) {
             Field[] declaredFields = current.getDeclaredFields();
             for (Field field : declaredFields) {
-                accessors.add(new FieldAccessor(field));
+                accessors.add(new FieldAccessor<>(field));
             }
             current = current.getSuperclass();
         }
@@ -135,9 +135,9 @@ public final class ReflectionUtils {
      * @deprecated Use {@link #getFields(Class)} instead
      */
     @Deprecated
-    public static FieldAccessor[] getFieldAccessors(Object instance) {
-        List<FieldAccessor> list = getFields(instance.getClass()).list();
-        return list.toArray(new FieldAccessor[0]);
+    public static FieldAccessor<?>[] getFieldAccessors(Object instance) {
+        List<FieldAccessor<?>> list = getFields(instance.getClass()).list();
+        return list.toArray(new FieldAccessor<?>[0]);
     }
 
     /**
@@ -149,20 +149,20 @@ public final class ReflectionUtils {
      * @return array of FieldAccessors
      */
     @Deprecated
-    public static FieldAccessor[] getFieldAccessors(Class<?> clazz) {
-        List<FieldAccessor> accessors = new java.util.ArrayList<>();
+    public static FieldAccessor<?>[] getFieldAccessors(Class<?> clazz) {
+        List<FieldAccessor<?>> accessors = new java.util.ArrayList<>();
 
         // Collect fields from the class hierarchy (including superclasses)
         Class<?> current = clazz;
         while (current != null && current != Object.class) {
             Field[] declaredFields = current.getDeclaredFields();
             for (Field field : declaredFields) {
-                accessors.add(new FieldAccessor(field));
+                accessors.add(new FieldAccessor<>(field));
             }
             current = current.getSuperclass();
         }
 
-        return accessors.toArray(new FieldAccessor[0]);
+        return accessors.toArray(new FieldAccessor<?>[0]);
     }
 
     /**

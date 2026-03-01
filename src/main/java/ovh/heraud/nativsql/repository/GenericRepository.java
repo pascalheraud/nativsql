@@ -49,6 +49,8 @@ import ovh.heraud.nativsql.util.SqlUtils;
  * @param <ID> the entity identifier type
  */
 // TODO tester que les reqs des findExternal ne renvoie pas > 1
+// TODO que les requêtes select ont bien des colonnes
+// Avoir des select avec des getters ?
 public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     private static final String ID_COLUMN = "id";
@@ -176,7 +178,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         String paramList = Arrays.stream(columns)
                 .map(col -> {
-                    FieldAccessor field = entityFields.get(col);
+                    FieldAccessor<T> field = entityFields.get(col);
                     return formatParameter(col, field);
                 })
                 .collect(Collectors.joining(", "));
@@ -223,9 +225,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
             throw new NativSQLException("No " + ID_COLUMN + " column in generated keys for table " + getTableName());
         }
 
-        FieldAccessor idField = entityFields.get(ID_COLUMN);
+        FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
         if (idField != null) {
-            ITypeMapper<ID> idMapper = (ITypeMapper<ID>) databaseDialect.getMapper(idField,
+            ITypeMapper<ID> idMapper = databaseDialect.getMapper(idField,
                     annotationManager);
             if (idMapper != null) {
                 return idMapper.fromValue(idValue);
@@ -266,13 +268,13 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      */
     public int update(T entity, String... columns) {
         Map<String, Object> params = extractValues(entity, columns);
-        FieldAccessor idField = entityFields.get(ID_COLUMN);
+        FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
         Object id = idField != null ? idField.getValue(entity) : null;
         params.put(ID_COLUMN, id);
 
         String setClause = Arrays.stream(columns)
                 .map(col -> {
-                    FieldAccessor field = entityFields.get(col);
+                    FieldAccessor<ID> field = entityFields.get(col);
                     return identifierConverter.toDB(col) + " = " + formatParameter(col, field);
                 })
                 .collect(Collectors.joining(", "));
@@ -308,7 +310,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the number of rows deleted
      */
     public int delete(T entity) {
-        FieldAccessor idField = entityFields.get(ID_COLUMN);
+        FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
         Object id = idField != null ? idField.getValue(entity) : null;
         return deleteById(id);
     }
@@ -530,7 +532,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         Set<String> propertySet = new HashSet<>(Arrays.asList(properties));
 
         // Get all field accessors and filter by requested properties
-        for (FieldAccessor fieldAccessor : entityFields.list()) {
+        for (FieldAccessor<?> fieldAccessor : entityFields.list()) {
             if (propertySet.contains(fieldAccessor.getName())) {
                 Object value = fieldAccessor.getValue(entity);
 
@@ -556,7 +558,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Formats a parameter with appropriate SQL casting for enums and composite
      * types using the TypeMapper.
      */
-    private <PARAM_T> String formatParameter(String paramName, FieldAccessor fieldAccessor) {
+    private <PARAM_T> String formatParameter(String paramName, FieldAccessor<PARAM_T> fieldAccessor) {
         return databaseDialect.getMapper(fieldAccessor, annotationManager).formatParameter(paramName);
     }
 
@@ -568,7 +570,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Returns null if value is null.
      * If dataType is null, the mapper will use its default behavior.
      */
-    private <PARAM_T> Object convertToSqlValue(PARAM_T value, FieldAccessor fieldAccessor, DbDataType dataType) {
+    private <PARAM_T> Object convertToSqlValue(PARAM_T value, FieldAccessor<?> fieldAccessor, DbDataType dataType) {
         if (value == null) {
             return null;
         }
@@ -579,6 +581,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                         if (item == null) {
                             return null;
                         }
+                        @SuppressWarnings("unchecked")
                         ITypeMapper<Object> itemMapper = (ITypeMapper<Object>) databaseDialect
                                 .getMapper(fieldAccessor, annotationManager);
                         if (itemMapper == null) {
@@ -592,6 +595,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
 
         // Get the mapper for the actual value type
+        @SuppressWarnings("unchecked")
         ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(fieldAccessor,
                 annotationManager);
         if (mapper == null) {
@@ -615,14 +619,14 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
             DbDataType dbDataType = null;
 
             // Try to find the field in the entity and get its declared DbDataType
-            FieldAccessor field = entityFields.get(entry.getKey());
+            FieldAccessor<Object> field = entityFields.get(entry.getKey());
             if (field != null) {
                 var typeInfo = annotationManager.getTypeInfo(field);
                 if (typeInfo != null && typeInfo.getDataType() != null) {
                     dbDataType = typeInfo.getDataType();
                 }
             } else if (entry.getValue() != null) {
-                field = new FieldAccessor(entry.getValue().getClass());
+                field = new FieldAccessor<Object>(entry.getValue().getClass());
             }
 
             converted.put(entry.getKey(), convertToSqlValue(entry.getValue(), field, dbDataType));
@@ -695,7 +699,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param association the association configuration
      */
     private <SUBT extends IEntity<ID>> void loadAssociationInBatch(List<T> entities, Association association) {
-        FieldAccessor fieldAccessor = entityFields.get(association.getName());
+        FieldAccessor<List<SUBT>> fieldAccessor = entityFields.get(association.getName());
         if (fieldAccessor == null) {
             throw new NativSQLException("Association field not found: " + association.getName());
         }
@@ -756,13 +760,12 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @throws NativSQLException if the field is not found
      */
     protected <V> V getFieldValue(Object entity, String fieldName) throws NativSQLException {
-        FieldAccessor accessor = entityFields.get(fieldName);
+        @SuppressWarnings("unchecked")
+        FieldAccessor<V> accessor = (FieldAccessor<V>) entityFields.get(fieldName);
         if (accessor == null) {
             throw new NativSQLException("Field not found: " + fieldName);
         }
-        @SuppressWarnings("unchecked")
-        V value = (V) accessor.getValue(entity);
-        return value;
+        return accessor.getValue(entity);
     }
 
     /**

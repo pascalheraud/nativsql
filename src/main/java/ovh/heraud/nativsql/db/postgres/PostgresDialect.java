@@ -87,7 +87,7 @@ public class PostgresDialect extends AbstractChainedDialect {
 
     @Override
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor,@NonNull AnnotationManager annotationManager) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor,@NonNull AnnotationManager annotationManager) {
         Class<T> targetType = (Class<T>) fieldAccessor.getType();
         // Check for composite types first (PostgreSQL-specific)
         if (annotationManager.getCompositeTypeInfo(targetType) != null) {

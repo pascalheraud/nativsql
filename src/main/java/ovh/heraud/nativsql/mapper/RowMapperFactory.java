@@ -38,9 +38,10 @@ public class RowMapperFactory {
      * @return a GenericRowMapper for the class
      */
     public <T> GenericRowMapper<T> getRowMapper(Class<T> clazz, DatabaseDialect dialect, IdentifierConverter identifierConverter) {
-        GenericRowMapper<?> cached = cache.get(clazz);
+        @SuppressWarnings("unchecked")
+        GenericRowMapper<T> cached = (GenericRowMapper<T>) cache.get(clazz);
         if (cached != null) {
-            return (GenericRowMapper<T>) cached;
+            return cached;
         }
         GenericRowMapper<T> mapper = createRowMapper(clazz, dialect, identifierConverter);
         mapper.toString();
@@ -57,7 +58,7 @@ public class RowMapperFactory {
         Map<String, JoinedPropertyMetadata> subProperties = new HashMap<>();
 
         // Get all fields
-        for (FieldAccessor fieldAccessor : ReflectionUtils.getFields(clazz).list()) {
+        for (FieldAccessor<?> fieldAccessor : ReflectionUtils.getFields(clazz).list()) {
 
             // A field is simple if it's not annotated with @OneToMany
             boolean isSimple = annotationManager.getOneToManyInfo(fieldAccessor) == null;

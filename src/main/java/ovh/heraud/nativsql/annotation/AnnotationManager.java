@@ -40,7 +40,7 @@ public class AnnotationManager {
      * @param fieldAccessor the field accessor
      * @return the field key representing the field
      */
-    private FieldKey createFieldKey(FieldAccessor fieldAccessor) {
+    private FieldKey createFieldKey(FieldAccessor<?> fieldAccessor) {
         return new FieldKey(fieldAccessor.getField().getDeclaringClass(), fieldAccessor.getName());
     }
 
@@ -52,7 +52,7 @@ public class AnnotationManager {
      * @param fieldAccessor the field accessor to inspect
      * @return MappedByInfo if @MappedBy is present, null otherwise
      */
-    public MappedByInfo getMappedByInfo(FieldAccessor fieldAccessor) {
+    public MappedByInfo getMappedByInfo(FieldAccessor<?> fieldAccessor) {
         FieldKey key = createFieldKey(fieldAccessor);
         return mappedByCache.computeIfAbsent(key, k -> {
             MappedBy mappedBy = fieldAccessor.getAnnotation(MappedBy.class);
@@ -71,7 +71,7 @@ public class AnnotationManager {
      * @param fieldAccessor the field accessor to inspect
      * @return OneToManyAssociation if @OneToMany is present, null otherwise
      */
-    public OneToManyAssociation getOneToManyInfo(FieldAccessor fieldAccessor) {
+    public OneToManyAssociation getOneToManyInfo(FieldAccessor<?> fieldAccessor) {
         FieldKey key = createFieldKey(fieldAccessor);
         return oneToManyCache.computeIfAbsent(key, k -> {
             OneToMany oneToMany = fieldAccessor.getAnnotation(OneToMany.class);
@@ -144,7 +144,7 @@ public class AnnotationManager {
      * @param fieldAccessor the field accessor to inspect
      * @return TypeInfo if @Type is present, null otherwise
      */
-    public TypeInfo getTypeInfo(FieldAccessor fieldAccessor) {
+    public TypeInfo getTypeInfo(FieldAccessor<?> fieldAccessor) {
         FieldKey key = createFieldKey(fieldAccessor);
         return typeCache.computeIfAbsent(key, k -> {
             Type type = fieldAccessor.getAnnotation(Type.class);

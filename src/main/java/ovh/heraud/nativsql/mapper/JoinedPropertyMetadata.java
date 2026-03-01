@@ -7,10 +7,10 @@ import ovh.heraud.nativsql.util.FieldAccessor;
  * Used to map columns from a joined table to a nested object property.
  */
 public class JoinedPropertyMetadata {
-    private final FieldAccessor fieldAccessor;
+    private final FieldAccessor<?> fieldAccessor;
     private final GenericRowMapper<?> delegateMapper;
 
-    public JoinedPropertyMetadata(FieldAccessor fieldAccessor, GenericRowMapper<?> delegateMapper) {
+    public JoinedPropertyMetadata(FieldAccessor<?> fieldAccessor, GenericRowMapper<?> delegateMapper) {
         this.fieldAccessor = fieldAccessor;
         this.delegateMapper = delegateMapper;
     }
@@ -23,7 +23,7 @@ public class JoinedPropertyMetadata {
         return fieldAccessor.getType();
     }
 
-    public FieldAccessor getFieldAccessor() {
+    public FieldAccessor<?> getFieldAccessor() {
         return fieldAccessor;
     }
 

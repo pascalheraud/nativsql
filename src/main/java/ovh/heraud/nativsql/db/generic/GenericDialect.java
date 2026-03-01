@@ -78,8 +78,9 @@ public class GenericDialect extends AbstractChainedDialect {
      * Checks enum types first, then JSON types, then composite types, then type-specific mappers for numeric types.
      * Subclasses can override to add dialect-specific mappings.
      */
+    @SuppressWarnings("unchecked")
     @Override
-    public <T> ITypeMapper<T> getMapper(FieldAccessor fieldAccessor, @NonNull AnnotationManager annotationManager) {
+    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, @NonNull AnnotationManager annotationManager) {
         Class<T> targetType = (Class<T>) fieldAccessor.getType();
         // Check if it's an enum
         if (targetType.isEnum()) {
@@ -191,6 +192,7 @@ public class GenericDialect extends AbstractChainedDialect {
      * Helper method to call getEnumMapper with proper type safety.
      */
     private <E extends Enum<E>> ITypeMapper<E> getEnumMapperHelper(Class<?> enumClass, AnnotationManager annotationManager) {
+        @SuppressWarnings("unchecked")
         Class<E> typedEnum = (Class<E>) enumClass;
         return (ITypeMapper<E>) getEnumMapper(typedEnum, annotationManager);
     }
@@ -214,6 +216,7 @@ public class GenericDialect extends AbstractChainedDialect {
                         "Override getCompositeMapper() in your dialect implementation: " + compositeClass.getName());
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
         return (ID) keys.get(idColumn);
