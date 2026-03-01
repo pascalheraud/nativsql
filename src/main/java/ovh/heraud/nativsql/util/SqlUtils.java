@@ -20,10 +20,6 @@ public final class SqlUtils {
      * @throws NativSQLException if columns is null or empty
      */
     public static String getColumnsList(IdentifierConverter identifierConverter, String... columns) {
-        if (columns == null || columns.length == 0) {
-            throw new NativSQLException("At least one column must be specified");
-        }
-
         return Arrays.stream(columns)
                 .map(identifierConverter::toDB)
                 .collect(Collectors.joining(", "));

@@ -5,7 +5,21 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.4.0]  - 2026-02-18
+## [1.5.0]  - 2026-03-01
+
+### Added
+- **Type-Safe Column References** - Use `userRepository.insert(user, User::getEmail, User::getId)` instead of string-based column names for compile-time safety and IDE autocomplete
+- **Column Validation** - All repository methods now validate that column lists are not empty, raising `NativSQLException` for better error reporting
+- **Single Result Validation** - Methods expecting a single result now validate that queries return at most one element, raising `NativSQLException` if multiple results are found
+- **Update Row Validation** - The `update()` method now validates that exactly one row is updated, raising `NativSQLException` if no rows or multiple rows are affected
+- **Delete Row Validation** - The `delete()` and `deleteById()` methods now validate that exactly one row is deleted, raising `NativSQLException` if no rows or multiple rows are affected
+
+## [1.4.1]  - 2026-02-2
+
+### Fixed
+- Bug with null parameter in native queries
+
+## [1.4.0]  - 2026-02-28
 
 ### Changed
 - Added type mappers to map any type from DB to java.

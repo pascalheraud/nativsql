@@ -184,10 +184,9 @@ class PostgresContactInfoRepositoryTest  extends PostgresRepositoryTest{
         assertThat(contacts).hasSize(1);
 
         // When
-        int rows = contactInfoRepository.delete(contacts.get(0));
+        contactInfoRepository.delete(contacts.get(0));
 
         // Then
-        assertThat(rows).isEqualTo(1);
         List<ContactInfo> afterDelete = contactInfoRepository.findByUserId(testUserId, "id");
         assertThat(afterDelete).isEmpty();
     }

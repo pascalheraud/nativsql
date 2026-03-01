@@ -63,16 +63,28 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
 
     /**
      * Adds column(s) to the SELECT clause.
+     *
+     * @param cols the columns to select (must not be empty)
+     * @throws ovh.heraud.nativsql.exception.NativSQLException if cols is empty
      */
     public FindQuery<T, ID> select(String... cols) {
+        if (cols == null || cols.length == 0) {
+            throw new ovh.heraud.nativsql.exception.NativSQLException("Column list cannot be empty");
+        }
         columns.addAll(Arrays.asList(cols));
         return this;
     }
 
     /**
      * Adds column(s) to the SELECT clause from a list.
+     *
+     * @param cols the columns to select (must not be empty)
+     * @throws ovh.heraud.nativsql.exception.NativSQLException if cols is null or empty
      */
     public FindQuery<T, ID> select(List<String> cols) {
+        if (cols == null || cols.isEmpty()) {
+            throw new ovh.heraud.nativsql.exception.NativSQLException("Column list cannot be empty");
+        }
         columns.addAll(cols);
         return this;
     }
