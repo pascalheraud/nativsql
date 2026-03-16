@@ -55,10 +55,10 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // Lombok (optional, for reducing boilerplate)
-    compileOnly 'org.projectlombok:lombok:1.18.42'
-    annotationProcessor 'org.projectlombok:lombok:1.18.42'
-    testCompileOnly 'org.projectlombok:lombok:1.18.42'
-    testAnnotationProcessor 'org.projectlombok:lombok:1.18.42'
+    compileOnly 'org.projectlombok:lombok:1.18.44'
+    annotationProcessor 'org.projectlombok:lombok:1.18.44'
+    testCompileOnly 'org.projectlombok:lombok:1.18.44'
+    testAnnotationProcessor 'org.projectlombok:lombok:1.18.44'
 
     // Test dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
@@ -82,8 +82,8 @@ dependencies {
     testFixturesImplementation 'org.testcontainers:testcontainers-mysql'
     testFixturesImplementation 'org.testcontainers:testcontainers-mariadb'
     testFixturesImplementation 'org.testcontainers:testcontainers-junit-jupiter'
-    testFixturesCompileOnly 'org.projectlombok:lombok:1.18.42'
-    testFixturesAnnotationProcessor 'org.projectlombok:lombok:1.18.42'
+    testFixturesCompileOnly 'org.projectlombok:lombok:1.18.44'
+    testFixturesAnnotationProcessor 'org.projectlombok:lombok:1.18.44'
 }
 
 tasks.named('test') {
