@@ -145,4 +145,47 @@ public class WhereClause implements SQLBuilder {
     public String getCustomParamName() {
         return customParamName;
     }
+
+    /**
+     * Builds the SQL WHERE clause with formatting (newlines and indentation).
+     * Appends formatted conditions to the StringBuilder.
+     *
+     * @param sb                  the StringBuilder to append to
+     * @param identifierConverter the converter for identifier transformation
+     */
+    public void buildFormatted(StringBuilder sb, IdentifierConverter identifierConverter) {
+        if (isEmpty()) {
+            return;
+        }
+
+        if (customExpression != null) {
+            // Use custom expression with parameter binding
+            sb.append("        ").append(customExpression).append(" = :").append(customParamName);
+        } else {
+            // Compose standard conditions with AND logic, with indentation
+            List<String> conditionStrings = new ArrayList<>();
+            for (Condition condition : conditions) {
+                String dbCol = identifierConverter.toDB(condition.getColumn());
+
+                // Prefix with table name if there are JOINs
+                if (hasJoins && !tablePrefix.isEmpty()) {
+                    dbCol = tablePrefix + "." + dbCol;
+                }
+
+                String paramName = condition.getColumn();
+                String conditionStr = condition.getOperator()
+                        .getExpressionBuilder()
+                        .buildExpression(dbCol, paramName);
+                conditionStrings.add(conditionStr);
+            }
+
+            // Format with proper indentation
+            for (int i = 0; i < conditionStrings.size(); i++) {
+                sb.append("        ").append(conditionStrings.get(i));
+                if (i < conditionStrings.size() - 1) {
+                    sb.append("\n    AND\n");
+                }
+            }
+        }
+    }
 }
