@@ -90,6 +90,27 @@ public class OrderBy implements SQLBuilder {
     }
 
     /**
+     * Builds the SQL ORDER BY clause with formatting (newlines and indentation).
+     * Appends "ORDER BY ..." to the StringBuilder if orders have been specified.
+     *
+     * @param sb                  the StringBuilder to append the SQL to
+     * @param converter           the identifier converter to use for column name transformation
+     */
+    public void buildFormatted(StringBuilder sb, IdentifierConverter converter) {
+        if (orders.isEmpty()) {
+            return;
+        }
+
+        for (int i = 0; i < orders.size(); i++) {
+            if (i > 0) {
+                sb.append(",\n");
+            }
+            sb.append("    ");
+            orders.get(i).build(sb, converter);
+        }
+    }
+
+    /**
      * Inner class representing a single ORDER BY condition.
      * Implements SQLBuilder to generate its portion of the SQL statement.
      */

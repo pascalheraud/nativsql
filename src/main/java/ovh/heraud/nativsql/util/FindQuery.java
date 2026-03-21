@@ -28,6 +28,7 @@ import ovh.heraud.nativsql.repository.GenericRepository;
  * @param <ID> the entity ID type
  */
 public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
+    private static final String INDENT = "    ";
     private final GenericRepository<T, ID> repository;
     private final AnnotationManager annotationManager;
 
@@ -261,13 +262,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
-     * Gets the ORDER BY clause builder.
-     */
-    public OrderBy getOrderBy() {
-        return orderBy;
-    }
-
-    /**
      * Gets the associations to load (OneToMany).
      */
     public List<Association> getAssociations() {
@@ -286,13 +280,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      */
     public List<Condition> getWhereConditions() {
         return whereClause.getConditions();
-    }
-
-    /**
-     * Gets an array of column names.
-     */
-    public String[] getColumnsArray() {
-        return columns.toArray(new String[0]);
     }
 
     /**
@@ -323,13 +310,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      */
     public boolean hasJoins() {
         return !joins.isEmpty();
-    }
-
-    /**
-     * Checks if any columns are selected.
-     */
-    public boolean hasColumns() {
-        return !columns.isEmpty();
     }
 
     @Override
@@ -411,9 +391,16 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
         String tableName = repository.getTableName();
         List<String> prefixedColumns = buildPrefixedColumns(identifierConverter, tableName);
 
-        String columnList = String.join(", ", prefixedColumns);
-
-        sb.append("SELECT ").append(columnList).append(" FROM ").append(tableName);
+        // Build formatted SELECT clause with proper indentation
+        sb.append("SELECT\n");
+        for (int i = 0; i < prefixedColumns.size(); i++) {
+            sb.append(INDENT).append(prefixedColumns.get(i));
+            if (i < prefixedColumns.size() - 1) {
+                sb.append(",");
+            }
+            sb.append("\n");
+        }
+        sb.append("FROM ").append(tableName);
 
         // Add JOINs for @MappedBy associations
         if (hasJoins()) {
@@ -425,7 +412,7 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
                     String foreignKeyColumn = identifierConverter.toDB(mappedByInfo.getForeignKeyProperty());
                     String joinTableName = join.getRepository().getTableName();
                     String joinKeyword = join.isLeftJoin() ? "LEFT" : "INNER";
-                    sb.append(String.format(" %s JOIN %s ON %s.%s = %s.id",
+                    sb.append(String.format("\n      %s JOIN %s ON %s.%s = %s.id",
                             joinKeyword, joinTableName, tableName, foreignKeyColumn, joinTableName));
                 }
             }
@@ -434,14 +421,18 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
         // Add WHERE clause
         if (hasWhereConditions()) {
             whereClause.withTablePrefix(tableName).withJoins(hasJoins());
-            whereClause.build(sb, identifierConverter);
+            sb.append("\nWHERE\n");
+            whereClause.buildFormatted(sb, identifierConverter);
         }
 
         // Add ORDER BY clause
         if (!orderBy.isEmpty()) {
-            sb.append(" ");
-            orderBy.build(sb, identifierConverter);
+            sb.append("\nORDER BY\n");
+            orderBy.buildFormatted(sb, identifierConverter);
         }
+
+        // Add trailing newline
+        sb.append("\n");
     }
 
     /**

@@ -12,16 +12,16 @@ import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
-import jakarta.annotation.PostConstruct;
-
 import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
-import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+
+import jakarta.annotation.PostConstruct;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.db.DatabaseDialect;
@@ -38,8 +38,8 @@ import ovh.heraud.nativsql.util.FindQuery;
 import ovh.heraud.nativsql.util.OneToManyAssociation;
 import ovh.heraud.nativsql.util.OrderBy;
 import ovh.heraud.nativsql.util.ReflectionUtils;
-import ovh.heraud.nativsql.util.SqlUtils;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
+import ovh.heraud.nativsql.util.SqlUtils;
 
 /**
  * Generic repository base class that provides insert and update operations
@@ -62,6 +62,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     @Autowired
     @NonNull
     private AnnotationManager annotationManager;
+
+    @Autowired
+    private DbOperationLogger dbOperationLogger;
 
     private DatabaseDialect databaseDialect;
 
@@ -86,17 +89,20 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Constructor for programmatic instantiation (without Spring).
      * Used by subclasses that need to be instantiated directly.
      *
-     * @param entityClass      the entity class
-     * @param tableName        the database table name
-     * @param rowMapperFactory the row mapper factory
+     * @param entityClass         the entity class
+     * @param tableName           the database table name
+     * @param rowMapperFactory    the row mapper factory
+     * @param annotationManager   the annotation manager
+     * @param dbOperationLogger   the database operation logger
      */
     protected GenericRepository(Class<T> entityClass, String tableName, RowMapperFactory rowMapperFactory,
-            AnnotationManager annotationManager) {
+            AnnotationManager annotationManager, DbOperationLogger dbOperationLogger) {
         this.entityClass = entityClass;
         this.tableName = tableName;
         this.entityFields = ReflectionUtils.getFields(entityClass);
         this.rowMapperFactory = rowMapperFactory;
         this.annotationManager = annotationManager;
+        this.dbOperationLogger = dbOperationLogger;
     }
 
     @PostConstruct
@@ -206,7 +212,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                 getTableName(), columnList, paramList);
 
         // Try to retrieve generated ID using GeneratedKeyHolder for better reliability
-        ID generatedId = insertWithGeneratedKey(sql, params);
+        ID generatedId = dbOperationLogger.execute("INSERT", getTableName(), sql, params,
+                () -> insertWithGeneratedKey(sql, params));
 
         entity.setId(generatedId);
     }
@@ -324,10 +331,12 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "UPDATE " + getTableName() + " SET " + setClause + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
-        int rowsUpdated = executeUpdate(sql, params);
-        if (rowsUpdated != 1) {
-            throw new NativSQLException("Update failed: expected to update exactly 1 row but updated " + rowsUpdated);
-        }
+        dbOperationLogger.execute("UPDATE", getTableName(), sql, params, () -> {
+            int rowsUpdated = executeUpdate(sql, params);
+            if (rowsUpdated != 1) {
+                throw new NativSQLException("Update failed: expected to update exactly 1 row but updated " + rowsUpdated);
+            }
+        });
     }
 
     @NonNull
@@ -344,11 +353,14 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     public void deleteById(ID id) {
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "DELETE FROM " + getTableName() + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
+        Map<String, Object> params = getMap(ID_COLUMN, id);
 
-        int rowsDeleted = executeUpdate(sql, getMap(ID_COLUMN, id));
-        if (rowsDeleted != 1) {
-            throw new NativSQLException("Delete failed: expected to delete exactly 1 row but deleted " + rowsDeleted);
-        }
+        dbOperationLogger.execute("DELETE", getTableName(), sql, params, () -> {
+            int rowsDeleted = executeUpdate(sql, params);
+            if (rowsDeleted != 1) {
+                throw new NativSQLException("Delete failed: expected to delete exactly 1 row but deleted " + rowsDeleted);
+            }
+        });
     }
 
     /**
@@ -770,7 +782,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         Map<String, Object> params = query.getParameters();
 
         // Execute query with joins for nested object mapping
-        List<T> results = findAllExternal(sql, params, entityClass);
+        List<T> results = dbOperationLogger.execute("SELECT", getTableName(), sql, params,
+                () -> findAllExternal(sql, params, entityClass));
         T entity = getFirstOrNull(results);
 
         // Load associations for multiple linked entities using batch loading
@@ -794,7 +807,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         // Execute query with joins for nested object mapping (no association loading to
         // avoid N+1)
-        return findAllExternal(sql, params, entityClass);
+        return dbOperationLogger.execute("SELECT", getTableName(), sql, params,
+                () -> findAllExternal(sql, params, entityClass));
     }
 
     // ==================== Protected Helper Methods ====================
@@ -1092,7 +1106,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      */
     protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
             @NonNull Class<EXT> resultClass) {
-        List<EXT> results = findAllExternal(sql, params, resultClass);
+        List<EXT> results = dbOperationLogger.execute("SELECT", getTableName(), sql, params,
+                () -> findAllExternal(sql, params, resultClass));
         return getFirstOrNull(results);
     }
 

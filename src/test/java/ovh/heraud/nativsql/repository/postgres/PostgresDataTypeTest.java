@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Import;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
+import ovh.heraud.nativsql.repository.DbOperationLogger;
 import ovh.heraud.nativsql.repository.IDataTypeTests;
 
 /**
@@ -34,6 +35,9 @@ class PostgresDataTypeTest extends PostgresRepositoryTest implements IDataTypeTe
         @Autowired
         private AnnotationManager annotationManager;
 
+        @Autowired
+        private DbOperationLogger dbOperationLogger;
+
         @Override
         public AnnotationManager getAnnotationManager() {
                 return annotationManager;
@@ -52,6 +56,11 @@ class PostgresDataTypeTest extends PostgresRepositoryTest implements IDataTypeTe
         @Override
         public RowMapperFactory getRowMapperFactory() {
                 return rowMapperFactory;
+        }
+
+        @Override
+        public DbOperationLogger getDbOperationLogger() {
+                return dbOperationLogger;
         }
 
         @Test

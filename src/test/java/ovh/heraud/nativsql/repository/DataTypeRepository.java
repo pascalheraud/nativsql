@@ -26,8 +26,8 @@ public class DataTypeRepository<T extends IEntity<Long>> extends GenericReposito
 
     public DataTypeRepository(Class<T> entityClass, String tableName, DataSource dataSource,
                             DatabaseDialect databaseDialect, RowMapperFactory rowMapperFactory,
-                            AnnotationManager annotationManager) {
-        super(entityClass, tableName, rowMapperFactory, annotationManager);
+                            AnnotationManager annotationManager, DbOperationLogger dbOperationLogger) {
+        super(entityClass, tableName, rowMapperFactory, annotationManager, dbOperationLogger);
         this.entityClass = entityClass;
         this.dataSource = dataSource;
         this.databaseDialect = databaseDialect;

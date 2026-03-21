@@ -51,6 +51,8 @@ public interface IDataTypeTests {
 
         RowMapperFactory getRowMapperFactory();
 
+        DbOperationLogger getDbOperationLogger();
+
         @BeforeEach
         default void setUp() {
                 // Reset annotation manager mappings before each test
@@ -85,7 +87,8 @@ public interface IDataTypeTests {
                                         getDataSource(),
                                         getDatabaseDialect(),
                                         getRowMapperFactory(),
-                                        getAnnotationManager());
+                                        getAnnotationManager(),
+                                        getDbOperationLogger());
                         IEntity<Long> retrieved = readRepo.findById(data.getId(), "data");
                         return ((IData<T>) retrieved).getData();
                 } catch (InstantiationException | IllegalAccessException | IllegalArgumentException
@@ -102,7 +105,8 @@ public interface IDataTypeTests {
                                 getDataSource(),
                                 getDatabaseDialect(),
                                 getRowMapperFactory(),
-                                getAnnotationManager());
+                                getAnnotationManager(),
+                                getDbOperationLogger());
                 return insertRepo;
         }
 

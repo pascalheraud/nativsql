@@ -22,7 +22,7 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * Initializes the schema once per JVM before any tests run.
  */
 @SpringBootTest
-@Import({ RowMapperFactory.class })
+@Import({ RowMapperFactory.class, DbOperationLogger.class })
 public abstract class BaseRepositoryTest {
     protected abstract String getScriptPath();
 
