@@ -1,16 +1,16 @@
-package ovh.heraud.nativsql.repository.mysql;
+package ovh.heraud.nativsql.repository.oracle;
 
 import java.util.List;
 import java.util.UUID;
 
-import ovh.heraud.nativsql.domain.mysql.Address;
-import ovh.heraud.nativsql.domain.mysql.ContactInfo;
-import ovh.heraud.nativsql.domain.mysql.ContactType;
-import ovh.heraud.nativsql.domain.mysql.Group;
-import ovh.heraud.nativsql.domain.mysql.Preferences;
-import ovh.heraud.nativsql.domain.mysql.User;
-import ovh.heraud.nativsql.domain.mysql.UserReport;
-import ovh.heraud.nativsql.domain.mysql.UserStatus;
+import ovh.heraud.nativsql.domain.oracle.Address;
+import ovh.heraud.nativsql.domain.oracle.ContactInfo;
+import ovh.heraud.nativsql.domain.oracle.ContactType;
+import ovh.heraud.nativsql.domain.oracle.Group;
+import ovh.heraud.nativsql.domain.oracle.Preferences;
+import ovh.heraud.nativsql.domain.oracle.User;
+import ovh.heraud.nativsql.domain.oracle.UserReport;
+import ovh.heraud.nativsql.domain.oracle.UserStatus;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
@@ -18,18 +18,18 @@ import org.springframework.context.annotation.Import;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration tests for MySQLUserRepository using Testcontainers.
+ * Integration tests for OracleUserRepository using Testcontainers.
  */
-@Import({ MySQLUserRepository.class, MySQLContactInfoRepository.class, MySQLGroupRepository.class })
-class MySQLUserRepositoryTest extends MySQLRepositoryTest {
+@Import({ OracleUserRepository.class, OracleContactInfoRepository.class, OracleGroupRepository.class })
+class OracleUserRepositoryTest extends OracleRepositoryTest {
     @Autowired
-    private MySQLUserRepository userRepository;
+    private OracleUserRepository userRepository;
 
     @Autowired
-    private MySQLContactInfoRepository contactInfoRepository;
+    private OracleContactInfoRepository contactInfoRepository;
 
     @Autowired
-    private MySQLGroupRepository groupRepository;
+    private OracleGroupRepository groupRepository;
 
     @Test
     void testInsertUser() {
@@ -172,7 +172,7 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
         userRepository.insert(user3, "firstName", "email", "address");
 
         // When
-        List<User> parisUsers = userRepository.findByCity("Paris", "id", "firstName", "email", "address");
+        List<User> parisUsers = userRepository.findByCity("Paris", "id", "firstName", "email","address");
 
         // Then
         assertThat(parisUsers).hasSize(2);
@@ -553,27 +553,4 @@ class MySQLUserRepositoryTest extends MySQLRepositoryTest {
         assertThat(found.getAge()).isNull();
     }
 
-    @Test
-    void testFindAllExternalWithNullParam() {
-        // Given - Insert a test user
-        User user = User.builder()
-                .firstName("TestUser")
-                .lastName("NullParam")
-                .email("nullparam@example.com")
-                .status(UserStatus.ACTIVE)
-                .build();
-        userRepository.insert(user, "firstName", "lastName", "email", "status");
-        Long userId = user.getId();
-        assertThat(userId).isNotNull();
-
-        // When - Call a custom query with null parameter
-        // This tests how the repository handles null param values in custom queries
-        // MySQL doesn't require type casting for NULL inference
-        List<User> results = userRepository.findByIdWithNullParam(userId, null);
-
-        // Then - Should not throw NullPointerException and return the user
-        assertThat(results).isNotNull().isNotEmpty();
-        assertThat(results.get(0).getId()).isEqualTo(userId);
-        assertThat(results.get(0).getEmail()).isEqualTo("nullparam@example.com");
-    }
 }

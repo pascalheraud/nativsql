@@ -7,12 +7,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.mariadb.MariaDBDialect;
 import ovh.heraud.nativsql.db.mysql.MySQLDialect;
+import ovh.heraud.nativsql.db.oracle.OracleDialect;
 import ovh.heraud.nativsql.db.postgres.PostgresDialect;
 import ovh.heraud.nativsql.db.postgres.postgis.PostgresPostGISDialect;
 import ovh.heraud.nativsql.domain.postgres.Address;
@@ -29,6 +31,7 @@ import ovh.heraud.nativsql.domain.postgres.UserStatus;
  * </p>
  */
 @Component
+@ComponentScan("ovh.heraud.nativsql")
 public class TestNativSqlConfig {
 
     @Autowired
@@ -65,6 +68,17 @@ public class TestNativSqlConfig {
         // Configure types via AnnotationManager (annotations can be overridden here)
         annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.mariadb.Address.class);
         annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.mariadb.Preferences.class);
+
+        return dialect;
+    }
+
+    @Bean(name = "oracleDialect")
+    public OracleDialect oracleDialect() {
+        OracleDialect dialect = new OracleDialect();
+
+        // Configure types via AnnotationManager (annotations can be overridden here)
+        annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.oracle.Address.class);
+        annotationManager.setJsonInfo(ovh.heraud.nativsql.domain.oracle.Preferences.class);
 
         return dialect;
     }
@@ -139,5 +153,29 @@ public class TestNativSqlConfig {
     public PlatformTransactionManager pgTransactionManager(
             @Qualifier("pgDataSource") @NonNull DataSource pgDataSource) {
         return new DataSourceTransactionManager(pgDataSource);
+    }
+
+    /**
+     * Oracle datasource configured via dynamic properties.
+     */
+    @Bean("oracleDataSource")
+    public DataSource oracleDataSource(
+            TestDataSourceProperties dataSourceProperties) {
+        return DataSourceBuilder.create()
+                .url(dataSourceProperties.getOracleUrl())
+                .username(dataSourceProperties.getOracleUsername())
+                .password(dataSourceProperties.getOraclePassword())
+                .driverClassName("oracle.jdbc.OracleDriver")
+                .build();
+    }
+
+    /**
+     * PlatformTransactionManager for Oracle datasource.
+     * This is required for @Transactional tests to work.
+     */
+    @Bean("oracleTransactionManager")
+    public PlatformTransactionManager oracleTransactionManager(
+            @Qualifier("oracleDataSource") @NonNull DataSource oracleDataSource) {
+        return new DataSourceTransactionManager(oracleDataSource);
     }
 }

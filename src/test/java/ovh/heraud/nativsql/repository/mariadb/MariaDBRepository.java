@@ -19,10 +19,17 @@ import ovh.heraud.nativsql.repository.GenericRepository;
  */
 public abstract class MariaDBRepository<T extends IEntity<ID>, ID> extends GenericRepository<T, ID> {
 
-    @Autowired
+    @Autowired(required = false)
     @Qualifier("mariaDBDataSource")
     @NonNull
     private DataSource mariadbDataSource;
+
+    /**
+     * Set DataSource for tests. Called by test framework via reflection.
+     */
+    void setDataSourceForTest(DataSource dataSource) {
+        this.mariadbDataSource = dataSource;
+    }
 
     @Autowired()
     @Qualifier("mariaDBDialect")

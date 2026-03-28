@@ -2,6 +2,7 @@ package ovh.heraud.nativsql.db.generic.mapper;
 
 import java.sql.ResultSet;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.exception.NativSQLException;
@@ -23,12 +24,16 @@ public class LocalDateTypeMapper implements ITypeMapper<LocalDate> {
             if (value instanceof LocalDate ld) {
                 return ld;
             }
-            // Accept java.sql.Date but NOT Timestamp
-            if (value instanceof java.sql.Date sqlDate && !(value instanceof java.sql.Timestamp)) {
+            // Accept java.time.LocalDateTime
+            if (value instanceof LocalDateTime ldt) {
+                return ldt.toLocalDate();
+            }
+            // Accept java.sql.Date
+            if (value instanceof java.sql.Date sqlDate) {
                 return sqlDate.toLocalDate();
             }
-            // Accept java.util.Date but NOT java.sql.Timestamp
-            if (value instanceof java.util.Date utilDate && !(value instanceof java.sql.Timestamp)) {
+            // Accept java.util.Date
+            if (value instanceof java.util.Date utilDate) {
                 return new java.sql.Date(utilDate.getTime()).toLocalDate();
             }
             throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class " + value.getClass() + " to LocalDate");

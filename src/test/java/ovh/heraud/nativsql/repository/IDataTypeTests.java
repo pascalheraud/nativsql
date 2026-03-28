@@ -1276,7 +1276,8 @@ public interface IDataTypeTests {
         @Test
         default void testReadingLocalDateFromDate() {
                 LocalDate date1 = LocalDate.of(2024, 1, 15);
-                testReadingFromDBError(new Date(), date1);
+                java.util.Date utilDate = new java.util.Date(java.sql.Date.valueOf(date1).getTime());
+                testReadingFromDB(utilDate, date1);
         }
 
         @Test

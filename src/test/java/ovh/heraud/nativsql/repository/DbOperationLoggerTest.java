@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 
-
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.LoggerContext;
@@ -27,7 +26,8 @@ import ovh.heraud.nativsql.repository.DbOperationLogger.SqlCallable;
 
 /**
  * Unit tests for DbOperationLogger.
- * Tests logging of database operations with BEGIN/END/ERROR format, timing, and parameters.
+ * Tests logging of database operations with BEGIN/END/ERROR format, timing, and
+ * parameters.
  */
 class DbOperationLoggerTest {
 
@@ -35,6 +35,13 @@ class DbOperationLoggerTest {
     private Logger logger;
     private ListAppender<ILoggingEvent> listAppender;
     private TestExecutionMetrics executionMetrics;
+
+    @Test
+    void emptyTest() {
+        // This test exists only to ensure the test class is recognized and the
+        // @BeforeEach setup runs.
+        // Actual tests are in nested classes.
+    }
 
     @BeforeEach
     void setUp() {
@@ -70,7 +77,7 @@ class DbOperationLoggerTest {
             params.put("id", 123);
             params.put("name", "John");
 
-            String result = dbOperationLogger.execute("SELECT", "users",
+            String result = dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users",
                     "SELECT * FROM users WHERE id = :id", params,
                     () -> "test-result");
 
@@ -79,10 +86,14 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(4); // BEGIN, SQL, PARAMS, END
 
             // Check all logs
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$DebugLoggingTests.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$DebugLoggingTests.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1] - SELECT * FROM users WHERE id = :id");
-            verifyLogEvent(logList, 2, Level.DEBUG, "DB.PARAMS DbOperationLoggerTest$DebugLoggingTests.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1] - {name=John, id=123}");
-            verifyLogEvent(logList, 3, Level.INFO, "DB.END DbOperationLoggerTest$DebugLoggingTests.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1] - SELECT * FROM users WHERE id = :id");
+            verifyLogEvent(logList, 2, Level.DEBUG,
+                    "DB.PARAMS DbOperationLoggerTest.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1] - {name=John, id=123}");
+            verifyLogEvent(logList, 3, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testExecuteWithCallableAndParams - SELECT users [test-uuid-12345-1] - 42ms");
         }
 
         /**
@@ -94,7 +105,8 @@ class DbOperationLoggerTest {
             params.put("name", "Jane");
             params.put("email", "jane@example.com");
 
-            dbOperationLogger.execute("INSERT", "users", "INSERT INTO users (name, email) VALUES (:name, :email)",
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "INSERT", "users",
+                    "INSERT INTO users (name, email) VALUES (:name, :email)",
                     params,
                     () -> {
                         // Do nothing
@@ -104,10 +116,14 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(4); // BEGIN, SQL, PARAMS, END
 
             // Check all logs
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$DebugLoggingTests.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$DebugLoggingTests.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1] - INSERT INTO users (name, email) VALUES (:name, :email)");
-            verifyLogEvent(logList, 2, Level.DEBUG, "DB.PARAMS DbOperationLoggerTest$DebugLoggingTests.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1] - {name=Jane, email=jane@example.com}");
-            verifyLogEvent(logList, 3, Level.INFO, "DB.END DbOperationLoggerTest$DebugLoggingTests.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1] - INSERT INTO users (name, email) VALUES (:name, :email)");
+            verifyLogEvent(logList, 2, Level.DEBUG,
+                    "DB.PARAMS DbOperationLoggerTest.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1] - {name=Jane, email=jane@example.com}");
+            verifyLogEvent(logList, 3, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testExecuteWithRunnableAndParams - INSERT users [test-uuid-12345-1] - 42ms");
         }
 
         /**
@@ -118,17 +134,21 @@ class DbOperationLoggerTest {
             Map<String, Object> params = new HashMap<>();
             params.put("id", 1);
 
-            dbOperationLogger.execute("SELECT", "users", "SELECT * FROM users WHERE id = :id", params,
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users", "SELECT * FROM users WHERE id = :id", params,
                     () -> "result");
 
             List<ILoggingEvent> logList = listAppender.list;
             assertThat(logList).hasSize(4);
 
             // Verify all logs contain the same UUID
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$DebugLoggingTests.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$DebugLoggingTests.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1] - SELECT * FROM users WHERE id = :id");
-            verifyLogEvent(logList, 2, Level.DEBUG, "DB.PARAMS DbOperationLoggerTest$DebugLoggingTests.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1] - {id=1}");
-            verifyLogEvent(logList, 3, Level.INFO, "DB.END DbOperationLoggerTest$DebugLoggingTests.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1] - SELECT * FROM users WHERE id = :id");
+            verifyLogEvent(logList, 2, Level.DEBUG,
+                    "DB.PARAMS DbOperationLoggerTest.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1] - {id=1}");
+            verifyLogEvent(logList, 3, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testSameUUIDForAllLogs - SELECT users [test-uuid-12345-1] - 42ms");
         }
 
         /**
@@ -142,7 +162,7 @@ class DbOperationLoggerTest {
             Map<String, Object> params = new HashMap<>();
             params.put("email", "test@example.com");
 
-            String result = dbOperationLogger.execute("INSERT", "users",
+            String result = dbOperationLogger.execute(DbOperationLoggerTest.class, "INSERT", "users",
                     "INSERT INTO users (email) VALUES (:email)", params,
                     () -> "result-value");
 
@@ -152,10 +172,14 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(4); // BEGIN, SQL, PARAMS, END
 
             // Verify all logs with exact 50ms duration
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$DebugLoggingTests.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$DebugLoggingTests.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1] - INSERT INTO users (email) VALUES (:email)");
-            verifyLogEvent(logList, 2, Level.DEBUG, "DB.PARAMS DbOperationLoggerTest$DebugLoggingTests.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1] - {email=test@example.com}");
-            verifyLogEvent(logList, 3, Level.INFO, "DB.END DbOperationLoggerTest$DebugLoggingTests.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1] - 50ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1] - INSERT INTO users (email) VALUES (:email)");
+            verifyLogEvent(logList, 2, Level.DEBUG,
+                    "DB.PARAMS DbOperationLoggerTest.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1] - {email=test@example.com}");
+            verifyLogEvent(logList, 3, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testCompleteLoggingChainWithControlledValues - INSERT users [test-op-123-1] - 50ms");
         }
     }
 
@@ -166,7 +190,7 @@ class DbOperationLoggerTest {
          */
         @Test
         void testExecuteWithCallableNoParams() {
-            String result = dbOperationLogger.execute("SELECT", "users", "SELECT * FROM users",
+            String result = dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users", "SELECT * FROM users",
                     () -> "test-result");
 
             assertThat(result).isEqualTo("test-result");
@@ -174,9 +198,12 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(3);
 
             // Check all INFO and DEBUG logs
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testExecuteWithCallableNoParams - SELECT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testExecuteWithCallableNoParams - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
-            verifyLogEvent(logList, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testExecuteWithCallableNoParams - SELECT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testExecuteWithCallableNoParams - SELECT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testExecuteWithCallableNoParams - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
+            verifyLogEvent(logList, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testExecuteWithCallableNoParams - SELECT users [test-uuid-12345-1] - 42ms");
         }
 
         /**
@@ -184,7 +211,7 @@ class DbOperationLoggerTest {
          */
         @Test
         void testExecuteWithRunnableNoParams() {
-            dbOperationLogger.execute("INSERT", "users", "INSERT INTO users VALUES (...)",
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "INSERT", "users", "INSERT INTO users VALUES (...)",
                     () -> {
                         // Do nothing
                     });
@@ -193,9 +220,12 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(3);
 
             // Check all INFO and DEBUG logs
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testExecuteWithRunnableNoParams - INSERT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testExecuteWithRunnableNoParams - INSERT users [test-uuid-12345-1] - INSERT INTO users VALUES (...)");
-            verifyLogEvent(logList, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testExecuteWithRunnableNoParams - INSERT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testExecuteWithRunnableNoParams - INSERT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testExecuteWithRunnableNoParams - INSERT users [test-uuid-12345-1] - INSERT INTO users VALUES (...)");
+            verifyLogEvent(logList, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testExecuteWithRunnableNoParams - INSERT users [test-uuid-12345-1] - 42ms");
         }
 
         /**
@@ -205,7 +235,7 @@ class DbOperationLoggerTest {
         void testExecutionDurationLogged() throws Exception {
             executionMetrics.setFixedTimes(1000L, 1087L); // 87ms duration
 
-            dbOperationLogger.execute("SELECT", "users", "SELECT * FROM users",
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users", "SELECT * FROM users",
                     () -> {
                         return "result";
                     });
@@ -214,9 +244,12 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(3);
 
             // Check all INFO level logs with exact duration
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testExecutionDurationLogged - SELECT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testExecutionDurationLogged - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
-            verifyLogEvent(logList, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testExecutionDurationLogged - SELECT users [test-uuid-12345-1] - 87ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testExecutionDurationLogged - SELECT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testExecutionDurationLogged - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
+            verifyLogEvent(logList, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testExecutionDurationLogged - SELECT users [test-uuid-12345-1] - 87ms");
         }
 
         /**
@@ -224,25 +257,31 @@ class DbOperationLoggerTest {
          */
         @Test
         void testUniqueUUIDs() {
-            dbOperationLogger.execute("SELECT", "users", "SELECT * FROM users",
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users", "SELECT * FROM users",
                     () -> "result1");
 
             List<ILoggingEvent> firstOpLogs = new ArrayList<>(listAppender.list);
             listAppender.list.clear();
 
-            dbOperationLogger.execute("SELECT", "users", "SELECT * FROM users",
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users", "SELECT * FROM users",
                     () -> "result2");
 
             // Each operation should have different UUID in all logs
             assertThat(firstOpLogs).hasSize(3);
-            verifyLogEvent(firstOpLogs, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testUniqueUUIDs - SELECT users [test-uuid-12345-1]");
-            verifyLogEvent(firstOpLogs, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testUniqueUUIDs - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
-            verifyLogEvent(firstOpLogs, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testUniqueUUIDs - SELECT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(firstOpLogs, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testUniqueUUIDs - SELECT users [test-uuid-12345-1]");
+            verifyLogEvent(firstOpLogs, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testUniqueUUIDs - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
+            verifyLogEvent(firstOpLogs, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testUniqueUUIDs - SELECT users [test-uuid-12345-1] - 42ms");
 
             assertThat(listAppender.list).hasSize(3);
-            verifyLogEvent(listAppender.list, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testUniqueUUIDs - SELECT users [test-uuid-12345-2]");
-            verifyLogEvent(listAppender.list, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testUniqueUUIDs - SELECT users [test-uuid-12345-2] - SELECT * FROM users");
-            verifyLogEvent(listAppender.list, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testUniqueUUIDs - SELECT users [test-uuid-12345-2] - 42ms");
+            verifyLogEvent(listAppender.list, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testUniqueUUIDs - SELECT users [test-uuid-12345-2]");
+            verifyLogEvent(listAppender.list, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testUniqueUUIDs - SELECT users [test-uuid-12345-2] - SELECT * FROM users");
+            verifyLogEvent(listAppender.list, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testUniqueUUIDs - SELECT users [test-uuid-12345-2] - 42ms");
         }
 
         /**
@@ -252,16 +291,19 @@ class DbOperationLoggerTest {
         void testNoLoggingWhenParamsEmpty() {
             Map<String, Object> emptyParams = new HashMap<>();
 
-            dbOperationLogger.execute("SELECT", "users", "SELECT * FROM users", emptyParams,
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users", "SELECT * FROM users", emptyParams,
                     () -> "result");
 
             List<ILoggingEvent> logList = listAppender.list;
             assertThat(logList).hasSize(3); // BEGIN, SQL, END but no PARAMS log
 
             // Check all logs (no PARAMS when empty)
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testNoLoggingWhenParamsEmpty - SELECT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testNoLoggingWhenParamsEmpty - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
-            verifyLogEvent(logList, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testNoLoggingWhenParamsEmpty - SELECT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testNoLoggingWhenParamsEmpty - SELECT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testNoLoggingWhenParamsEmpty - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
+            verifyLogEvent(logList, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testNoLoggingWhenParamsEmpty - SELECT users [test-uuid-12345-1] - 42ms");
         }
 
         /**
@@ -269,16 +311,19 @@ class DbOperationLoggerTest {
          */
         @Test
         void testNullParametersHandled() {
-            dbOperationLogger.execute("SELECT", "users", "SELECT * FROM users", null,
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "SELECT", "users", "SELECT * FROM users", (Map<String, Object>) null,
                     () -> "result");
 
             List<ILoggingEvent> logList = listAppender.list;
             assertThat(logList).hasSize(3); // BEGIN, SQL, END but no PARAMS log
 
             // Check all logs (no PARAMS when null)
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testNullParametersHandled - SELECT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testNullParametersHandled - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
-            verifyLogEvent(logList, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testNullParametersHandled - SELECT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testNullParametersHandled - SELECT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testNullParametersHandled - SELECT users [test-uuid-12345-1] - SELECT * FROM users");
+            verifyLogEvent(logList, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testNullParametersHandled - SELECT users [test-uuid-12345-1] - 42ms");
         }
 
         /**
@@ -287,16 +332,19 @@ class DbOperationLoggerTest {
         @Test
         void testOperationNameInLogs() {
             Map<String, Object> params = new HashMap<>();
-            dbOperationLogger.execute("INSERT", "users", "INSERT INTO users VALUES (...)", params,
+            dbOperationLogger.execute(DbOperationLoggerTest.class, "INSERT", "users", "INSERT INTO users VALUES (...)", params,
                     () -> null);
 
             List<ILoggingEvent> logList = listAppender.list;
             assertThat(logList).hasSize(3); // BEGIN, SQL, END (no PARAMS since empty)
 
             // Verify all logs with correct method name
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$InfoLoggingTests.testOperationNameInLogs - INSERT users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$InfoLoggingTests.testOperationNameInLogs - INSERT users [test-uuid-12345-1] - INSERT INTO users VALUES (...)");
-            verifyLogEvent(logList, 2, Level.INFO, "DB.END DbOperationLoggerTest$InfoLoggingTests.testOperationNameInLogs - INSERT users [test-uuid-12345-1] - 42ms");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testOperationNameInLogs - INSERT users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testOperationNameInLogs - INSERT users [test-uuid-12345-1] - INSERT INTO users VALUES (...)");
+            verifyLogEvent(logList, 2, Level.INFO,
+                    "DB.END DbOperationLoggerTest.testOperationNameInLogs - INSERT users [test-uuid-12345-1] - 42ms");
         }
     }
 
@@ -309,7 +357,7 @@ class DbOperationLoggerTest {
         void testExecuteWithNativSQLException() {
             NativSQLException exception = null;
             try {
-                dbOperationLogger.execute("DELETE", "users", "DELETE FROM users",
+                dbOperationLogger.execute(DbOperationLoggerTest.class, "DELETE", "users", "DELETE FROM users",
                         (SqlCallable<Void>) () -> {
                             throw new NativSQLException("Constraint violation");
                         });
@@ -325,19 +373,23 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(3);
 
             // Check all logs with correct method name
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$ErrorLoggingTests.testExecuteWithNativSQLException - DELETE users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$ErrorLoggingTests.testExecuteWithNativSQLException - DELETE users [test-uuid-12345-1] - DELETE FROM users");
-            verifyLogEvent(logList, 2, Level.ERROR, "DB.ERROR DbOperationLoggerTest$ErrorLoggingTests.testExecuteWithNativSQLException - DELETE users [test-uuid-12345-1] - Constraint violation");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testExecuteWithNativSQLException - DELETE users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testExecuteWithNativSQLException - DELETE users [test-uuid-12345-1] - DELETE FROM users");
+            verifyLogEvent(logList, 2, Level.ERROR,
+                    "DB.ERROR DbOperationLoggerTest.testExecuteWithNativSQLException - DELETE users [test-uuid-12345-1] - Constraint violation");
         }
 
         /**
-         * Test ERROR level logging with generic Exception (wrapped in NativSQLException).
+         * Test ERROR level logging with generic Exception (wrapped in
+         * NativSQLException).
          */
         @Test
         void testExecuteWithGenericException() {
             NativSQLException exception = null;
             try {
-                dbOperationLogger.execute("UPDATE", "users", "UPDATE users SET name = ?",
+                dbOperationLogger.execute(DbOperationLoggerTest.class, "UPDATE", "users", "UPDATE users SET name = ?",
                         (SqlCallable<Void>) () -> {
                             throw new RuntimeException("Database error");
                         });
@@ -353,9 +405,12 @@ class DbOperationLoggerTest {
             assertThat(logList).hasSize(3);
 
             // Check all logs with correct method name
-            verifyLogEvent(logList, 0, Level.INFO, "DB.BEGIN DbOperationLoggerTest$ErrorLoggingTests.testExecuteWithGenericException - UPDATE users [test-uuid-12345-1]");
-            verifyLogEvent(logList, 1, Level.DEBUG, "DB.SQL DbOperationLoggerTest$ErrorLoggingTests.testExecuteWithGenericException - UPDATE users [test-uuid-12345-1] - UPDATE users SET name = ?");
-            verifyLogEvent(logList, 2, Level.ERROR, "DB.ERROR DbOperationLoggerTest$ErrorLoggingTests.testExecuteWithGenericException - UPDATE users [test-uuid-12345-1] - Database error");
+            verifyLogEvent(logList, 0, Level.INFO,
+                    "DB.BEGIN DbOperationLoggerTest.testExecuteWithGenericException - UPDATE users [test-uuid-12345-1]");
+            verifyLogEvent(logList, 1, Level.DEBUG,
+                    "DB.SQL DbOperationLoggerTest.testExecuteWithGenericException - UPDATE users [test-uuid-12345-1] - UPDATE users SET name = ?");
+            verifyLogEvent(logList, 2, Level.ERROR,
+                    "DB.ERROR DbOperationLoggerTest.testExecuteWithGenericException - UPDATE users [test-uuid-12345-1] - Database error");
         }
     }
 
@@ -369,7 +424,8 @@ class DbOperationLoggerTest {
     }
 
     /**
-     * Test ExecutionMetrics implementation that allows controlling timing and UUID generation.
+     * Test ExecutionMetrics implementation that allows controlling timing and UUID
+     * generation.
      * Used for deterministic tests.
      * UUIDs are consumed from a pre-generated queue in FIFO order.
      */

@@ -13,9 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Import({ TestNativSqlConfig.class, TestDataSourceProperties.class })
 @Transactional("mariaDBTransactionManager")
 public abstract class MariaDBRepositoryTest extends MariaDBBaseRepositoryTest {
-    static {
-        init();
-    }
 
     @Override
     protected String getScriptPath() {

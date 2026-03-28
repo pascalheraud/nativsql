@@ -1,7 +1,5 @@
 package ovh.heraud.nativsql.repository.mysql;
 
-import javax.sql.DataSource;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -20,10 +18,6 @@ import ovh.heraud.nativsql.repository.IDataTypeTests;
 class MySQLDataTypeTest extends MySQLRepositoryTest implements IDataTypeTests {
 
 	@Autowired
-	@Qualifier("mySQLDataSource")
-	private DataSource dataSource;
-
-	@Autowired
 	@Qualifier("mySQLDialect")
 	private DatabaseDialect databaseDialect;
 
@@ -39,11 +33,6 @@ class MySQLDataTypeTest extends MySQLRepositoryTest implements IDataTypeTests {
 	@Override
 	public AnnotationManager getAnnotationManager() {
 		return annotationManager;
-	}
-
-	@Override
-	public DataSource getDataSource() {
-		return dataSource;
 	}
 
 	@Override

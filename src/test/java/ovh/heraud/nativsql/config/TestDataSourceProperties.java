@@ -39,4 +39,13 @@ public class TestDataSourceProperties {
 
     @Value("${spring.datasource.mariadb.password:}")
     private String mariaDBPassword;
+
+    @Value("${spring.datasource.oracle.url:}")
+    private String oracleUrl;
+
+    @Value("${spring.datasource.oracle.username:}")
+    private String oracleUsername;
+
+    @Value("${spring.datasource.oracle.password:}")
+    private String oraclePassword;
 }

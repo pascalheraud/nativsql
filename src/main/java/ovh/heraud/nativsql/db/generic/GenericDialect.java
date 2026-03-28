@@ -14,6 +14,7 @@ import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
 import ovh.heraud.nativsql.db.generic.mapper.BigDecimalTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.GenericJSONTypeMapper;
 import ovh.heraud.nativsql.db.generic.mapper.BigIntegerTypeMapper;
 import ovh.heraud.nativsql.db.generic.mapper.BooleanTypeMapper;
 import ovh.heraud.nativsql.db.generic.mapper.ByteArrayTypeMapper;
@@ -204,9 +205,8 @@ public class GenericDialect extends AbstractChainedDialect {
 
     @Override
     public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
-        throw new UnsupportedOperationException(
-                "JSON type mapping is not supported by default dialect. " +
-                        "Override getJsonMapper() in your dialect implementation: " + jsonClass.getName());
+        // Use GenericJSONTypeMapper for Jackson-based JSON handling
+        return new GenericJSONTypeMapper<>(jsonClass);
     }
 
     @Override

@@ -38,8 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Uses mocked ExecutionMetrics to generate predictable UUIDs and timing.
  */
 @Import({ PostgresUserRepository.class, PostgresContactInfoRepository.class, PostgresGroupRepository.class })
-@Testable
-class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
+public class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
 
     @Autowired
     private PostgresUserRepository userRepository;
@@ -96,7 +95,14 @@ class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
         return result;
     }
 
+    @Test 
+    void emptyTest() {
+        // This test exists only to ensure the test class is recognized and the @BeforeEach setup runs.
+        // Actual tests are in nested classes.
+    }
+
     @Nested
+    @Testable
     class DebugLoggingTests {
 
         @BeforeEach
@@ -362,6 +368,7 @@ class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
     }
 
     @Nested
+    @Testable
     class InfoLoggingTests {
 
         @BeforeEach

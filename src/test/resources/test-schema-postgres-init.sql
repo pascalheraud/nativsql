@@ -38,7 +38,6 @@ CREATE TABLE contact_info (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_status ON users(status);
 CREATE INDEX idx_users_group_id ON users(group_id);
 CREATE INDEX idx_contact_info_user_id ON contact_info(user_id);
