@@ -11,7 +11,7 @@ import ovh.heraud.nativsql.repository.GenericRepository;
 
 public abstract class PostgresRepository<T extends IEntity<ID>, ID> extends GenericRepository<T, ID> {
 
-    @Autowired
+    @Autowired(required = false)
     @Qualifier("pgDataSource")
     @NonNull
     private DataSource pgDataSource;

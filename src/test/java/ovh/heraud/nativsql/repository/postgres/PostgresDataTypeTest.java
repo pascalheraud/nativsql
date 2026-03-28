@@ -2,8 +2,6 @@ package ovh.heraud.nativsql.repository.postgres;
 
 import java.util.UUID;
 
-import javax.sql.DataSource;
-
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -22,10 +20,6 @@ import ovh.heraud.nativsql.repository.IDataTypeTests;
 class PostgresDataTypeTest extends PostgresRepositoryTest implements IDataTypeTests {
 
         @Autowired
-        @Qualifier("pgDataSource")
-        private DataSource dataSource;
-
-        @Autowired
         @Qualifier("postgresDialect")
         private DatabaseDialect databaseDialect;
 
@@ -41,11 +35,6 @@ class PostgresDataTypeTest extends PostgresRepositoryTest implements IDataTypeTe
         @Override
         public AnnotationManager getAnnotationManager() {
                 return annotationManager;
-        }
-
-        @Override
-        public DataSource getDataSource() {
-                return dataSource;
         }
 
         @Override

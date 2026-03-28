@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.db;
 import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.db.generic.mapper.GenericJSONTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
 
@@ -45,11 +46,17 @@ public interface DatabaseDialect {
      * Creates a TypeMapper for the specified JSON type class.
      * The mapper handles both reading from and writing to the database as JSON.
      *
+     * Default implementation uses GenericJSONTypeMapper which handles JSON
+     * serialization/deserialization via Jackson for databases that store JSON as String
+     * (MySQL, MariaDB, Oracle, etc).
+     *
      * @param jsonClass the class to map as JSON
      * @return a mapper for JSON
      * @param <T> the type
      */
-    <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass);
+    default <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
+        return new GenericJSONTypeMapper<>(jsonClass);
+    }
 
     /**
      * Creates a TypeMapper for the specified composite type class.

@@ -13,10 +13,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Import({ TestNativSqlConfig.class, TestDataSourceProperties.class })
 @Transactional("mySQLTransactionManager")
 public abstract class MySQLRepositoryTest extends MySQLBaseRepositoryTest {
-    static {
-        init();
-    }
-
     @Override
     protected String getScriptPath() {
         return "test-schema-mysql-init.sql";

@@ -1,18 +1,18 @@
-package ovh.heraud.nativsql.repository.mysql;
+package ovh.heraud.nativsql.repository.oracle;
 
 import java.util.List;
 import java.util.UUID;
 
-import ovh.heraud.nativsql.domain.mysql.User;
-import ovh.heraud.nativsql.domain.mysql.UserReport;
+import ovh.heraud.nativsql.domain.oracle.User;
+import ovh.heraud.nativsql.domain.oracle.UserReport;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
 /**
- * Repository for User entities using MySQL.
+ * Repository for User entities using Oracle.
  */
 @Repository
-public class MySQLUserRepository extends MySQLRepository<User, Long> {
+public class OracleUserRepository extends OracleRepository<User, Long> {
 
     @Override
     @NonNull
@@ -49,7 +49,7 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
     }
 
     /**
-     * Finds users by city using JSON extraction on the address column.
+     * Finds users by city using JSON_VALUE extraction on the address column.
      * Tests JSON deserialization of the address field.
      *
      * @param city    the city to search for
@@ -57,8 +57,8 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
      * @return list of users from the specified city
      */
     public List<User> findByCity(String city, String... columns) {
-        // Using JSON_EXTRACT(address, '$.city') to access JSON field, similar to PostgreSQL's (address).city
-        return findAllByPropertyExpression("JSON_EXTRACT(address, '$.city')", "city", city, columns);
+        // Using JSON_VALUE(address, '$.city') to access JSON field, similar to PostgreSQL's (address).city
+        return findAllByPropertyExpression("JSON_VALUE(address, '$.city')", "city", city, columns);
     }
 
     /**
@@ -101,7 +101,7 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
                     (
                         SELECT COUNT(*)
                         FROM users u
-                        WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr'
+                        WHERE JSON_VALUE(u.preferences, '$.language') = 'fr'
                     )
                             AS "usersWithFrenchPreference"
                 FROM DUAL
@@ -117,42 +117,45 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
      */
     public UserReport getUsersReportWithGroupStats() {
         String sql = """
-                SELECT
-                    (
-                        SELECT COUNT(*)
-                        FROM users
-                    )
-                            AS "totalUsers",
-                    (
-                        SELECT COUNT(DISTINCT u.id)
-                        FROM users u
-                        INNER JOIN contact_info ci ON u.id = ci.user_id
-                        WHERE ci.contact_type = 'EMAIL'
-                    )
-                            AS "usersWithEmailContact",
-                    (
-                        SELECT COUNT(*)
-                        FROM users u
-                        WHERE JSON_EXTRACT(u.preferences, '$.language') = 'fr'
-                    )
-                            AS "usersWithFrenchPreference",
-                    g.id
-                            AS "groupStats.groupId",
-                    g.name
-                            AS "groupStats.groupName",
-                    COUNT(DISTINCT u.id)
-                            AS "groupStats.userCount",
-                    SUM(CASE WHEN u.status = 'ACTIVE' THEN 1 ELSE 0 END)
-                            AS "groupStats.activeUserCount",
-                    SUM(CASE WHEN ci.id IS NOT NULL THEN 1 ELSE 0 END)
-                            AS "groupStats.emailContactCount"
-                FROM users u
-                    LEFT JOIN user_group g ON u.group_id = g.id
-                    LEFT JOIN contact_info ci ON u.id = ci.user_id AND ci.contact_type = 'EMAIL'
-                WHERE g.id IS NOT NULL
-                GROUP BY g.id, g.name
-                ORDER BY "groupStats.userCount" DESC
-                LIMIT 1
+                SELECT *
+                FROM (
+                    SELECT
+                        (
+                            SELECT COUNT(*)
+                            FROM users
+                        )
+                                AS "totalUsers",
+                        (
+                            SELECT COUNT(DISTINCT u.id)
+                            FROM users u
+                            INNER JOIN contact_info ci ON u.id = ci.user_id
+                            WHERE ci.contact_type = 'EMAIL'
+                        )
+                                AS "usersWithEmailContact",
+                        (
+                            SELECT COUNT(*)
+                            FROM users u
+                            WHERE JSON_VALUE(u.preferences, '$.language') = 'fr'
+                        )
+                                AS "usersWithFrenchPreference",
+                        g.id
+                                AS "groupStats.groupId",
+                        g.name
+                                AS "groupStats.groupName",
+                        COUNT(DISTINCT u.id)
+                                AS "groupStats.userCount",
+                        SUM(CASE WHEN u.status = 'ACTIVE' THEN 1 ELSE 0 END)
+                                AS "groupStats.activeUserCount",
+                        SUM(CASE WHEN ci.id IS NOT NULL THEN 1 ELSE 0 END)
+                                AS "groupStats.emailContactCount"
+                    FROM users u
+                        LEFT JOIN user_group g ON u.group_id = g.id
+                        LEFT JOIN contact_info ci ON u.id = ci.user_id AND ci.contact_type = 'EMAIL'
+                    WHERE g.id IS NOT NULL
+                    GROUP BY g.id, g.name
+                    ORDER BY "groupStats.userCount" DESC
+                )
+                WHERE ROWNUM = 1
                 """;
         return findExternal(sql, UserReport.class);
     }
@@ -160,7 +163,7 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
     /**
      * Finds users by ID with a custom query that includes a null parameter.
      * This tests how the repository handles null values in custom findExternal
-     * queries. MySQL doesn't require type casting for NULL.
+     * queries. Oracle requires CAST for NULL type inference.
      *
      * @param userId    the user ID
      * @param nullParam a null parameter to test null handling
@@ -170,11 +173,11 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
         String sql = """
                 SELECT id, first_name as "firstName", email
                 FROM users
-                WHERE id = :userId OR :nullParam IS NULL
+                WHERE id = :userId OR CAST(:nullParam AS VARCHAR2(10)) IS NULL
                     """;
         java.util.Map<String, Object> params = new java.util.HashMap<>();
         params.put("userId", userId);
-        params.put("nullParam", nullParam); // This is null - tests the bug
+        params.put("nullParam", nullParam); // This is null - tests null handling
         return findAllExternal(sql, params, User.class);
     }
 

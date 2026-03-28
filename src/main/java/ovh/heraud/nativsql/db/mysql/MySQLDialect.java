@@ -6,7 +6,6 @@ import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.AbstractChainedDialect;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.generic.GenericDialect;
-import ovh.heraud.nativsql.db.mysql.mapper.MySQLJSONTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
 
@@ -51,12 +50,6 @@ public class MySQLDialect extends AbstractChainedDialect {
 
         // Fall back to next dialect in chain for other types
         return super.getMapper(fieldAccessor, annotationManager);
-    }
-
-    @Override
-    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
-        // MySQL uses the dedicated MySQLJSONTypeMapper
-        return new MySQLJSONTypeMapper<>(jsonClass);
     }
 
     @Override

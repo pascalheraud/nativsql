@@ -1,62 +1,42 @@
 package ovh.heraud.nativsql.repository.postgres;
 
-import ovh.heraud.nativsql.repository.BaseRepositoryTest;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
+import ovh.heraud.nativsql.repository.BaseRepositoryTest;
+
 /**
- * Base class for repository integration tests using Testcontainers.
- * Provides common PostgreSQL container setup and configuration.
- *
- * Initializes the schema once per JVM before any tests run.
+ * Base class for PostgreSQL repository integration tests.
+ * Each test creates its own container via @BeforeEach.
  */
 @SuppressWarnings("resource")
-public abstract class PostgresBaseRepositoryTest extends BaseRepositoryTest{
-    protected abstract String getScriptPath();
-
-    static boolean pgSchemaLoaded = false;
-    static JdbcDatabaseContainer<?> databaseContainer;
+public abstract class PostgresBaseRepositoryTest extends BaseRepositoryTest {
+    protected JdbcDatabaseContainer<?> container;
 
     @Override
-    public JdbcDatabaseContainer<?> getDatabaseContainer() {
-        return databaseContainer;
+    protected String getDatabaseVersion() {
+        return "15";
     }
 
     @Override
-    protected boolean isSchemaLoaded() {
-        return pgSchemaLoaded;
+    protected String getDatabaseVendor() {
+        return "postgres";
     }
 
     @Override
-    protected void markSchemaAsLoaded() {
-        pgSchemaLoaded = true;
-    }
+    protected JdbcDatabaseContainer<?> createContainer(String schemaHash) {
+        String containerImage = "postgis/postgis:" + getDatabaseVersion() + "-3.3";
+        DockerImageName postgisImage = DockerImageName
+                .parse(containerImage)
+                .asCompatibleSubstituteFor("postgres");
 
-    protected static void init() {
-        if (databaseContainer == null) {
-            DockerImageName postgisImage = DockerImageName
-                    .parse("postgis/postgis:15-3.3")
-                    .asCompatibleSubstituteFor("postgres");
-
-            databaseContainer = new PostgreSQLContainer(postgisImage)
-                    .withDatabaseName("testdb")
-                    .withUsername("test")
-                    .withPassword("test");
-            databaseContainer.start();
-        }
-    }
-
-    @DynamicPropertySource
-    static void configureProperties(DynamicPropertyRegistry registry) {
-        init();
-
-        // Primary datasource
-        registry.add("spring.datasource.pg.url", databaseContainer::getJdbcUrl);
-        registry.add("spring.datasource.pg.username", databaseContainer::getUsername);
-        registry.add("spring.datasource.pg.password", databaseContainer::getPassword);
+        return new PostgreSQLContainer(postgisImage)
+                .withDatabaseName("testdb")
+                .withUsername("test")
+                .withPassword("test")
+                .withLabel("schema.hash", schemaHash)
+;
     }
 
 }

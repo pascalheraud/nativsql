@@ -80,6 +80,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     protected String tableName;
 
+    private DataSource dataSource;
+
     protected GenericRepository() {
         this.entityClass = getEntityClass();
         this.entityFields = ReflectionUtils.getFields(entityClass);
@@ -107,12 +109,34 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     @PostConstruct
     protected void initJdbcTemplate() {
-        this.jdbcTemplate = new NamedParameterJdbcTemplate(getDataSource());
+        this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
+        this.databaseDialect = getDatabaseDialectInstance();
+    }
+
+    /**
+     * Reinitialize JdbcTemplate after DataSource injection.
+     * Called by tests when the DataSource is changed at runtime.
+     */
+    public void reinitializeJdbcTemplate() {
+        this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
         this.databaseDialect = getDatabaseDialectInstance();
     }
 
     @NonNull
+    protected DataSource getProvidedDataSource() {
+        if (dataSource == null) {
+            dataSource = getDataSource();
+        }
+        return dataSource;
+    }
+    
+
+    @NonNull
     protected abstract DataSource getDataSource();
+
+    public void setDataSource(DataSource dataSource) {
+        this.dataSource = dataSource;
+    }
 
     @NonNull
     abstract protected Class<T> getEntityClass();
@@ -212,7 +236,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                 getTableName(), columnList, paramList);
 
         // Try to retrieve generated ID using GeneratedKeyHolder for better reliability
-        ID generatedId = dbOperationLogger.execute("INSERT", getTableName(), sql, params,
+        ID generatedId = dbOperationLogger.execute(getClass(),"insert", "INSERT", getTableName(), sql, params,
                 () -> insertWithGeneratedKey(sql, params));
 
         entity.setId(generatedId);
@@ -331,7 +355,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "UPDATE " + getTableName() + " SET " + setClause + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
-        dbOperationLogger.execute("UPDATE", getTableName(), sql, params, () -> {
+        dbOperationLogger.execute(getClass(),"update", "UPDATE", getTableName(), sql, params, () -> {
             int rowsUpdated = executeUpdate(sql, params);
             if (rowsUpdated != 1) {
                 throw new NativSQLException("Update failed: expected to update exactly 1 row but updated " + rowsUpdated);
@@ -351,18 +375,22 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the number of rows deleted
      */
     public void deleteById(ID id) {
+       deleteById("deleteById", id);
+    }
+
+
+    private void deleteById(String methodName, ID id) {
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "DELETE FROM " + getTableName() + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
         Map<String, Object> params = getMap(ID_COLUMN, id);
 
-        dbOperationLogger.execute("DELETE", getTableName(), sql, params, () -> {
+        dbOperationLogger.execute(getClass(),"deleteById", "DELETE", getTableName(), sql, params, () -> {
             int rowsDeleted = executeUpdate(sql, params);
             if (rowsDeleted != 1) {
                 throw new NativSQLException("Delete failed: expected to delete exactly 1 row but deleted " + rowsDeleted);
             }
         });
     }
-
     /**
      * Deletes an entity by its ID (assumes ID column is named "id").
      *
@@ -371,7 +399,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     public void delete(T entity) {
         FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
         ID id = idField != null ? idField.getValue(entity) : null;
-        deleteById(id);
+        deleteById("delete", id);
     }
 
     /**
@@ -782,7 +810,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         Map<String, Object> params = query.getParameters();
 
         // Execute query with joins for nested object mapping
-        List<T> results = dbOperationLogger.execute("SELECT", getTableName(), sql, params,
+        List<T> results = dbOperationLogger.execute(getClass(), "SELECT", getTableName(), sql, params,
                 () -> findAllExternal(sql, params, entityClass));
         T entity = getFirstOrNull(results);
 
@@ -807,7 +835,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         // Execute query with joins for nested object mapping (no association loading to
         // avoid N+1)
-        return dbOperationLogger.execute("SELECT", getTableName(), sql, params,
+        return dbOperationLogger.execute(getClass(), "SELECT", getTableName(), sql, params,
                 () -> findAllExternal(sql, params, entityClass));
     }
 
@@ -1106,7 +1134,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      */
     protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
             @NonNull Class<EXT> resultClass) {
-        List<EXT> results = dbOperationLogger.execute("SELECT", getTableName(), sql, params,
+        List<EXT> results = dbOperationLogger.execute(getClass(), "SELECT", getTableName(), sql, params,
                 () -> findAllExternal(sql, params, resultClass));
         return getFirstOrNull(results);
     }

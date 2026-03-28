@@ -1,4 +1,4 @@
-package ovh.heraud.nativsql.db.mysql.mapper;
+package ovh.heraud.nativsql.db.generic.mapper;
 
 import java.sql.ResultSet;
 
@@ -9,17 +9,18 @@ import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 
 /**
- * MySQL-specific TypeMapper for JSON types.
- * Handles reading from and writing to MySQL JSON columns.
+ * Generic TypeMapper for JSON types using Jackson serialization.
+ * Handles reading from and writing to database JSON columns across different databases.
+ * Works with MySQL, MariaDB, Oracle, and any database that returns JSON as String.
  *
  * @param <T> the Java type to map to/from JSON
  */
-public class MySQLJSONTypeMapper<T> implements ITypeMapper<T> {
+public class GenericJSONTypeMapper<T> implements ITypeMapper<T> {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
     private final Class<T> jsonClass;
 
-    public MySQLJSONTypeMapper(Class<T> jsonClass) {
+    public GenericJSONTypeMapper(Class<T> jsonClass) {
         this.jsonClass = jsonClass;
     }
 
@@ -32,11 +33,15 @@ public class MySQLJSONTypeMapper<T> implements ITypeMapper<T> {
             }
 
             String jsonStr = null;
-            // Handle String JSON (MySQL returns JSON as String)
+            // Handle String JSON (most databases return JSON as String)
             if (dbValue instanceof String) {
                 jsonStr = (String) dbValue;
+            } else if (dbValue instanceof java.sql.Clob) {
+                // Handle CLOB (used by Oracle for JSON)
+                java.sql.Clob clob = (java.sql.Clob) dbValue;
+                jsonStr = clob.getSubString(1, (int) clob.length());
             } else {
-                // Try to convert to string
+                // Try to convert to string as fallback
                 jsonStr = dbValue.toString();
             }
 
@@ -62,7 +67,7 @@ public class MySQLJSONTypeMapper<T> implements ITypeMapper<T> {
         if (dataType == DbDataType.IDENTITY) {
             return value;
         }
-        
+
         // JSON types must be converted to JSON, no other conversion is allowed
         if (dataType != null) {
             throw new NativSQLException(

@@ -46,6 +46,9 @@ dependencies {
     // MariaDB
     implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.7'
 
+    // Oracle
+    implementation 'com.oracle.database.jdbc:ojdbc11:23.3.0.23.09'
+
     // PostGIS
     implementation 'net.postgis:postgis-jdbc:2.5.1'
     implementation 'net.postgis:postgis-geometry:2.5.1'
@@ -70,6 +73,8 @@ dependencies {
     testImplementation 'org.testcontainers:testcontainers-postgresql'
     testImplementation 'org.testcontainers:testcontainers-mysql'
     testImplementation 'org.testcontainers:testcontainers-mariadb'
+    testImplementation 'org.testcontainers:testcontainers-oracle-free'
+    testImplementation 'org.testcontainers:testcontainers-oracle-xe'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 
     // Test fixtures dependencies (reusable test classes)
@@ -81,6 +86,8 @@ dependencies {
     testFixturesImplementation 'org.testcontainers:testcontainers-postgresql'
     testFixturesImplementation 'org.testcontainers:testcontainers-mysql'
     testFixturesImplementation 'org.testcontainers:testcontainers-mariadb'
+    testFixturesImplementation 'org.testcontainers:testcontainers-oracle-free'
+    testFixturesImplementation 'org.testcontainers:testcontainers-oracle-xe'
     testFixturesImplementation 'org.testcontainers:testcontainers-junit-jupiter'
     testFixturesCompileOnly 'org.projectlombok:lombok:1.18.42'
     testFixturesAnnotationProcessor 'org.projectlombok:lombok:1.18.42'

@@ -1,4 +1,4 @@
-package ovh.heraud.nativsql.repository.mysql;
+package ovh.heraud.nativsql.repository.oracle;
 
 import javax.sql.DataSource;
 
@@ -6,36 +6,36 @@ import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import ovh.heraud.nativsql.db.DatabaseDialect;
-import ovh.heraud.nativsql.db.mysql.MySQLDialect;
+import ovh.heraud.nativsql.db.oracle.OracleDialect;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.GenericRepository;
 
-public abstract class MySQLRepository<T extends IEntity<ID>, ID> extends GenericRepository<T, ID> {
+public abstract class OracleRepository<T extends IEntity<ID>, ID> extends GenericRepository<T, ID> {
 
     @Autowired(required = false)
-    @Qualifier("mySQLDataSource")
+    @Qualifier("oracleDataSource")
     @NonNull
-    private DataSource mysqlDataSource;
+    private DataSource oracleDataSource;
 
     @Autowired
-    @Qualifier("mySQLDialect")
-    private MySQLDialect mySQLDialect;
+    @Qualifier("oracleDialect")
+    private OracleDialect oracleDialect;
 
     @Override
     @NonNull
     protected DataSource getDataSource() {
-        return mysqlDataSource;
+        return oracleDataSource;
     }
 
     @Override
     protected DatabaseDialect getDatabaseDialectInstance() {
-        return mySQLDialect;
+        return oracleDialect;
     }
 
     /**
      * Set DataSource for tests. Called by test framework via reflection.
      */
     void setDataSourceForTest(DataSource dataSource) {
-        this.mysqlDataSource = dataSource;
+        this.oracleDataSource = dataSource;
     }
 }
