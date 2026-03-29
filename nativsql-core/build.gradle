@@ -5,9 +5,6 @@ plugins {
 }
 
 dependencies {
-    // Shared test commons
-    testImplementation project(':nativsql-test-commons')
-
     // Core Spring Boot dependencies
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter'
@@ -15,15 +12,7 @@ dependencies {
     // Annotations
     implementation 'org.jspecify:jspecify:0.3.0'
 
-    // DB drivers (all for now, postgres will be moved out later)
-    implementation 'org.postgresql:postgresql:42.7.10'
-    implementation 'com.mysql:mysql-connector-j:9.6.0'
-    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.7'
-    implementation 'com.oracle.database.jdbc:ojdbc11:23.3.0.23.09'
-
-    // PostGIS
-    implementation 'net.postgis:postgis-jdbc:2.5.1'
-    implementation 'net.postgis:postgis-geometry:2.5.1'
+    // No DB drivers in core (all are in separate modules)
 
     // Jackson
     implementation 'com.fasterxml.jackson.core:jackson-databind'
@@ -37,23 +26,14 @@ dependencies {
     testImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
     testImplementation 'org.testcontainers:testcontainers'
     testImplementation 'org.testcontainers:testcontainers-postgresql'
-    testImplementation 'org.testcontainers:testcontainers-mysql'
-    testImplementation 'org.testcontainers:testcontainers-mariadb'
-    testImplementation 'org.testcontainers:testcontainers-oracle-free'
-    testImplementation 'org.testcontainers:testcontainers-oracle-xe'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 
     // Test fixtures dependencies
-    testFixturesImplementation project(':nativsql-test-commons')
     testFixturesImplementation 'org.springframework.boot:spring-boot-starter-jdbc'
     testFixturesImplementation 'org.springframework.boot:spring-boot-starter-test'
     testFixturesImplementation 'org.springframework.boot:spring-boot-testcontainers'
     testFixturesImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
     testFixturesImplementation 'org.testcontainers:testcontainers'
     testFixturesImplementation 'org.testcontainers:testcontainers-postgresql'
-    testFixturesImplementation 'org.testcontainers:testcontainers-mysql'
-    testFixturesImplementation 'org.testcontainers:testcontainers-mariadb'
-    testFixturesImplementation 'org.testcontainers:testcontainers-oracle-free'
-    testFixturesImplementation 'org.testcontainers:testcontainers-oracle-xe'
     testFixturesImplementation 'org.testcontainers:testcontainers-junit-jupiter'
 }

@@ -56,9 +56,10 @@ Welcome to NativSQL documentation! This page provides a complete guide to all av
 ### Code Examples
 
 - **[Test Examples](src/test/java/ovh/heraud/nativsql/repository/)** - Real test cases for all databases:
-  - MySQL tests: `src/test/java/ovh/heraud/nativsql/repository/mysql/`
-  - MariaDB tests: `src/test/java/ovh/heraud/nativsql/repository/mariadb/`
-  - PostgreSQL tests: `src/test/java/ovh/heraud/nativsql/repository/postgres/`
+  - MySQL tests: `nativsql-mysql/src/test/java/ovh/heraud/nativsql/repository/mysql/`
+  - MariaDB tests: `nativsql-mariadb/src/test/java/ovh/heraud/nativsql/repository/mariadb/`
+  - PostgreSQL tests: `nativsql-postgres/src/test/java/ovh/heraud/nativsql/repository/postgres/`
+  - Oracle tests: `nativsql-oracle/src/test/java/ovh/heraud/nativsql/repository/oracle/`
 
 ## 📖 API Documentation
 

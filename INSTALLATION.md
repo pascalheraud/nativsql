@@ -7,47 +7,124 @@ This guide walks you through installing and setting up NativSQL in your project.
 - Java 17 or higher
 - Gradle 8.0 or Maven (project uses Gradle)
 - Spring Boot 3.2+
-- One of the supported databases:
+- One or more of the supported databases:
   - MySQL 8.0+
   - MariaDB 11.0+
   - PostgreSQL 15+
+  - Oracle 20+
 
 ## Installation Steps
 
 ### 1. Add NativSQL to Your Project
 
+NativSQL is now organized as a multi-module monorepo. Choose the module(s) for your database(s):
+
 #### Gradle (Recommended)
 
-Add to your `build.gradle`:
+**For MySQL:**
 
 ```gradle
 repositories {
     mavenCentral()
-    // If using snapshot builds:
-    maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
 }
 
 dependencies {
-    // NativSQL (adjust version as needed)
-    implementation 'ovh.heraud:nativsql:1.0.0'
-
-    // Required Spring Boot dependencies
+    implementation 'ovh.heraud:nativsql-mysql:2.0.0'
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
-    // Database drivers
-    implementation 'mysql:mysql-connector-java:8.0.33'
-    // OR for PostgreSQL:
-    implementation 'org.postgresql:postgresql:42.7.1'
+    // Testing (optional)
+    testImplementation 'ovh.heraud:nativsql-mysql-test-fixtures:2.0.0'
+    testImplementation 'org.testcontainers:mysql:1.19.3'
+}
+```
 
-    // JSON processing
+**For MariaDB:**
+
+```gradle
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'ovh.heraud:nativsql-mariadb:2.0.0'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // Testing (optional)
+    testImplementation 'ovh.heraud:nativsql-mariadb-test-fixtures:2.0.0'
+    testImplementation 'org.testcontainers:mariadb:1.19.3'
+}
+```
+
+**For PostgreSQL (with optional PostGIS):**
+
+```gradle
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'ovh.heraud:nativsql-postgres:2.0.0'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // Optional: For PostGIS support
-    implementation 'net.postgis:postgis-jdbc:2023.1.0'
+    implementation 'net.postgis:postgis-jdbc:2.5.1'
+
+    // Testing (optional)
+    testImplementation 'ovh.heraud:nativsql-postgres-test-fixtures:2.0.0'
+    testImplementation 'org.testcontainers:postgresql:1.19.3'
+}
+```
+
+**For Oracle:**
+
+```gradle
+repositories {
+    mavenCentral()
+    // Oracle JDBC requires this repository
+    maven { url 'https://maven.oracle.com/m2/repository' }
+}
+
+dependencies {
+    implementation 'ovh.heraud:nativsql-oracle:2.0.0'
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // Testing (optional)
+    testImplementation 'ovh.heraud:nativsql-oracle-test-fixtures:2.0.0'
+    testImplementation 'org.testcontainers:oracle-xe:1.19.3'
+}
+```
+
+**For Multiple Databases:**
+
+```gradle
+repositories {
+    mavenCentral()
+    maven { url 'https://maven.oracle.com/m2/repository' }
+}
+
+dependencies {
+    // Core framework (required)
+    implementation 'ovh.heraud:nativsql-core:2.0.0'
+
+    // Add the database modules you need
+    implementation 'ovh.heraud:nativsql-mysql:2.0.0'
+    implementation 'ovh.heraud:nativsql-postgres:2.0.0'
+
+    // Common dependencies
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // Testing
-    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'ovh.heraud:nativsql-test-commons:2.0.0'
     testImplementation 'org.testcontainers:testcontainers:1.19.3'
     testImplementation 'org.testcontainers:mysql:1.19.3'
     testImplementation 'org.testcontainers:postgresql:1.19.3'
@@ -56,28 +133,28 @@ dependencies {
 
 #### Maven
 
-Add to your `pom.xml`:
+**For MySQL:**
 
 ```xml
+<repositories>
+    <repository>
+        <id>central</id>
+        <url>https://repo1.maven.org/maven2</url>
+    </repository>
+</repositories>
+
 <dependencies>
-    <!-- NativSQL -->
+    <!-- NativSQL MySQL Module -->
     <dependency>
         <groupId>ovh.heraud</groupId>
-        <artifactId>nativsql</artifactId>
-        <version>1.0.0</version>
+        <artifactId>nativsql-mysql</artifactId>
+        <version>2.0.0</version>
     </dependency>
 
     <!-- Spring Boot JDBC -->
     <dependency>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-jdbc</artifactId>
-    </dependency>
-
-    <!-- Database Driver (choose one) -->
-    <dependency>
-        <groupId>mysql</groupId>
-        <artifactId>mysql-connector-java</artifactId>
-        <version>8.0.33</version>
     </dependency>
 
     <!-- JSON Processing -->
@@ -88,6 +165,57 @@ Add to your `pom.xml`:
     <dependency>
         <groupId>com.fasterxml.jackson.datatype</groupId>
         <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+
+    <!-- Testing (optional) -->
+    <dependency>
+        <groupId>ovh.heraud</groupId>
+        <artifactId>nativsql-mysql-test-fixtures</artifactId>
+        <version>2.0.0</version>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>mysql</artifactId>
+        <version>1.19.3</version>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
+```
+
+**For PostgreSQL:**
+
+```xml
+<dependencies>
+    <!-- NativSQL PostgreSQL Module -->
+    <dependency>
+        <groupId>ovh.heraud</groupId>
+        <artifactId>nativsql-postgres</artifactId>
+        <version>2.0.0</version>
+    </dependency>
+
+    <!-- Spring Boot JDBC -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-jdbc</artifactId>
+    </dependency>
+
+    <!-- JSON Processing -->
+    <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-jsr310</artifactId>
+    </dependency>
+
+    <!-- Testing (optional) -->
+    <dependency>
+        <groupId>ovh.heraud</groupId>
+        <artifactId>nativsql-postgres-test-fixtures</artifactId>
+        <version>2.0.0</version>
+        <scope>test</scope>
     </dependency>
 </dependencies>
 ```
@@ -163,7 +291,7 @@ public class NativSqlConfig {
 ```java
 package myapp.domain;
 
-import ovh.heraud.nativsql.domain.Entity;
+import ovh.heraud.nativsql.domain.IEntity;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -174,22 +302,12 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User implements Entity<Long> {
+public class User implements IEntity<Long> {
     private Long id;
     private String firstName;
     private String lastName;
     private String email;
     private LocalDateTime createdAt;
-
-    @Override
-    public Long getId() {
-        return id;
-    }
-
-    @Override
-    public void setId(Long id) {
-        this.id = id;
-    }
 }
 ```
 
@@ -401,12 +519,28 @@ logging.level.ovh.heraud.nativsql=DEBUG
 logging.level.org.springframework.jdbc=DEBUG
 ```
 
+## Module Structure
+
+NativSQL 2.0+ is organized into the following modules:
+
+- **nativsql-core** - Core framework, type system, and utilities (no database-specific code)
+- **nativsql-mysql** - MySQL-specific implementation (includes nativsql-core and nativsql-mysql-commons)
+- **nativsql-mysql-commons** - Shared MySQL dialect and type mappers for MySQL/MariaDB
+- **nativsql-mariadb** - MariaDB-specific implementation (includes nativsql-core and nativsql-mysql-commons)
+- **nativsql-postgres** - PostgreSQL-specific implementation with PostGIS support
+- **nativsql-oracle** - Oracle-specific implementation
+- **nativsql-test-commons** - Shared test infrastructure for all databases
+
 ## Next Steps
 
 1. Read the [API Documentation](API.md) for detailed method reference
 2. Check [README.md](../README.md) for examples and features
-3. Review [CONTRIBUTING.md](../.github/CONTRIBUTING.md) if you want to contribute
-4. Look at test examples in `src/test/java/ovh/heraud/nativsql/repository/`
+3. Review [CONTRIBUTING.md](CONTRIBUTING.md) if you want to contribute
+4. Look at test examples in the module directories:
+   - MySQL: `nativsql-mysql/src/test/java/ovh/heraud/nativsql/repository/mysql/`
+   - MariaDB: `nativsql-mariadb/src/test/java/ovh/heraud/nativsql/repository/mariadb/`
+   - PostgreSQL: `nativsql-postgres/src/test/java/ovh/heraud/nativsql/repository/postgres/`
+   - Oracle: `nativsql-oracle/src/test/java/ovh/heraud/nativsql/repository/oracle/`
 
 ## Support
 
@@ -416,4 +550,4 @@ logging.level.org.springframework.jdbc=DEBUG
 
 ## License
 
-MIT License - See [LICENSE](../LICENSE) file
+GNU General Public License v3 (GPL-3.0) - See [LICENSE](../LICENSE) file

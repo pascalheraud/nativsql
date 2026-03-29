@@ -14,14 +14,17 @@ dependencies {
     // Annotations
     implementation 'org.jspecify:jspecify'
 
-    // Jackson
-    implementation 'com.fasterxml.jackson.core:jackson-databind'
-    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+    // Spring (for @Autowired, @Qualifier in Repository classes)
+    implementation 'org.springframework.boot:spring-boot-starter'
 
     // PostgreSQL drivers
     implementation 'org.postgresql:postgresql:42.7.10'
     implementation 'net.postgis:postgis-jdbc:2.5.1'
     implementation 'net.postgis:postgis-geometry:2.5.1'
+
+    // Jackson
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
 
     // Test fixtures from core
     testFixturesImplementation testFixtures(project(':nativsql-core'))

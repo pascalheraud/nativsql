@@ -350,4 +350,4 @@ For more detailed information, see:
 
 ## License
 
-MIT License
+GNU General Public License v3 (GPL-3.0)

@@ -1,16 +1,9 @@
 package ovh.heraud.nativsql.config;
 
-import javax.sql.DataSource;
-
-import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.PlatformTransactionManager;
 
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.postgres.PostgresDialect;
@@ -40,29 +33,5 @@ public class TestPostgresConfig {
         annotationManager.setEnumMappingInfo(UserStatus.class, "user_status");
 
         return postgisDialect;
-    }
-
-    /**
-     * PostgreSQL datasource configured via dynamic properties.
-     */
-    @Bean("pgDataSource")
-    public DataSource pgDataSource(
-            TestDataSourceProperties dataSourceProperties) {
-        return DataSourceBuilder.create()
-                .url(dataSourceProperties.getPgUrl())
-                .username(dataSourceProperties.getPgUsername())
-                .password(dataSourceProperties.getPgPassword())
-                .driverClassName("org.postgresql.Driver")
-                .build();
-    }
-
-    /**
-     * PlatformTransactionManager for PostgreSQL datasource.
-     * This is required for @Transactional tests to work.
-     */
-    @Bean("pgTransactionManager")
-    public PlatformTransactionManager pgTransactionManager(
-            @Qualifier("pgDataSource") @NonNull DataSource pgDataSource) {
-        return new DataSourceTransactionManager(pgDataSource);
     }
 }

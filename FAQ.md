@@ -32,6 +32,7 @@ Use Hibernate/JPA when you want:
 - ✅ MySQL 8.0+
 - ✅ MariaDB 11.0+
 - ✅ PostgreSQL 15+
+- ✅ Oracle 20+
 
 Other databases can be supported by implementing the `DatabaseDialect` interface.
 
@@ -381,11 +382,11 @@ Areas we welcome contributions:
 
 ### Q: What license is NativSQL under?
 
-**A:** MIT License - See [LICENSE](../LICENSE) file for details.
+**A:** GNU General Public License v3 (GPL-3.0) - See [LICENSE](../LICENSE) file for details.
 
 ### Q: Can I use NativSQL in commercial projects?
 
-**A:** Yes, MIT License allows commercial use. You just need to include the LICENSE file.
+**A:** Yes, GPL-3.0 allows commercial use. You must include the LICENSE file and make your source code available under the same license.
 
 ## More Questions?
 
