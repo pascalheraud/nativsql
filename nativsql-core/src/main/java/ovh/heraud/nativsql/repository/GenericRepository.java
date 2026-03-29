@@ -91,11 +91,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Constructor for programmatic instantiation (without Spring).
      * Used by subclasses that need to be instantiated directly.
      *
-     * @param entityClass         the entity class
-     * @param tableName           the database table name
-     * @param rowMapperFactory    the row mapper factory
-     * @param annotationManager   the annotation manager
-     * @param dbOperationLogger   the database operation logger
+     * @param entityClass       the entity class
+     * @param tableName         the database table name
+     * @param rowMapperFactory  the row mapper factory
+     * @param annotationManager the annotation manager
+     * @param dbOperationLogger the database operation logger
      */
     protected GenericRepository(Class<T> entityClass, String tableName, RowMapperFactory rowMapperFactory,
             AnnotationManager annotationManager, DbOperationLogger dbOperationLogger) {
@@ -109,7 +109,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     @PostConstruct
     protected void initJdbcTemplate() {
-        this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
+        if (this.getProvidedDataSource() != null) {
+            this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
+        }
         this.databaseDialect = getDatabaseDialectInstance();
     }
 
@@ -129,7 +131,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
         return dataSource;
     }
-    
 
     @NonNull
     protected abstract DataSource getDataSource();
@@ -236,7 +237,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                 getTableName(), columnList, paramList);
 
         // Try to retrieve generated ID using GeneratedKeyHolder for better reliability
-        ID generatedId = dbOperationLogger.execute(getClass(),"insert", "INSERT", getTableName(), sql, params,
+        ID generatedId = dbOperationLogger.execute(getClass(), "insert", "INSERT", getTableName(), sql, params,
                 () -> insertWithGeneratedKey(sql, params));
 
         entity.setId(generatedId);
@@ -334,7 +335,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param entity  the entity to update
      * @param columns the property names (camelCase) to update (must not be empty)
-     * @throws NativSQLException if columns is empty or if the update doesn't affect exactly one row
+     * @throws NativSQLException if columns is empty or if the update doesn't affect
+     *                           exactly one row
      */
     public void update(T entity, String... columns) {
         if (columns == null || columns.length == 0) {
@@ -355,10 +357,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "UPDATE " + getTableName() + " SET " + setClause + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
-        dbOperationLogger.execute(getClass(),"update", "UPDATE", getTableName(), sql, params, () -> {
+        dbOperationLogger.execute(getClass(), "update", "UPDATE", getTableName(), sql, params, () -> {
             int rowsUpdated = executeUpdate(sql, params);
             if (rowsUpdated != 1) {
-                throw new NativSQLException("Update failed: expected to update exactly 1 row but updated " + rowsUpdated);
+                throw new NativSQLException(
+                        "Update failed: expected to update exactly 1 row but updated " + rowsUpdated);
             }
         });
     }
@@ -375,22 +378,23 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the number of rows deleted
      */
     public void deleteById(ID id) {
-       deleteById("deleteById", id);
+        deleteById("deleteById", id);
     }
-
 
     private void deleteById(String methodName, ID id) {
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "DELETE FROM " + getTableName() + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
         Map<String, Object> params = getMap(ID_COLUMN, id);
 
-        dbOperationLogger.execute(getClass(),"deleteById", "DELETE", getTableName(), sql, params, () -> {
+        dbOperationLogger.execute(getClass(), "deleteById", "DELETE", getTableName(), sql, params, () -> {
             int rowsDeleted = executeUpdate(sql, params);
             if (rowsDeleted != 1) {
-                throw new NativSQLException("Delete failed: expected to delete exactly 1 row but deleted " + rowsDeleted);
+                throw new NativSQLException(
+                        "Delete failed: expected to delete exactly 1 row but deleted " + rowsDeleted);
             }
         });
     }
+
     /**
      * Deletes an entity by its ID (assumes ID column is named "id").
      *
@@ -500,7 +504,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param property the property name (camelCase) to filter by
      * @param value    the value to search for
-     * @param columns  the property names (camelCase) to retrieve (must not be empty)
+     * @param columns  the property names (camelCase) to retrieve (must not be
+     *                 empty)
      * @return the entity or null if not found
      * @throws NativSQLException if columns is empty
      */
@@ -536,7 +541,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param property the property name (camelCase) to filter by
      * @param value    the value to search for
-     * @param columns  the property names (camelCase) to retrieve (must not be empty)
+     * @param columns  the property names (camelCase) to retrieve (must not be
+     *                 empty)
      * @return list of matching entities
      * @throws NativSQLException if columns is empty
      */
@@ -576,12 +582,15 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Finds all entities by a list of property values using getter method references (for batch loading with IN clause).
-     * Converts getter references to column names and delegates to {@link #findAllByProperty(String, List, String...)}.
+     * Finds all entities by a list of property values using getter method
+     * references (for batch loading with IN clause).
+     * Converts getter references to column names and delegates to
+     * {@link #findAllByProperty(String, List, String...)}.
      *
      * @param property the property name (camelCase) to filter by
      * @param values   the list of values to search for (uses IN clause)
-     * @param getters  the getter method references (e.g., User::getEmail, User::getId)
+     * @param getters  the getter method references (e.g., User::getEmail,
+     *                 User::getId)
      * @return list of matching entities
      * @see #findAllByProperty(String, List, String...)
      */
@@ -592,11 +601,13 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Finds all entities by a list of property values using IN clause (batch loading).
+     * Finds all entities by a list of property values using IN clause (batch
+     * loading).
      *
      * @param property the property name (camelCase) to filter by
      * @param values   the list of values to search for (uses IN clause)
-     * @param columns  the property names (camelCase) to retrieve (must not be empty)
+     * @param columns  the property names (camelCase) to retrieve (must not be
+     *                 empty)
      * @return list of matching entities
      * @throws NativSQLException if columns is empty
      */
@@ -608,13 +619,16 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Finds all entities by a list of property values using IN clause with specified columns using getter method references.
+     * Finds all entities by a list of property values using IN clause with
+     * specified columns using getter method references.
      * More explicit variant of findAllByProperty for batch loading scenarios.
-     * Converts getter references to column names and delegates to {@link #findAllByPropertyIn(String, List, String...)}.
+     * Converts getter references to column names and delegates to
+     * {@link #findAllByPropertyIn(String, List, String...)}.
      *
      * @param property the property name (camelCase) to filter by
      * @param values   the list of values to search for (uses IN clause)
-     * @param getters  the getter method references (e.g., User::getEmail, User::getId)
+     * @param getters  the getter method references (e.g., User::getEmail,
+     *                 User::getId)
      * @return list of matching entities
      * @see #findAllByPropertyIn(String, List, String...)
      */
@@ -630,7 +644,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param property the property name (camelCase) to filter by
      * @param values   the list of values to search for (uses IN clause)
-     * @param columns  the property names (camelCase) to retrieve (must not be empty)
+     * @param columns  the property names (camelCase) to retrieve (must not be
+     *                 empty)
      * @return list of matching entities
      * @throws NativSQLException if columns is empty
      */
@@ -644,19 +659,24 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Finds an entity by a property expression with specified columns using getter method references.
+     * Finds an entity by a property expression with specified columns using getter
+     * method references.
      * Allows using database expressions like (address).city for composite types.
-     * Converts getter references to column names and delegates to {@link #findByPropertyExpression(String, String, Object, String...)}.
+     * Converts getter references to column names and delegates to
+     * {@link #findByPropertyExpression(String, String, Object, String...)}.
      *
-     * @param propertyExpression the SQL expression to filter by (e.g., "(address).city")
+     * @param propertyExpression the SQL expression to filter by (e.g.,
+     *                           "(address).city")
      * @param paramName          the parameter name to use in the query
      * @param value              the value to search for
-     * @param getters            the getter method references (e.g., User::getEmail, User::getId)
+     * @param getters            the getter method references (e.g., User::getEmail,
+     *                           User::getId)
      * @return the entity or null if not found
      * @see #findByPropertyExpression(String, String, Object, String...)
      */
     @SafeVarargs
-    protected final T findByPropertyExpression(String propertyExpression, String paramName, Object value, Getter<T>... getters) {
+    protected final T findByPropertyExpression(String propertyExpression, String paramName, Object value,
+            Getter<T>... getters) {
         String[] columns = ReflectionUtils.getColumnNames(getters);
         return findByPropertyExpression(propertyExpression, paramName, value, columns);
     }
@@ -669,7 +689,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *                           "(address).city")
      * @param paramName          the parameter name to use in the query
      * @param value              the value to search for
-     * @param columns            the property names (camelCase) to retrieve (must not be empty)
+     * @param columns            the property names (camelCase) to retrieve (must
+     *                           not be empty)
      * @return the entity or null if not found
      * @throws NativSQLException if columns is empty
      */
@@ -681,14 +702,18 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Finds all entities by a property expression with specified columns using getter method references.
+     * Finds all entities by a property expression with specified columns using
+     * getter method references.
      * Allows using database expressions like (address).city for composite types.
-     * Converts getter references to column names and delegates to {@link #findAllByPropertyExpression(String, String, Object, String...)}.
+     * Converts getter references to column names and delegates to
+     * {@link #findAllByPropertyExpression(String, String, Object, String...)}.
      *
-     * @param propertyExpression the SQL expression to filter by (e.g., "(address).city")
+     * @param propertyExpression the SQL expression to filter by (e.g.,
+     *                           "(address).city")
      * @param paramName          the parameter name to use in the query
      * @param value              the value to search for
-     * @param getters            the getter method references (e.g., User::getEmail, User::getId)
+     * @param getters            the getter method references (e.g., User::getEmail,
+     *                           User::getId)
      * @return list of matching entities
      * @see #findAllByPropertyExpression(String, String, Object, String...)
      */
@@ -707,7 +732,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *                           "(address).city")
      * @param paramName          the parameter name to use in the query
      * @param value              the value to search for
-     * @param columns            the property names (camelCase) to retrieve (must not be empty)
+     * @param columns            the property names (camelCase) to retrieve (must
+     *                           not be empty)
      * @return list of matching entities
      * @throws NativSQLException if columns is empty
      */
@@ -723,15 +749,19 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Finds all entities by a property expression with specified columns and order using getter method references.
+     * Finds all entities by a property expression with specified columns and order
+     * using getter method references.
      * Allows using database expressions like (address).city for composite types.
-     * Converts getter references to column names and delegates to {@link #findAllByPropertyExpression(String, String, Object, OrderBy, String...)}.
+     * Converts getter references to column names and delegates to
+     * {@link #findAllByPropertyExpression(String, String, Object, OrderBy, String...)}.
      *
-     * @param propertyExpression the SQL expression to filter by (e.g., "(address).city")
+     * @param propertyExpression the SQL expression to filter by (e.g.,
+     *                           "(address).city")
      * @param paramName          the parameter name to use in the query
      * @param value              the value to search for
      * @param orderBy            the order by clause
-     * @param getters            the getter method references (e.g., User::getEmail, User::getId)
+     * @param getters            the getter method references (e.g., User::getEmail,
+     *                           User::getId)
      * @return list of matching entities
      * @see #findAllByPropertyExpression(String, String, Object, OrderBy, String...)
      */
@@ -746,11 +776,13 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Finds all entities by a property expression with specified columns and order.
      * Allows using database expressions like (address).city for composite types.
      *
-     * @param propertyExpression the SQL expression to filter by (e.g., "(address).city")
+     * @param propertyExpression the SQL expression to filter by (e.g.,
+     *                           "(address).city")
      * @param paramName          the parameter name to use in the query
      * @param value              the value to search for
      * @param orderBy            the order by clause
-     * @param columns            the property names (camelCase) to retrieve (must not be empty)
+     * @param columns            the property names (camelCase) to retrieve (must
+     *                           not be empty)
      * @return list of matching entities
      * @throws NativSQLException if columns is empty
      */
@@ -768,9 +800,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     /**
      * Finds all entities with specified columns using getter method references.
-     * Converts getter references to column names and delegates to {@link #findAll(String...)}.
+     * Converts getter references to column names and delegates to
+     * {@link #findAll(String...)}.
      *
-     * @param getters the getter method references (e.g., User::getEmail, User::getId)
+     * @param getters the getter method references (e.g., User::getEmail,
+     *                User::getId)
      * @return list of all entities
      * @see #findAll(String...)
      */

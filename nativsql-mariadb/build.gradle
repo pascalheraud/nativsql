@@ -1,0 +1,47 @@
+plugins {
+    id 'nativsql.java-conventions'
+    id 'nativsql.spring-bom'
+    id 'nativsql.publish-conventions'
+}
+
+dependencies {
+    // Core module (for AbstractChainedDialect)
+    implementation project(':nativsql-core')
+
+    // MySQL commons dialect (MariaDB extends MySQLDialect)
+    implementation project(':nativsql-mysql-commons')
+
+    // Core Spring Boot dependencies
+    testImplementation 'org.springframework.boot:spring-boot-starter-jdbc'
+    testImplementation 'org.springframework.boot:spring-boot-starter'
+
+    // Shared test commons
+    testImplementation testFixtures(project(':nativsql-core'))
+    testImplementation project(':nativsql-test-commons')
+
+    // MariaDB JDBC Driver (NOT mysql-connector-j)
+    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.7'
+
+    // Spring Boot test dependencies
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.assertj:assertj-core'
+    testImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    testImplementation 'org.testcontainers:testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-mariadb'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+
+    // Test fixtures from core
+    testFixturesImplementation testFixtures(project(':nativsql-core'))
+
+    // Test fixtures dependencies
+    testFixturesImplementation project(':nativsql-mysql-commons')
+    testFixturesImplementation project(':nativsql-test-commons')
+    testFixturesImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testFixturesImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testFixturesImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    testFixturesImplementation 'org.testcontainers:testcontainers'
+    testFixturesImplementation 'org.testcontainers:testcontainers-mariadb'
+    testFixturesImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+}

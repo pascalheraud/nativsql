@@ -27,14 +27,19 @@ publishing {
             suppressPomMetadataWarningsFor('testFixturesApiElements')
             suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
         }
+    }
 
-        testFixtures(MavenPublication) {
-            groupId = project.group
-            artifactId = "${project.name}-test-fixtures"
-            version = project.version
-            artifact(tasks.testFixturesJar) { classifier = null }
-            suppressPomMetadataWarningsFor('testFixturesApiElements')
-            suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
+    // Only publish testFixtures if the module has testFixtures sources
+    if (file('src/testFixtures').exists()) {
+        publications {
+            testFixtures(MavenPublication) {
+                groupId = project.group
+                artifactId = "${project.name}-test-fixtures"
+                version = project.version
+                artifact(tasks.testFixturesJar) { classifier = null }
+                suppressPomMetadataWarningsFor('testFixturesApiElements')
+                suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
+            }
         }
     }
 }

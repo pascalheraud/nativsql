@@ -5,6 +5,66 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-03-29
+
+### Changed
+- **BREAKING: Multi-Module Monorepo Structure**
+  - Split monolithic library into dedicated modules: `nativsql-core`, `nativsql-mysql`, `nativsql-mysql-commons`, `nativsql-mariadb`, `nativsql-postgres`, `nativsql-oracle`, and `nativsql-test-commons`
+  - Consumers now import only the modules they need, reducing dependency bloat
+  - Each database module publishes its own artifact and test-fixtures
+
+### Added
+- **New Module Structure**
+  - `nativsql-core` - Core framework, type system, and utilities (no database-specific code)
+  - `nativsql-mysql-commons` - Shared MySQL dialect and type mappers for MySQL/MariaDB
+  - `nativsql-mysql` - MySQL-specific implementation with MySQL JDBC driver
+  - `nativsql-mariadb` - MariaDB-specific implementation with MariaDB JDBC driver
+  - `nativsql-postgres` - PostgreSQL-specific implementation with PostGIS support
+  - `nativsql-oracle` - Oracle-specific implementation with Oracle JDBC driver
+  - `nativsql-test-commons` - Shared test infrastructure (BaseRepositoryTest, test data types, testcontainers configuration)
+
+### Migration Notes
+- Dependency imports change from single `nativsql` to specific modules:
+  - Core types: `nativsql-core`
+  - MySQL: `nativsql-mysql` (includes nativsql-core, nativsql-mysql-commons)
+  - MariaDB: `nativsql-mariadb` (includes nativsql-core, nativsql-mysql-commons)
+  - PostgreSQL: `nativsql-postgres` (includes nativsql-core)
+  - Oracle: `nativsql-oracle` (includes nativsql-core)
+- Test fixtures available per module: `nativsql-{db}-test-fixtures`
+- All APIs remain unchanged; migration is purely dependency-related
+
+## [1.7.0] - 2026-03-15
+
+### Added
+- **Oracle Database Support**
+  - Complete Oracle 20+ JDBC driver integration
+  - Full type mapper support for Oracle-specific types
+  - Oracle-specific dialect implementation with native type conversions
+  - PostGIS Point type support for Oracle spatial queries
+  - Comprehensive test suite with Oracle testcontainers integration
+  - Oracle-specific repository implementations for all test scenarios
+
+### Supported Databases
+- MySQL 8.0+
+- MariaDB 11.0+
+- PostgreSQL 15+ (with PostGIS support)
+- **Oracle 20+** (NEW)
+
+## [1.6.0] - 2026-03-10
+
+### Added
+- **Comprehensive SQL Logging and Metrics**
+  - `DbOperationLogger` - SQL query execution logging with parameter tracking
+  - `ExecutionMetrics` - Performance metrics collection (execution time, row counts, query types)
+  - Automatic parameter substitution in logs for easier debugging
+  - Integration with Spring Boot logging framework (configurable via `logging.level.ovh.heraud.nativsql`)
+  - Performance monitoring per operation type (INSERT, UPDATE, DELETE, SELECT)
+
+### Changed
+- Repository operations now emit detailed logs when logging is enabled
+- Debug logs include full query text with bound parameters for easier troubleshooting
+- Execution metrics tracked automatically for all CRUD operations
+
 ## [1.5.0]  - 2026-03-01
 
 ### Added
@@ -194,4 +254,4 @@ See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the list of contributors.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details
+GNU General Public License v3 (GPL-3.0) - see [LICENSE](LICENSE) file for details
