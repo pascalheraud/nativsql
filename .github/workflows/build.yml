@@ -40,3 +40,9 @@ jobs:
       with:
         name: test-results-java-${{ matrix.java-version }}
         path: build/reports/tests/test/
+
+    - name: Publish all modules
+      run: ./gradlew publish --no-daemon
+      env:
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

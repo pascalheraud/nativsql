@@ -1,0 +1,40 @@
+plugins {
+    id 'maven-publish'
+}
+
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = "https://maven.pkg.github.com/pascalheraud/nativsql"
+            credentials {
+                username = project.findProperty("gpr.user") ?: System.getenv("GITHUB_ACTOR")
+                password = project.findProperty("gpr.key") ?: System.getenv("GITHUB_TOKEN")
+            }
+        }
+        maven {
+            name = "MavenLocal"
+            url = "file://${System.getProperty('user.home')}/.m2/repository"
+        }
+    }
+
+    publications {
+        gpr(MavenPublication) {
+            groupId = project.group
+            artifactId = project.name
+            version = project.version
+            from components.java
+            suppressPomMetadataWarningsFor('testFixturesApiElements')
+            suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
+        }
+
+        testFixtures(MavenPublication) {
+            groupId = project.group
+            artifactId = "${project.name}-test-fixtures"
+            version = project.version
+            artifact(tasks.testFixturesJar) { classifier = null }
+            suppressPomMetadataWarningsFor('testFixturesApiElements')
+            suppressPomMetadataWarningsFor('testFixturesRuntimeElements')
+        }
+    }
+}
