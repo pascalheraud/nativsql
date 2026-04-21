@@ -482,6 +482,43 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     /**
      * Finds an entity by a property value with specified columns using getter
+     * method references for both the filter property and the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findByProperty(String, Object, String...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getEmail)
+     * @param value          the value to search for
+     * @param columns        the property names (camelCase) to retrieve (must not be
+     *                       empty)
+     * @return the entity or null if not found
+     * @see #findByProperty(String, Object, String...)
+     */
+    protected final T findByProperty(Getter<T> propertyGetter, Object value, String... columns) {
+        return findByProperty(ReflectionUtils.getColumnName(propertyGetter), value, columns);
+    }
+
+    /**
+     * Finds an entity by a property value using getter method references for both
+     * the filter property and the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findByProperty(String, Object, Getter...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getEmail)
+     * @param value          the value to search for
+     * @param getters        the getter method references for selected columns (e.g.,
+     *                       User::getId, User::getEmail)
+     * @return the entity or null if not found
+     * @see #findByProperty(String, Object, Getter...)
+     */
+    @SafeVarargs
+    protected final T findByProperty(Getter<T> propertyGetter, Object value, Getter<T>... getters) {
+        return findByProperty(ReflectionUtils.getColumnName(propertyGetter), value, getters);
+    }
+
+    /**
+     * Finds an entity by a property value with specified columns using getter
      * method references.
      * Converts getter references to column names and delegates to
      * {@link #findByProperty(String, Object, String...)}.
@@ -515,6 +552,43 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
         return findByPropertyExpression(identifierConverter.toDB(property), property, value,
                 columns);
+    }
+
+    /**
+     * Finds all entities by a property value using a getter method reference for
+     * the filter property and string column names for the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByProperty(String, Object, String...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param value          the value to search for
+     * @param columns        the property names (camelCase) to retrieve (must not be
+     *                       empty)
+     * @return list of matching entities
+     * @see #findAllByProperty(String, Object, String...)
+     */
+    protected final List<T> findAllByProperty(Getter<T> propertyGetter, Object value, String... columns) {
+        return findAllByProperty(ReflectionUtils.getColumnName(propertyGetter), value, columns);
+    }
+
+    /**
+     * Finds all entities by a property value using getter method references for
+     * both the filter property and the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByProperty(String, Object, Getter...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param value          the value to search for
+     * @param getters        the getter method references for selected columns (e.g.,
+     *                       User::getId, User::getEmail)
+     * @return list of matching entities
+     * @see #findAllByProperty(String, Object, Getter...)
+     */
+    @SafeVarargs
+    protected final List<T> findAllByProperty(Getter<T> propertyGetter, Object value, Getter<T>... getters) {
+        return findAllByProperty(ReflectionUtils.getColumnName(propertyGetter), value, getters);
     }
 
     /**
@@ -555,6 +629,49 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     /**
      * Finds all entities by a property value with specified columns and order using
+     * a getter method reference for the filter property and string column names for
+     * the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByProperty(String, Object, OrderBy, String...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param value          the value to search for
+     * @param orderBy        the order by clause
+     * @param columns        the property names (camelCase) to retrieve (must not be
+     *                       empty)
+     * @return list of matching entities
+     * @see #findAllByProperty(String, Object, OrderBy, String...)
+     */
+    protected final List<T> findAllByProperty(Getter<T> propertyGetter, Object value, OrderBy orderBy,
+            String... columns) {
+        return findAllByProperty(ReflectionUtils.getColumnName(propertyGetter), value, orderBy, columns);
+    }
+
+    /**
+     * Finds all entities by a property value with specified columns and order using
+     * getter method references for both the filter property and the selected
+     * columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByProperty(String, Object, OrderBy, Getter...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param value          the value to search for
+     * @param orderBy        the order by clause
+     * @param getters        the getter method references for selected columns (e.g.,
+     *                       User::getId, User::getEmail)
+     * @return list of matching entities
+     * @see #findAllByProperty(String, Object, OrderBy, Getter...)
+     */
+    @SafeVarargs
+    protected final List<T> findAllByProperty(Getter<T> propertyGetter, Object value, OrderBy orderBy,
+            Getter<T>... getters) {
+        return findAllByProperty(ReflectionUtils.getColumnName(propertyGetter), value, orderBy, getters);
+    }
+
+    /**
+     * Finds all entities by a property value with specified columns and order using
      * getter method references.
      * Converts getter references to column names and delegates to
      * {@link #findAllByProperty(String, Object, OrderBy, String...)}.
@@ -579,6 +696,44 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
         return findAllByPropertyExpression(identifierConverter.toDB(property), property, value,
                 orderBy, columns);
+    }
+
+    /**
+     * Finds all entities by a list of property values (IN clause) using a getter
+     * method reference for the filter property and string column names for the
+     * selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByProperty(String, List, String...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param values         the list of values to search for (uses IN clause)
+     * @param columns        the property names (camelCase) to retrieve (must not be
+     *                       empty)
+     * @return list of matching entities
+     * @see #findAllByProperty(String, List, String...)
+     */
+    protected final List<T> findAllByProperty(Getter<T> propertyGetter, List<?> values, String... columns) {
+        return findAllByProperty(ReflectionUtils.getColumnName(propertyGetter), values, columns);
+    }
+
+    /**
+     * Finds all entities by a list of property values (IN clause) using getter
+     * method references for both the filter property and the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByProperty(String, List, Getter...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param values         the list of values to search for (uses IN clause)
+     * @param getters        the getter method references for selected columns (e.g.,
+     *                       User::getId, User::getEmail)
+     * @return list of matching entities
+     * @see #findAllByProperty(String, List, Getter...)
+     */
+    @SafeVarargs
+    protected final List<T> findAllByProperty(Getter<T> propertyGetter, List<?> values, Getter<T>... getters) {
+        return findAllByProperty(ReflectionUtils.getColumnName(propertyGetter), values, getters);
     }
 
     /**
@@ -616,6 +771,46 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
             throw new NativSQLException("Column list cannot be empty");
         }
         return findAllByPropertyIn(property, values, columns);
+    }
+
+    /**
+     * Finds all entities by a list of property values using IN clause with a getter
+     * method reference for the filter property and string column names for the
+     * selected columns.
+     * More explicit variant of findAllByProperty for batch loading scenarios.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByPropertyIn(String, List, String...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param values         the list of values to search for (uses IN clause)
+     * @param columns        the property names (camelCase) to retrieve (must not be
+     *                       empty)
+     * @return list of matching entities
+     * @see #findAllByPropertyIn(String, List, String...)
+     */
+    protected final List<T> findAllByPropertyIn(Getter<T> propertyGetter, List<?> values, String... columns) {
+        return findAllByPropertyIn(ReflectionUtils.getColumnName(propertyGetter), values, columns);
+    }
+
+    /**
+     * Finds all entities by a list of property values using IN clause with getter
+     * method references for both the filter property and the selected columns.
+     * More explicit variant of findAllByProperty for batch loading scenarios.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findAllByPropertyIn(String, List, Getter...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getStatus)
+     * @param values         the list of values to search for (uses IN clause)
+     * @param getters        the getter method references for selected columns (e.g.,
+     *                       User::getId, User::getEmail)
+     * @return list of matching entities
+     * @see #findAllByPropertyIn(String, List, Getter...)
+     */
+    @SafeVarargs
+    protected final List<T> findAllByPropertyIn(Getter<T> propertyGetter, List<?> values, Getter<T>... getters) {
+        return findAllByPropertyIn(ReflectionUtils.getColumnName(propertyGetter), values, getters);
     }
 
     /**
