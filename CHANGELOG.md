@@ -5,6 +5,21 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-04-21
+
+### Added
+- **Getter-based filter property for `GenericRepository` byProperty methods** — All `findByProperty` / `findAllByProperty` / `findAllByPropertyIn` overloads now accept a getter method reference as the *filter* property in addition to a `String` property name, enabling full compile-time safety on both the WHERE column and the SELECT columns:
+  - `findByProperty(Getter<T>, Object, String...)` — getter filter + string column selection
+  - `findByProperty(Getter<T>, Object, Getter<T>...)` — getter filter + getter column selection
+  - `findAllByProperty(Getter<T>, Object, String...)` — getter filter + string column selection
+  - `findAllByProperty(Getter<T>, Object, Getter<T>...)` — getter filter + getter column selection
+  - `findAllByProperty(Getter<T>, Object, OrderBy, String...)` — getter filter + order by + string column selection
+  - `findAllByProperty(Getter<T>, Object, OrderBy, Getter<T>...)` — getter filter + order by + getter column selection
+  - `findAllByProperty(Getter<T>, List<?>, String...)` — getter filter + IN clause + string column selection
+  - `findAllByProperty(Getter<T>, List<?>, Getter<T>...)` — getter filter + IN clause + getter column selection
+  - `findAllByPropertyIn(Getter<T>, List<?>, String...)` — getter filter + IN clause + string column selection
+  - `findAllByPropertyIn(Getter<T>, List<?>, Getter<T>...)` — getter filter + IN clause + getter column selection
+
 ## [2.1.0] - 2026-04-21
 
 ### Added
