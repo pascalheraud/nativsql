@@ -1,5 +1,9 @@
 package ovh.heraud.nativsql.util;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.when;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -15,10 +19,6 @@ import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.repository.GenericRepository;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.when;
 
 /**
  * Unit tests for FindQuery builder class.
@@ -111,8 +111,23 @@ class FindQueryTest {
         }
 
         @Test
+        void testSelectWithGetters() {
+            var id = (ReflectionUtils.Getter<TestEntity>) TestEntity::getId;
+            var firstName = (ReflectionUtils.Getter<TestEntity>) TestEntity::getFirstName;
+            findQuery.select(id, firstName);
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id",
+                        test_entity.first_name AS "firstName"
+                    FROM test_entity
+                    """);
+        }
+
+        @Test
         void testSelectThrowsWhenColumnsEmptyVarargs() {
-            assertThatThrownBy(() -> findQuery.select())
+            assertThatThrownBy(() -> findQuery.select(new String[] {}))
                     .isInstanceOf(NativSQLException.class)
                     .hasMessage("Column list cannot be empty");
         }
@@ -225,6 +240,45 @@ class FindQueryTest {
         }
 
         @Test
+        void testWhereAndEqualsWithGetter() {
+            var status = (ReflectionUtils.Getter<TestEntity>) TestEntity::getStatus;
+            findQuery.select("id")
+                    .whereAndEquals(status, "ACTIVE");
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id"
+                    FROM test_entity
+                    WHERE
+                            status = :status
+                    """);
+
+            Map<String, Object> params = findQuery.getParameters();
+            assertThat(params).containsEntry("status", "ACTIVE");
+        }
+
+        @Test
+        void testWhereAndInWithGetter() {
+            var id = (ReflectionUtils.Getter<TestEntity>) TestEntity::getId;
+            List<Long> ids = Arrays.asList(1L, 2L, 3L);
+            findQuery.select("id")
+                    .whereAndIn(id, ids);
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id"
+                    FROM test_entity
+                    WHERE
+                            id IN (:id)
+                    """);
+
+            Map<String, Object> params = findQuery.getParameters();
+            assertThat(params).containsEntry("id", ids);
+        }
+
+        @Test
         void testHasWhereConditionsInitiallyFalse() {
             findQuery.select("id");
 
@@ -243,6 +297,36 @@ class FindQueryTest {
 
     @Nested
     class OrderByTests {
+
+        @Test
+        void testOrderByAscWithGetter() {
+            var firstName = (ReflectionUtils.Getter<TestEntity>) TestEntity::getFirstName;
+            findQuery.select("id").orderByAsc(firstName);
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id"
+                    FROM test_entity
+                    ORDER BY
+                        first_name ASC
+                    """);
+        }
+
+        @Test
+        void testOrderByDescWithGetter() {
+            var firstName = (ReflectionUtils.Getter<TestEntity>) TestEntity::getFirstName;
+            findQuery.select("id").orderByDesc(firstName);
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id"
+                    FROM test_entity
+                    ORDER BY
+                        first_name DESC
+                    """);
+        }
 
         @Test
         void testOrderByAsc() {
@@ -851,8 +935,10 @@ class FindQueryTest {
                     """);
         }
 
-        // ==================== Combined: Multiple WHERE + Multiple ORDER BY ====================
+        // ==================== Combined: Multiple WHERE + Multiple ORDER BY
+        // ====================
 
+        //
         @Test
         void testBuildStringWithMultipleWhereAndOrderByMixed() {
             findQuery.select("id")
@@ -1172,6 +1258,8 @@ class FindQueryTest {
      */
     static class TestEntity implements IEntity<Long> {
         private Long id;
+        private String firstName;
+        private String status;
 
         @Override
         public Long getId() {
@@ -1181,6 +1269,14 @@ class FindQueryTest {
         @Override
         public void setId(Long id) {
             this.id = id;
+        }
+
+        public String getFirstName() {
+            return firstName;
+        }
+
+        public String getStatus() {
+            return status;
         }
     }
 }

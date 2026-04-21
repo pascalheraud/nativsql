@@ -5,6 +5,17 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-04-21
+
+### Added
+- **Getter-based API for `FindQuery`** — All query builder methods now accept getter method references (e.g., `User::getStatus`) in addition to `String` column names, enabling compile-time safety and IDE autocomplete:
+  - `select(Getter<T>...)` — type-safe column selection
+  - `whereAndEquals(Getter<T>, Object)` — type-safe equality filter
+  - `whereAndIn(Getter<T>, List<?>)` — type-safe IN filter
+  - `orderByAsc(Getter<T>)` / `orderByDesc(Getter<T>)` — type-safe ordering
+  - `leftJoin(Getter<T>, ...)` / `innerJoin(Getter<T>, ...)` — type-safe JOIN on `@MappedBy` associations
+  - `associate(Getter<T>, ...)` — type-safe `@OneToMany` association loading
+
 ## [2.0.0] - 2026-03-29
 
 ### Changed

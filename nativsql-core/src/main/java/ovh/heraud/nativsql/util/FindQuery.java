@@ -11,6 +11,7 @@ import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.GenericRepository;
+import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 
 /**
  * Builder for complex SELECT queries with filtering, ordering, and
@@ -77,6 +78,16 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
+     * Adds column(s) to the SELECT clause using getter method references.
+     *
+     * @param getters the getter method references (e.g., User::getId, User::getName)
+     */
+    @SafeVarargs
+    public final FindQuery<T, ID> select(Getter<T>... getters) {
+        return select(ReflectionUtils.getColumnNames(getters));
+    }
+
+    /**
      * Adds column(s) to the SELECT clause from a list.
      *
      * @param cols the columns to select (must not be empty)
@@ -99,11 +110,29 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
+     * Adds an ascending order by condition using a getter method reference.
+     *
+     * @param getter the getter method reference (e.g., User::getFirstName)
+     */
+    public FindQuery<T, ID> orderByAsc(Getter<T> getter) {
+        return orderByAsc(ReflectionUtils.getColumnName(getter));
+    }
+
+    /**
      * Adds a descending order by condition.
      */
     public FindQuery<T, ID> orderByDesc(String column) {
         orderBy.desc(column);
         return this;
+    }
+
+    /**
+     * Adds a descending order by condition using a getter method reference.
+     *
+     * @param getter the getter method reference (e.g., User::getFirstName)
+     */
+    public FindQuery<T, ID> orderByDesc(Getter<T> getter) {
+        return orderByDesc(ReflectionUtils.getColumnName(getter));
     }
 
     /**
@@ -130,11 +159,31 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
+     * Adds a WHERE condition with EQUALS operator using a getter method reference.
+     *
+     * @param getter the getter method reference (e.g., User::getStatus)
+     * @param value  the value to compare against
+     */
+    public FindQuery<T, ID> whereAndEquals(Getter<T> getter, Object value) {
+        return whereAndEquals(ReflectionUtils.getColumnName(getter), value);
+    }
+
+    /**
      * Adds a WHERE condition with IN operator (property IN (...)).
      */
     public FindQuery<T, ID> whereAndIn(String column, List<?> values) {
         whereClause.add(column, Operator.IN, values);
         return this;
+    }
+
+    /**
+     * Adds a WHERE condition with IN operator using a getter method reference.
+     *
+     * @param getter the getter method reference (e.g., User::getId)
+     * @param values the list of values to match against
+     */
+    public FindQuery<T, ID> whereAndIn(Getter<T> getter, List<?> values) {
+        return whereAndIn(ReflectionUtils.getColumnName(getter), values);
     }
 
     /**
@@ -163,13 +212,33 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
 
     /**
      * Adds an association to load (OneToMany relationship).
-     * 
+     *
      * @param associationName the property name of the association
      * @param columns         the columns to retrieve from the associated entity
      */
     public FindQuery<T, ID> associate(String associationName, List<String> columns) {
         associations.add(new Association(associationName, columns));
         return this;
+    }
+
+    /**
+     * Adds an association to load (OneToMany relationship) using a getter method reference.
+     *
+     * @param getter  the getter method reference for the association field (e.g., User::getContacts)
+     * @param columns the columns to retrieve from the associated entity
+     */
+    public FindQuery<T, ID> associate(Getter<T> getter, String... columns) {
+        return associate(ReflectionUtils.getColumnName(getter), columns);
+    }
+
+    /**
+     * Adds an association to load (OneToMany relationship) using a getter method reference.
+     *
+     * @param getter  the getter method reference for the association field (e.g., User::getContacts)
+     * @param columns the columns to retrieve from the associated entity
+     */
+    public FindQuery<T, ID> associate(Getter<T> getter, List<String> columns) {
+        return associate(ReflectionUtils.getColumnName(getter), columns);
     }
 
     /**
@@ -205,6 +274,26 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
+     * Adds a LEFT JOIN for a @MappedBy association using a getter method reference.
+     *
+     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param columns the columns to retrieve from the joined entity
+     */
+    public FindQuery<T, ID> leftJoin(Getter<T> getter, String... columns) {
+        return leftJoin(ReflectionUtils.getColumnName(getter), columns);
+    }
+
+    /**
+     * Adds a LEFT JOIN for a @MappedBy association using a getter method reference.
+     *
+     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param columns the columns to retrieve from the joined entity
+     */
+    public FindQuery<T, ID> leftJoin(Getter<T> getter, List<String> columns) {
+        return leftJoin(ReflectionUtils.getColumnName(getter), columns);
+    }
+
+    /**
      * Adds an INNER JOIN for a @MappedBy association (ToOne relationship).
      * The MappedBy annotation on the field contains the repository of the joined
      * entity.
@@ -234,6 +323,26 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
         GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, columns, false, joinRepository));
         return this;
+    }
+
+    /**
+     * Adds an INNER JOIN for a @MappedBy association using a getter method reference.
+     *
+     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param columns the columns to retrieve from the joined entity
+     */
+    public FindQuery<T, ID> innerJoin(Getter<T> getter, String... columns) {
+        return innerJoin(ReflectionUtils.getColumnName(getter), columns);
+    }
+
+    /**
+     * Adds an INNER JOIN for a @MappedBy association using a getter method reference.
+     *
+     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param columns the columns to retrieve from the joined entity
+     */
+    public FindQuery<T, ID> innerJoin(Getter<T> getter, List<String> columns) {
+        return innerJoin(ReflectionUtils.getColumnName(getter), columns);
     }
 
     /**
