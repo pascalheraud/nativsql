@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.mariadb.User;
 import ovh.heraud.nativsql.domain.mariadb.UserReport;
+import ovh.heraud.nativsql.domain.mariadb.UserStatus;
 import org.jspecify.annotations.NonNull;
 import org.springframework.stereotype.Repository;
 
@@ -142,6 +143,34 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
                 LIMIT 1
                 """;
         return findExternal(sql, UserReport.class);
+    }
+
+    /**
+     * Finds active users ordered by first name, using getter-based FindQuery API.
+     *
+     * @param columns the columns to retrieve
+     * @return list of active users ordered by first name
+     */
+    public List<User> findActiveUsersOrderedByFirstName(String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals(User::getStatus, UserStatus.ACTIVE)
+                        .orderByAsc(User::getFirstName));
+    }
+
+    /**
+     * Finds users by status using getter-based FindQuery API.
+     *
+     * @param statuses the statuses to filter on
+     * @param columns  the columns to retrieve
+     * @return list of users with the given statuses
+     */
+    public List<User> findByStatuses(List<ovh.heraud.nativsql.domain.mariadb.UserStatus> statuses, String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndIn(User::getStatus, statuses));
     }
 
     /**
