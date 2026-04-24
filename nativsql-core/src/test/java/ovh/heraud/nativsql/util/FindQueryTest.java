@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import lombok.Getter;
+import lombok.Setter;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
@@ -389,6 +391,57 @@ class FindQueryTest {
                     ORDER BY
                         first_name ASC,
                         last_name DESC
+                    """);
+        }
+
+        @Test
+        void testOrderByMergeWithGetters() {
+            OrderBy orderBy = new OrderBy();
+            orderBy.asc(TestEntity::getFirstName);
+            orderBy.desc(TestEntity::getLastName);
+
+            findQuery.select("id").orderBy(orderBy);
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id"
+                    FROM test_entity
+                    ORDER BY
+                        first_name ASC,
+                        last_name DESC
+                    """);
+        }
+
+        @Test
+        void testOrderByAscWithGetterOnOrderBy() {
+            OrderBy orderBy = new OrderBy().asc(TestEntity::getFirstName);
+
+            findQuery.select("id").orderBy(orderBy);
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id"
+                    FROM test_entity
+                    ORDER BY
+                        first_name ASC
+                    """);
+        }
+
+        @Test
+        void testOrderByDescWithGetterOnOrderBy() {
+            OrderBy orderBy = new OrderBy().desc(TestEntity::getFirstName);
+
+            findQuery.select("id").orderBy(orderBy);
+
+            String sql = findQuery.buildString(identifierConverter);
+            assertThat(sql).isEqualTo("""
+                    SELECT
+                        test_entity.id AS "id"
+                    FROM test_entity
+                    ORDER BY
+                        first_name DESC
                     """);
         }
     }
@@ -1256,27 +1309,12 @@ class FindQueryTest {
     /**
      * Test entity implementing IEntity
      */
+    @Getter
+    @Setter
     static class TestEntity implements IEntity<Long> {
         private Long id;
         private String firstName;
+        private String lastName;
         private String status;
-
-        @Override
-        public Long getId() {
-            return id;
-        }
-
-        @Override
-        public void setId(Long id) {
-            this.id = id;
-        }
-
-        public String getFirstName() {
-            return firstName;
-        }
-
-        public String getStatus() {
-            return status;
-        }
     }
 }

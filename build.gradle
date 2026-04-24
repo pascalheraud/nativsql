@@ -6,6 +6,10 @@ plugins {
 // Root project is an aggregator only
 apply plugin: 'java'
 
+allprojects {
+    version = '2.2.0'
+}
+
 sourceSets {
     main {
         java.srcDirs = []
@@ -15,9 +19,4 @@ sourceSets {
         java.srcDirs = []
         resources.srcDirs = []
     }
-}
-
-allprojects {
-    group = 'ovh.heraud'
-    version = '2.2.0'
 }
