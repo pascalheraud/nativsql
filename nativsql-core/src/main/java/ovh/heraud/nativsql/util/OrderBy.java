@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ovh.heraud.nativsql.db.IdentifierConverter;
+import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 
 /**
  * Builder for SQL ORDER BY clauses.
@@ -21,11 +22,25 @@ public class OrderBy implements SQLBuilder {
     }
 
     /**
+     * Adds an ascending order by the column derived from the getter method reference.
+     */
+    public <T> OrderBy asc(Getter<T> getter) {
+        return asc(ReflectionUtils.getColumnName(getter));
+    }
+
+    /**
      * Adds a descending order by the specified column.
      */
     public OrderBy desc(String column) {
         orders.add(new Order(column, false));
         return this;
+    }
+
+    /**
+     * Adds a descending order by the column derived from the getter method reference.
+     */
+    public <T> OrderBy desc(Getter<T> getter) {
+        return desc(ReflectionUtils.getColumnName(getter));
     }
 
     /**

@@ -28,12 +28,14 @@ import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
  * Unit tests for the getter-based overloads of byProperty methods in
  * GenericRepository.
  *
- * <p>Verifies that passing a getter method reference as the filter property
+ * <p>
+ * Verifies that passing a getter method reference as the filter property
  * (e.g., {@code User::getEmail}) is strictly equivalent to passing the
  * corresponding camelCase property name as a {@code String} (e.g.,
  * {@code "email"}).
  *
- * <p>Tests use Mockito to stub the underlying string-based methods and AssertJ
+ * <p>
+ * Tests use Mockito to stub the underlying string-based methods and AssertJ
  * to assert both the return value and the exact delegation target.
  */
 @ExtendWith(MockitoExtension.class)
@@ -142,7 +144,6 @@ class GenericRepositoryPropertyGetterTest {
             verify(repository).findByProperty("email", "unknown@example.com", "id");
         }
 
-        @SuppressWarnings("unchecked")
         @Test
         void withGetterAndGetterColumns_delegatesToGetterBasedMethod() {
             TestUser expected = new TestUser();
@@ -167,7 +168,8 @@ class GenericRepositoryPropertyGetterTest {
             List<TestUser> expected = Arrays.asList(new TestUser(), new TestUser());
             doReturn(expected).when(repository).findAllByProperty("status", "ACTIVE", "id", "email", "status");
 
-            List<TestUser> result = repository.findAllByProperty(TestUser::getStatus, "ACTIVE", "id", "email", "status");
+            List<TestUser> result = repository.findAllByProperty(TestUser::getStatus, "ACTIVE", "id", "email",
+                    "status");
 
             assertThat(result).isSameAs(expected);
             verify(repository).findAllByProperty("status", "ACTIVE", "id", "email", "status");
@@ -194,7 +196,6 @@ class GenericRepositoryPropertyGetterTest {
             verify(repository).findAllByProperty("firstName", "Alice", "id", "firstName");
         }
 
-        @SuppressWarnings("unchecked")
         @Test
         void withGetterAndGetterColumns_delegatesToGetterBasedMethod() {
             List<TestUser> expected = List.of(new TestUser());
@@ -209,7 +210,8 @@ class GenericRepositoryPropertyGetterTest {
         }
     }
 
-    // ==================== findAllByProperty (single value + OrderBy) ====================
+    // ==================== findAllByProperty (single value + OrderBy)
+    // ====================
 
     @Nested
     class FindAllByPropertyWithOrderByTests {
@@ -237,7 +239,6 @@ class GenericRepositoryPropertyGetterTest {
             verify(repository).findAllByProperty("status", "DELETED", orderBy, "id");
         }
 
-        @SuppressWarnings("unchecked")
         @Test
         void withGetterAndGetterColumns_delegatesToGetterBasedMethod() {
             List<TestUser> expected = List.of(new TestUser());
@@ -254,7 +255,8 @@ class GenericRepositoryPropertyGetterTest {
         }
     }
 
-    // ==================== findAllByProperty (list of values / IN clause) ====================
+    // ==================== findAllByProperty (list of values / IN clause)
+    // ====================
 
     @Nested
     class FindAllByPropertyListTests {
@@ -282,7 +284,6 @@ class GenericRepositoryPropertyGetterTest {
             verify(repository).findAllByProperty("status", statuses, "id");
         }
 
-        @SuppressWarnings("unchecked")
         @Test
         void withGetterAndGetterColumns_delegatesToGetterBasedMethod() {
             List<TestUser> expected = List.of(new TestUser());
@@ -339,7 +340,6 @@ class GenericRepositoryPropertyGetterTest {
             verify(repository).findAllByPropertyIn("firstName", names, "id", "firstName");
         }
 
-        @SuppressWarnings("unchecked")
         @Test
         void withGetterAndGetterColumns_delegatesToGetterBasedMethod() {
             List<TestUser> expected = List.of(new TestUser(), new TestUser());
