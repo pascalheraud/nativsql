@@ -1,27 +1,24 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Short type with flexible numeric conversion.
  * Converts from any numeric SQL type to Short.
  */
-public class ShortTypeMapper implements ITypeMapper<Short> {
-    @Override
-    public Short map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            return fromValue(value);
-        } catch (SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to Short", e);
-        }
+public class ShortTypeMapper extends AbstractTypeMapper<Short> {
+
+    public ShortTypeMapper() {
+        super();
+    }
+
+    public ShortTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
@@ -32,7 +29,7 @@ public class ShortTypeMapper implements ITypeMapper<Short> {
             try {
                 return Short.parseShort(str);
             } catch (NumberFormatException e) {
-                throw new NativSQLException("Cannot convert String '" + str + "' to Short", e);
+                throw new NativSQLException("Cannot convert String to Short", e);
             }
         }
         if (value instanceof Boolean bool) return (short) (bool ? 1 : 0);
@@ -40,16 +37,17 @@ public class ShortTypeMapper implements ITypeMapper<Short> {
     }
 
     @Override
-    public Object toDatabase(Short value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
+    protected Short doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
 
+    @Override
+    protected Object toDatabaseValue(Short value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }
 
-        return switch (dataType) {            
+        return switch (dataType) {
             case STRING -> value.toString();
             case INTEGER -> value.intValue();
             case LONG -> value.longValue();

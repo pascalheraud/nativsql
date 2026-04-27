@@ -1,55 +1,53 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Float type with flexible numeric conversion.
  * Converts from any numeric SQL type to Float.
  */
-public class FloatTypeMapper implements ITypeMapper<Float> {
-    @Override
-    public Float map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            if (value == null)
-                return null;
+public class FloatTypeMapper extends AbstractTypeMapper<Float> {
 
-            if (value instanceof Number num) {
-                return num.floatValue();
-            }
-            if (value instanceof String str) {
-                return Float.parseFloat(str);
-            }
-            if (value instanceof Boolean bool) {
-                return bool ? 1f : 0f;
-            }
-            if (value instanceof Float f) {
-                return f;
-            }
-            throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class" + value.getClass() + " to Float");
-        } catch (RuntimeException | SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to Float", e);
-        }
+    public FloatTypeMapper() {
+        super();
+    }
+
+    public FloatTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
-    public Object toDatabase(Float value, DbDataType dataType) {
-        if (value == null) {
-            return null;
+    public Float fromValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number num) return num.floatValue();
+        if (value instanceof String str) {
+            try {
+                return Float.parseFloat(str);
+            } catch (NumberFormatException e) {
+                throw new NativSQLException("Cannot convert String to Float", e);
+            }
         }
+        if (value instanceof Boolean bool) return bool ? 1f : 0f;
+        throw new NativSQLException("Cannot convert " + value.getClass().getSimpleName() + " to Float");
+    }
 
+    @Override
+    protected Float doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
+
+    @Override
+    protected Object toDatabaseValue(Float value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }
 
-        return switch (dataType) {            
+        return switch (dataType) {
             case STRING -> value.toString();
             case INTEGER -> value.intValue();
             case LONG -> value.longValue();

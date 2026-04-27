@@ -2,55 +2,51 @@ package ovh.heraud.nativsql.db.generic.mapper;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for BigInteger type with flexible numeric conversion.
  * Converts from any numeric SQL type to BigInteger.
  */
-public class BigIntegerTypeMapper implements ITypeMapper<BigInteger> {
-    @Override
-    public BigInteger map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            if (value == null)
-                return null;
+public class BigIntegerTypeMapper extends AbstractTypeMapper<BigInteger> {
 
-            if (value instanceof BigInteger bigInt) {
-                return bigInt;
-            }
-            if (value instanceof BigDecimal decimal) {
-                return decimal.toBigInteger();
-            }
-            if (value instanceof Number num) {
-                return BigInteger.valueOf(num.longValue());
-            }
-            if (value instanceof Boolean bool) {
-                return BigInteger.valueOf(bool ? 1 : 0);
-            }
-            if (value instanceof String str) {
-                return new BigInteger(str);
-            }
-            throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class"
-                    + value.getClass() + " to BigInteger");
-        } catch (RuntimeException | SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to BigInteger", e);
-        }
+    public BigIntegerTypeMapper() {
+        super();
+    }
+
+    public BigIntegerTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
-    public Object toDatabase(BigInteger value, DbDataType dataType) {
-        if (value == null) {
-            return null;
+    public BigInteger fromValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof BigInteger bigInt) return bigInt;
+        if (value instanceof BigDecimal decimal) return decimal.toBigInteger();
+        if (value instanceof Number num) return BigInteger.valueOf(num.longValue());
+        if (value instanceof Boolean bool) return BigInteger.valueOf(bool ? 1 : 0);
+        if (value instanceof String str) {
+            try {
+                return new BigInteger(str);
+            } catch (NumberFormatException e) {
+                throw new NativSQLException("Cannot convert String to BigInteger", e);
+            }
         }
+        throw new NativSQLException("Cannot convert " + value.getClass().getSimpleName() + " to BigInteger");
+    }
 
+    @Override
+    protected BigInteger doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
+
+    @Override
+    protected Object toDatabaseValue(BigInteger value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }

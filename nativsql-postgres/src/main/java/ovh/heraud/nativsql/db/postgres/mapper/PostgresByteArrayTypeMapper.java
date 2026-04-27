@@ -1,7 +1,11 @@
 package ovh.heraud.nativsql.db.postgres.mapper;
 
+import java.util.Map;
+
 import org.postgresql.util.PGobject;
+
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.db.generic.mapper.ByteArrayTypeMapper;
 import ovh.heraud.nativsql.exception.NativSQLException;
 
@@ -13,16 +17,9 @@ import ovh.heraud.nativsql.exception.NativSQLException;
 public class PostgresByteArrayTypeMapper extends ByteArrayTypeMapper {
 
     @Override
-    public Object toDatabase(byte[] value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
+    protected Object toDatabaseValue(byte[] value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == DbDataType.UUID) {
-            // let superclass produce the hex string
-            Object obj = super.toDatabase(value, dataType);
-            if (obj == null) {
-                return null;
-            }
+            Object obj = super.toDatabaseValue(value, dataType, params);
             if (obj instanceof String str) {
                 try {
                     PGobject pg = new PGobject();
@@ -32,10 +29,9 @@ public class PostgresByteArrayTypeMapper extends ByteArrayTypeMapper {
                 } catch (java.sql.SQLException e) {
                     throw new NativSQLException("Failed to wrap UUID string in PGobject", e);
                 }
-            } else {
-                throw new NativSQLException("Expected superclass to convert byte[] to String for UUID, got " + obj.getClass());
             }
+            throw new NativSQLException("Expected String for UUID, got " + (obj == null ? "null" : obj.getClass()));
         }
-        return super.toDatabase(value, dataType);
+        return super.toDatabaseValue(value, dataType, params);
     }
 }

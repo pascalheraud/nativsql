@@ -1,58 +1,55 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
 import java.math.BigDecimal;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Map;
 
-import org.springframework.jdbc.support.JdbcUtils;
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for BigDecimal type with flexible numeric conversion.
  * Converts from any numeric SQL type to BigDecimal.
  */
-public class BigDecimalTypeMapper implements ITypeMapper<BigDecimal> {
-    @Override
-    public BigDecimal map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            if (value == null)
-                return null;
+public class BigDecimalTypeMapper extends AbstractTypeMapper<BigDecimal> {
 
-            if (value instanceof BigDecimal decimal) {
-                return decimal;
-            }
-            if (value instanceof Number num) {
-                return BigDecimal.valueOf(num.doubleValue());
-            }
-            if (value instanceof Boolean bool) {
-                return BigDecimal.valueOf(bool ? 1 : 0);
-            }
-            if (value instanceof String str) {
-                return new BigDecimal(str);
-            }
-            throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class"
-                    + value.getClass() + " to BigDecimal");
-        } catch (RuntimeException | SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to BigDecimal", e);
-        }
+    public BigDecimalTypeMapper() {
+        super();
+    }
+
+    public BigDecimalTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
-    public Object toDatabase(BigDecimal value, DbDataType dataType) {
-        if (value == null) {
-            return null;
+    public BigDecimal fromValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof BigDecimal decimal) return decimal;
+        if (value instanceof Number num) return BigDecimal.valueOf(num.doubleValue());
+        if (value instanceof Boolean bool) return BigDecimal.valueOf(bool ? 1 : 0);
+        if (value instanceof String str) {
+            try {
+                return new BigDecimal(str);
+            } catch (NumberFormatException e) {
+                throw new NativSQLException("Cannot convert String to BigDecimal", e);
+            }
         }
+        throw new NativSQLException("Cannot convert " + value.getClass().getSimpleName() + " to BigDecimal");
+    }
 
-        // If no specific type is declared, return as-is
+    @Override
+    protected BigDecimal doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
+
+    @Override
+    protected Object toDatabaseValue(BigDecimal value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }
 
-        return switch (dataType) {            
+        return switch (dataType) {
             case STRING -> value.toPlainString();
             case INTEGER -> value.intValue();
             case LONG -> value.longValue();

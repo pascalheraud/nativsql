@@ -3,9 +3,12 @@ package ovh.heraud.nativsql.db;
 import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
+import ovh.heraud.nativsql.crypt.CryptConfig;
 import ovh.heraud.nativsql.db.generic.mapper.GenericJSONTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
+import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
  * Abstraction for database-specific SQL operations and type conversions.
@@ -69,8 +72,23 @@ public interface DatabaseDialect {
     <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager);
 
     /**
+     * Builds a {@link CryptConfig} from the type parameters of a field annotated with
+     * {@code @Type(DbDataType.ENCRYPTED)}.
+     *
+     * <p>Default implementation throws {@link UnsupportedOperationException}.
+     * Overridden in {@code GenericDialect} which is always the end of the chain.
+     *
+     * @param params    the resolved type parameters (ALGO, KEY_PROVIDER, PREFIX, …)
+     * @param fieldName used in exception messages
+     * @return the built CryptConfig
+     */
+    default CryptConfig buildCryptConfig(Map<TypeParamKey, Object> params, String fieldName) {
+        throw new UnsupportedOperationException("buildCryptConfig() not supported by this dialect: " + getClass().getSimpleName());
+    }
+
+    /**
      * Extracts the generated key from the database after an insert operation.
-     * 
+     *
      * @param <ID>
      * @param keys
      * @param idColumn the name of the ID column to extract from the keys map

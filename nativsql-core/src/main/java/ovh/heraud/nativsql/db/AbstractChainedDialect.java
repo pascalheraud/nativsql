@@ -2,9 +2,13 @@ package ovh.heraud.nativsql.db;
 
 import java.util.Map;
 
+import org.springframework.context.ApplicationContext;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
+import ovh.heraud.nativsql.crypt.CryptConfig;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
+
 
 /**
  * Abstract base class implementing the Chain of Responsibility pattern for
@@ -44,6 +48,19 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
         this.nextDialect = null;
     }
 
+
+    /**
+     * Injects the Spring ApplicationContext through the entire dialect chain.
+     * Each dialect in the chain can override this to store the context.
+     * The default implementation propagates it to the next dialect.
+     *
+     * @param applicationContext the Spring ApplicationContext
+     */
+    public void injectApplicationContext(ApplicationContext applicationContext) {
+        if (nextDialect instanceof AbstractChainedDialect chained) {
+            chained.injectApplicationContext(applicationContext);
+        }
+    }
 
     /**
      * Gets the appropriate TypeMapper for the given class.

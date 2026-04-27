@@ -1,27 +1,24 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Byte type with flexible numeric conversion.
  * Converts from any numeric SQL type to Byte.
  */
-public class ByteTypeMapper implements ITypeMapper<Byte> {
-    @Override
-    public Byte map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            return fromValue(value);
-        } catch (SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to Byte", e);
-        }
+public class ByteTypeMapper extends AbstractTypeMapper<Byte> {
+
+    public ByteTypeMapper() {
+        super();
+    }
+
+    public ByteTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
@@ -32,7 +29,7 @@ public class ByteTypeMapper implements ITypeMapper<Byte> {
             try {
                 return Byte.parseByte(str);
             } catch (NumberFormatException e) {
-                throw new NativSQLException("Cannot convert String '" + str + "' to Byte", e);
+                throw new NativSQLException("Cannot convert String to Byte", e);
             }
         }
         if (value instanceof Boolean bool) return (byte) (bool ? 1 : 0);
@@ -40,16 +37,17 @@ public class ByteTypeMapper implements ITypeMapper<Byte> {
     }
 
     @Override
-    public Object toDatabase(Byte value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
+    protected Byte doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
 
+    @Override
+    protected Object toDatabaseValue(Byte value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }
 
-        return switch (dataType) {            
+        return switch (dataType) {
             case STRING -> value.toString();
             case INTEGER -> value.intValue();
             case LONG -> value.longValue();

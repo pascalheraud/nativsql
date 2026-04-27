@@ -1,52 +1,53 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Double type with flexible numeric conversion.
  * Converts from any numeric SQL type to Double.
  */
-public class DoubleTypeMapper implements ITypeMapper<Double> {
-    @Override
-    public Double map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            if (value == null)
-                return null;
+public class DoubleTypeMapper extends AbstractTypeMapper<Double> {
 
-            if (value instanceof Number num) {
-                return num.doubleValue();
-            }
-            if (value instanceof String str) {
-                return Double.parseDouble(str);
-            }
-            if (value instanceof Boolean bool) {
-                return bool ? 1.0d : 0.0d;
-            }
-            throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class " + value.getClass() + " to Double");
-        } catch (RuntimeException | SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to Double", e);
-        }
+    public DoubleTypeMapper() {
+        super();
+    }
+
+    public DoubleTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
-    public Object toDatabase(Double value, DbDataType dataType) {
-        if (value == null) {
-            return null;
+    public Double fromValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof Number num) return num.doubleValue();
+        if (value instanceof String str) {
+            try {
+                return Double.parseDouble(str);
+            } catch (NumberFormatException e) {
+                throw new NativSQLException("Cannot convert String to Double", e);
+            }
         }
+        if (value instanceof Boolean bool) return bool ? 1.0d : 0.0d;
+        throw new NativSQLException("Cannot convert " + value.getClass().getSimpleName() + " to Double");
+    }
 
+    @Override
+    protected Double doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
+
+    @Override
+    protected Object toDatabaseValue(Double value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }
 
-        return switch (dataType) {            
+        return switch (dataType) {
             case STRING -> value.toString();
             case INTEGER -> value.intValue();
             case LONG -> value.longValue();

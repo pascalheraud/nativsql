@@ -40,5 +40,13 @@ public enum TypeParamKey {
      * BINARY stores raw bytes in a VARBINARY/BLOB column.
      * Optional — defaults to STRING if absent.
      */
-    FORMAT
+    FORMAT,
+
+    /**
+     * Resolved AES key bytes ({@code byte[]}).
+     * Populated automatically by {@code AnnotationManager} at startup by calling
+     * the {@code CryptKeyProvider} referenced by {@code KEY_PROVIDER}.
+     * Never set manually via {@code @TypeParam} — internal use only.
+     */
+    KEY
 }
