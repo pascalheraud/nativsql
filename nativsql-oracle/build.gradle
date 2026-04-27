@@ -29,7 +29,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testImplementation 'org.assertj:assertj-core'
-    testImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    testImplementation platform('org.testcontainers:testcontainers-bom:2.0.5')
     testImplementation 'org.testcontainers:testcontainers'
     testImplementation 'org.testcontainers:testcontainers-oracle-free'
     testImplementation 'org.testcontainers:testcontainers-oracle-xe'
@@ -38,7 +38,7 @@ dependencies {
     // Test fixtures dependencies
     testFixturesImplementation 'org.springframework.boot:spring-boot-starter-test'
     testFixturesImplementation 'org.springframework.boot:spring-boot-testcontainers'
-    testFixturesImplementation platform('org.testcontainers:testcontainers-bom:2.0.3')
+    testFixturesImplementation platform('org.testcontainers:testcontainers-bom:2.0.5')
     testFixturesImplementation 'org.testcontainers:testcontainers'
     testFixturesImplementation 'org.testcontainers:testcontainers-oracle-free'
     testFixturesImplementation 'org.testcontainers:testcontainers-oracle-xe'
