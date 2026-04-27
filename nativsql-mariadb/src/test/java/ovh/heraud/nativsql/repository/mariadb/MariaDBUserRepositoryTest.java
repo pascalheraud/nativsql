@@ -539,7 +539,7 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
                 // When - Call a custom query with null parameter
                 // This tests how the repository handles null param values in custom queries
                 // MariaDB doesn't require type casting for NULL inference
-                List<User> results = userRepository.findByIdWithNullParam(userId, null);
+                List<User> results = userRepository.findAllByIdWithNullParam(userId, null);
 
                 // Then - Should not throw NullPointerException and return the user
                 assertThat(results).isNotNull().isNotEmpty();
@@ -550,14 +550,17 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         @Test
         void testFindActiveUsersOrderedByFirstNameWithGetters() {
                 // Given
-                User alice = User.builder().firstName("Alice").email("alice@example.com").status(UserStatus.ACTIVE).build();
+                User alice = User.builder().firstName("Alice").email("alice@example.com").status(UserStatus.ACTIVE)
+                                .build();
                 User bob = User.builder().firstName("Bob").email("bob@example.com").status(UserStatus.ACTIVE).build();
-                User charlie = User.builder().firstName("Charlie").email("charlie@example.com").status(UserStatus.INACTIVE).build();
+                User charlie = User.builder().firstName("Charlie").email("charlie@example.com")
+                                .status(UserStatus.INACTIVE).build();
                 userRepository.insert(alice, "firstName", "email", "status");
                 userRepository.insert(bob, "firstName", "email", "status");
                 userRepository.insert(charlie, "firstName", "email", "status");
 
-                // When - uses whereAndEquals(User::getStatus, ...) and orderByAsc(User::getFirstName)
+                // When - uses whereAndEquals(User::getStatus, ...) and
+                // orderByAsc(User::getFirstName)
                 List<User> activeUsers = userRepository.findActiveUsersOrderedByFirstName("id", "firstName", "status");
 
                 // Then
@@ -569,9 +572,12 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
         @Test
         void testFindByStatusesWithGetters() {
                 // Given
-                User active = User.builder().firstName("Active").email("active2@example.com").status(UserStatus.ACTIVE).build();
-                User inactive = User.builder().firstName("Inactive").email("inactive2@example.com").status(UserStatus.INACTIVE).build();
-                User suspended = User.builder().firstName("Suspended").email("suspended2@example.com").status(UserStatus.SUSPENDED).build();
+                User active = User.builder().firstName("Active").email("active2@example.com").status(UserStatus.ACTIVE)
+                                .build();
+                User inactive = User.builder().firstName("Inactive").email("inactive2@example.com")
+                                .status(UserStatus.INACTIVE).build();
+                User suspended = User.builder().firstName("Suspended").email("suspended2@example.com")
+                                .status(UserStatus.SUSPENDED).build();
                 userRepository.insert(active, "firstName", "email", "status");
                 userRepository.insert(inactive, "firstName", "email", "status");
                 userRepository.insert(suspended, "firstName", "email", "status");

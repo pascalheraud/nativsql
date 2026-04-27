@@ -2,7 +2,6 @@ package ovh.heraud.nativsql.repository.oracle;
 
 import javax.sql.DataSource;
 
-import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import ovh.heraud.nativsql.db.DatabaseDialect;
@@ -14,7 +13,6 @@ public abstract class OracleRepository<T extends IEntity<ID>, ID> extends Generi
 
     @Autowired(required = false)
     @Qualifier("oracleDataSource")
-    @NonNull
     private DataSource oracleDataSource;
 
     @Autowired
@@ -22,7 +20,6 @@ public abstract class OracleRepository<T extends IEntity<ID>, ID> extends Generi
     private OracleDialect oracleDialect;
 
     @Override
-    @NonNull
     protected DataSource getDataSource() {
         return oracleDataSource;
     }

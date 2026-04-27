@@ -8,7 +8,8 @@ import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 
 /**
  * Builder for SQL ORDER BY clauses.
- * Example: new OrderBy().asc("name").desc("createdAt").build(converter) → "ORDER BY name ASC, created_at DESC"
+ * Example: new OrderBy().asc("name").desc("createdAt").build(converter) →
+ * "ORDER BY name ASC, created_at DESC"
  */
 public class OrderBy implements SQLBuilder {
     private final List<Order> orders = new ArrayList<>();
@@ -22,7 +23,8 @@ public class OrderBy implements SQLBuilder {
     }
 
     /**
-     * Adds an ascending order by the column derived from the getter method reference.
+     * Adds an ascending order by the column derived from the getter method
+     * reference.
      */
     public <T> OrderBy asc(Getter<T> getter) {
         return asc(ReflectionUtils.getColumnName(getter));
@@ -37,7 +39,8 @@ public class OrderBy implements SQLBuilder {
     }
 
     /**
-     * Adds a descending order by the column derived from the getter method reference.
+     * Adds a descending order by the column derived from the getter method
+     * reference.
      */
     public <T> OrderBy desc(Getter<T> getter) {
         return desc(ReflectionUtils.getColumnName(getter));
@@ -48,8 +51,9 @@ public class OrderBy implements SQLBuilder {
      * Appends "ORDER BY xxx" to the StringBuilder if orders have been specified.
      * Example: "ORDER BY name ASC, created_at DESC"
      *
-     * @param sb                  the StringBuilder to append the SQL to
-     * @param converter           the identifier converter to use for column name transformation
+     * @param sb        the StringBuilder to append the SQL to
+     * @param converter the identifier converter to use for column name
+     *                  transformation
      */
     public void build(StringBuilder sb, IdentifierConverter converter) {
         if (orders.isEmpty()) {
@@ -69,7 +73,8 @@ public class OrderBy implements SQLBuilder {
      * Builds the SQL ORDER BY clause and returns it as a String.
      * This is a convenience method that creates a StringBuilder internally.
      *
-     * @param converter the identifier converter to use for column name transformation
+     * @param converter the identifier converter to use for column name
+     *                  transformation
      * @return the SQL ORDER BY clause or empty string if no orders specified
      */
     public String buildString(IdentifierConverter converter) {
@@ -108,8 +113,9 @@ public class OrderBy implements SQLBuilder {
      * Builds the SQL ORDER BY clause with formatting (newlines and indentation).
      * Appends "ORDER BY ..." to the StringBuilder if orders have been specified.
      *
-     * @param sb                  the StringBuilder to append the SQL to
-     * @param converter           the identifier converter to use for column name transformation
+     * @param sb        the StringBuilder to append the SQL to
+     * @param converter the identifier converter to use for column name
+     *                  transformation
      */
     public void buildFormatted(StringBuilder sb, IdentifierConverter converter) {
         if (orders.isEmpty()) {
@@ -130,7 +136,7 @@ public class OrderBy implements SQLBuilder {
      * Implements SQLBuilder to generate its portion of the SQL statement.
      */
     private static class Order implements SQLBuilder {
-        final String column;
+            final String column;
         final boolean isAsc;
 
         Order(String column, boolean isAsc) {

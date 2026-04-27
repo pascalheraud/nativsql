@@ -6,13 +6,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.sql.DataSource;
 
-import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.dao.DataAccessException;
@@ -23,7 +21,6 @@ import org.springframework.jdbc.support.KeyHolder;
 
 import jakarta.annotation.PostConstruct;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
-import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
@@ -35,11 +32,13 @@ import ovh.heraud.nativsql.util.Association;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.Fields;
 import ovh.heraud.nativsql.util.FindQuery;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.util.OneToManyAssociation;
 import ovh.heraud.nativsql.util.OrderBy;
 import ovh.heraud.nativsql.util.ReflectionUtils;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 import ovh.heraud.nativsql.util.SqlUtils;
+import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
  * Generic repository base class that provides insert and update operations
@@ -56,11 +55,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     private NamedParameterJdbcTemplate jdbcTemplate;
 
     @Autowired
-    @NonNull
     private RowMapperFactory rowMapperFactory;
 
     @Autowired
-    @NonNull
     private AnnotationManager annotationManager;
 
     @Autowired
@@ -70,7 +67,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     private final IdentifierConverter identifierConverter = new SnakeCaseIdentifierConverter();
 
-    @NonNull
     private final Class<T> entityClass;
 
     @Autowired(required = false)
@@ -85,6 +81,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     protected GenericRepository() {
         this.entityClass = getEntityClass();
         this.entityFields = ReflectionUtils.getFields(entityClass);
+
     }
 
     /**
@@ -97,7 +94,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param annotationManager the annotation manager
      * @param dbOperationLogger the database operation logger
      */
-    protected GenericRepository(Class<T> entityClass, String tableName, RowMapperFactory rowMapperFactory,
+    protected GenericRepository(Class<T> entityClass, String tableName,
+            RowMapperFactory rowMapperFactory,
             AnnotationManager annotationManager, DbOperationLogger dbOperationLogger) {
         this.entityClass = entityClass;
         this.tableName = tableName;
@@ -124,22 +122,20 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         this.databaseDialect = getDatabaseDialectInstance();
     }
 
-    @NonNull
     protected DataSource getProvidedDataSource() {
         if (dataSource == null) {
             dataSource = getDataSource();
+            return dataSource;
         }
         return dataSource;
     }
 
-    @NonNull
     protected abstract DataSource getDataSource();
 
     public void setDataSource(DataSource dataSource) {
         this.dataSource = dataSource;
     }
 
-    @NonNull
     abstract protected Class<T> getEntityClass();
 
     protected abstract DatabaseDialect getDatabaseDialectInstance();
@@ -149,7 +145,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Uses the tableName field if provided via constructor, otherwise must be
      * overridden by subclasses.
      */
-    @NonNull
     public String getTableName() {
         if (tableName != null) {
             return tableName;
@@ -188,7 +183,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @return the annotation manager instance
      */
-    @NonNull
     public AnnotationManager getAnnotationManager() {
         return annotationManager;
     }
@@ -224,10 +218,13 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
         String columnList = SqlUtils.getColumnsList(identifierConverter, columns);
 
-        Map<String, Object> params = extractValues(entity, columns);
+        Map<String, Object> rawParams = extractValues(entity, columns);
 
         String paramList = Arrays.stream(columns)
                 .map(col -> {
+                    if (col == null || col.isEmpty()) {
+                        throw new NativSQLException("Column name cannot be null or empty");
+                    }
                     FieldAccessor<T> field = entityFields.get(col);
                     return formatParameter(col, field);
                 })
@@ -236,9 +233,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         String sql = formatQuery("INSERT INTO %s (%s) VALUES (%s)",
                 getTableName(), columnList, paramList);
 
+        Map<String, Object> sqlParams = convertParamsToSqlValues(rawParams);
+        Map<String, Object> logParams = convertParamsForLogging(rawParams);
         // Try to retrieve generated ID using GeneratedKeyHolder for better reliability
-        ID generatedId = dbOperationLogger.execute(getClass(), "insert", "INSERT", getTableName(), sql, params,
-                () -> insertWithGeneratedKey(sql, params));
+        ID generatedId = dbOperationLogger.execute(getClass(), "insert", "INSERT", getTableName(), sql, logParams,
+                () -> insertWithGeneratedKey(sql, sqlParams));
 
         entity.setId(generatedId);
     }
@@ -255,7 +254,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the generated ID
      * @throws NativSQLException if no generated key was returned
      */
-    protected ID insertWithGeneratedKey(@NonNull String sql, @NonNull Map<String, Object> params) {
+    protected ID insertWithGeneratedKey(String sql, Map<String, Object> params) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         MapSqlParameterSource source = new MapSqlParameterSource(params);
         // Specify the 'id' column to avoid returning all columns
@@ -271,28 +270,26 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                     + ". Make sure the table has an auto-generated primary key.");
         }
 
-        ID idValue = getDatabaseDialect().getGeneratedKey(keys, ID_COLUMN);
-        if (idValue == null) {
-            throw new NativSQLException("No " + ID_COLUMN + " column in generated keys for table " + getTableName());
-        }
+        Object idValue = getDatabaseDialect().getGeneratedKey(keys, ID_COLUMN);
 
         FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
-        if (idField != null) {
-            ITypeMapper<ID> idMapper = databaseDialect.getMapper(idField,
-                    annotationManager);
-            if (idMapper != null) {
-                return idMapper.fromValue(idValue);
-            }
+        ITypeMapper<ID> idMapper = databaseDialect.getMapper(idField, annotationManager);
+        if (idMapper == null) {
+            throw new NativSQLException("No type mapper found for ID field: " + idField.getField().getName());
         }
-        return idValue;
+        TypeInfo typeInfo = annotationManager.getTypeInfo(idField);
+        ID newIdValue = idMapper.map(ID_COLUMN, idField, typeInfo.getParams(), idValue);
+        if (newIdValue == null) {
+            throw new NativSQLException("Generated ID value is null after mapping");
+        }
+        return newIdValue;
     }
 
-    @NonNull
     private String formatQuery(String sql, Object... params) {
         if (params == null || params.length == 0) {
-            throw new IllegalArgumentException("At least one column must be specified");
+            throw new NativSQLException("At least one column must be specified");
         }
-        return Objects.requireNonNull(String.format(sql, params));
+        return String.format(sql, params);
     }
 
     /**
@@ -302,7 +299,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param params the query parameters
      * @return the number of rows affected
      */
-    protected int executeUpdate(@NonNull String sql, @NonNull Map<String, Object> params) {
+    protected int executeUpdate(String sql, Map<String, Object> params) {
         try {
             return jdbcTemplate.update(sql, params);
         } catch (DataAccessException e) {
@@ -342,13 +339,16 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         if (columns == null || columns.length == 0) {
             throw new NativSQLException("Column list cannot be empty");
         }
-        Map<String, Object> params = extractValues(entity, columns);
+        Map<String, Object> rawParams = extractValues(entity, columns);
         FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
         Object id = idField != null ? idField.getValue(entity) : null;
-        params.put(ID_COLUMN, id);
+        rawParams.put(ID_COLUMN, id);
 
         String setClause = Arrays.stream(columns)
                 .map(col -> {
+                    if (col == null || col.isEmpty()) {
+                        throw new NativSQLException("Column name cannot be null or empty");
+                    }
                     FieldAccessor<ID> field = entityFields.get(col);
                     return identifierConverter.toDB(col) + " = " + formatParameter(col, field);
                 })
@@ -357,8 +357,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         String idColumnSnake = identifierConverter.toDB(ID_COLUMN);
         String sql = "UPDATE " + getTableName() + " SET " + setClause + " WHERE " + idColumnSnake + " = :" + ID_COLUMN;
 
-        dbOperationLogger.execute(getClass(), "update", "UPDATE", getTableName(), sql, params, () -> {
-            int rowsUpdated = executeUpdate(sql, params);
+        Map<String, Object> sqlParams = convertParamsToSqlValues(rawParams);
+        Map<String, Object> logParams = convertParamsForLogging(rawParams);
+        dbOperationLogger.execute(getClass(), "update", "UPDATE", getTableName(), sql, logParams, () -> {
+            int rowsUpdated = executeUpdate(sql, sqlParams);
             if (rowsUpdated != 1) {
                 throw new NativSQLException(
                         "Update failed: expected to update exactly 1 row but updated " + rowsUpdated);
@@ -366,7 +368,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         });
     }
 
-    @NonNull
     private Map<String, Object> getMap(String idColumn, Object id) {
         return Map.of(idColumn, id);
     }
@@ -402,7 +403,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      */
     public void delete(T entity) {
         FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
-        ID id = idField != null ? idField.getValue(entity) : null;
+
+        ID id = idField.getValue(entity);
+        if (id == null) {
+            throw new NativSQLException("Entity ID cannot be null for delete operation");
+        }
         deleteById("delete", id);
     }
 
@@ -419,6 +424,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @see #findById(Object, String...)
      */
     @SafeVarargs
+
     public final T findById(Object id, Getter<T>... getters) {
         String[] columns = ReflectionUtils.getColumnNames(getters);
         return findById(id, columns);
@@ -433,6 +439,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the entity or null if not found
      * @throws NativSQLException if columns is empty
      */
+
     public T findById(Object id, String... columns) {
         if (columns == null || columns.length == 0) {
             throw new NativSQLException("Column list cannot be empty");
@@ -456,7 +463,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @see #findAllByIds(List, String...)
      */
     @SafeVarargs
-    public final List<T> findAllByIds(List<?> ids, Getter<T>... getters) {
+    public final List<T> findAllByIds(List<ID> ids, Getter<T>... getters) {
         String[] columns = ReflectionUtils.getColumnNames(getters);
         return findAllByIds(ids, columns);
     }
@@ -494,6 +501,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the entity or null if not found
      * @see #findByProperty(String, Object, String...)
      */
+
     protected final T findByProperty(Getter<T> propertyGetter, Object value, String... columns) {
         return findByProperty(ReflectionUtils.getColumnName(propertyGetter), value, columns);
     }
@@ -507,12 +515,14 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getEmail)
      * @param value          the value to search for
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return the entity or null if not found
      * @see #findByProperty(String, Object, Getter...)
      */
     @SafeVarargs
+
     protected final T findByProperty(Getter<T> propertyGetter, Object value, Getter<T>... getters) {
         return findByProperty(ReflectionUtils.getColumnName(propertyGetter), value, getters);
     }
@@ -531,6 +541,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @see #findByProperty(String, Object, String...)
      */
     @SafeVarargs
+
     protected final T findByProperty(String property, Object value, Getter<T>... getters) {
         String[] columns = ReflectionUtils.getColumnNames(getters);
         return findByProperty(property, value, columns);
@@ -546,6 +557,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the entity or null if not found
      * @throws NativSQLException if columns is empty
      */
+
     protected T findByProperty(String property, Object value, String... columns) {
         if (columns == null || columns.length == 0) {
             throw new NativSQLException("Column list cannot be empty");
@@ -581,7 +593,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param value          the value to search for
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, Object, Getter...)
@@ -659,7 +672,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *                       filter by (e.g., User::getStatus)
      * @param value          the value to search for
      * @param orderBy        the order by clause
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, Object, OrderBy, Getter...)
@@ -685,7 +699,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @see #findAllByProperty(String, Object, OrderBy, String...)
      */
     @SafeVarargs
-    protected final List<T> findAllByProperty(String property, Object value, OrderBy orderBy, Getter<T>... getters) {
+    protected final List<T> findAllByProperty(String property, Object value, OrderBy orderBy,
+            Getter<T>... getters) {
         String[] columns = ReflectionUtils.getColumnNames(getters);
         return findAllByProperty(property, value, orderBy, columns);
     }
@@ -726,7 +741,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param values         the list of values to search for (uses IN clause)
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, List, Getter...)
@@ -803,7 +819,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param values         the list of values to search for (uses IN clause)
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByPropertyIn(String, List, Getter...)
@@ -870,6 +887,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @see #findByPropertyExpression(String, String, Object, String...)
      */
     @SafeVarargs
+
     protected final T findByPropertyExpression(String propertyExpression, String paramName, Object value,
             Getter<T>... getters) {
         String[] columns = ReflectionUtils.getColumnNames(getters);
@@ -889,6 +907,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the entity or null if not found
      * @throws NativSQLException if columns is empty
      */
+
     protected T findByPropertyExpression(String propertyExpression, String paramName, Object value, String... columns) {
         if (columns == null || columns.length == 0) {
             throw new NativSQLException("Column list cannot be empty");
@@ -1031,6 +1050,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param query the FindQuery builder with search criteria
      * @return the first matching entity or null if not found
      */
+
     protected T find(FindQuery<T, ID> query) {
         // Build SQL query using FindQuery
         String sql = query.buildString(identifierConverter);
@@ -1041,7 +1061,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         // Execute query with joins for nested object mapping
         List<T> results = dbOperationLogger.execute(getClass(), "SELECT", getTableName(), sql, params,
                 () -> findAllExternal(sql, params, entityClass));
+
         T entity = getFirstOrNull(results);
+        if (entity == null) {
+            return null;
+        }
 
         // Load associations for multiple linked entities using batch loading
         if (entity != null && query.hasAssociations()) {
@@ -1084,27 +1108,14 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     /**
      * Extracts values for specified properties.
      */
-    @NonNull
     private Map<String, Object> extractValues(T entity, String... properties) {
         Map<String, Object> params = new HashMap<>();
 
-        // Create a set of property names for quick lookup
         Set<String> propertySet = new HashSet<>(Arrays.asList(properties));
 
-        // Get all field accessors and filter by requested properties
         for (FieldAccessor<?> fieldAccessor : entityFields.list()) {
             if (propertySet.contains(fieldAccessor.getName())) {
-                Object value = fieldAccessor.getValue(entity);
-
-                // Get the declared DbDataType from @Type annotation, or null as default
-                DbDataType dbDataType = null;
-                var typeInfo = annotationManager.getTypeInfo(fieldAccessor);
-                if (typeInfo != null && typeInfo.getDataType() != null) {
-                    dbDataType = typeInfo.getDataType();
-                }
-
-                value = convertToSqlValue(value, fieldAccessor, dbDataType);
-                params.put(fieldAccessor.getName(), value);
+                params.put(fieldAccessor.getName(), fieldAccessor.getValue(entity));
             }
         }
 
@@ -1112,14 +1123,18 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
-     * Gets the types of specified properties before SQL conversion.
-     */
-    /**
      * Formats a parameter with appropriate SQL casting for enums and composite
      * types using the TypeMapper.
      */
     private <PARAM_T> String formatParameter(String paramName, FieldAccessor<PARAM_T> fieldAccessor) {
-        return databaseDialect.getMapper(fieldAccessor, annotationManager).formatParameter(paramName);
+        ITypeMapper<PARAM_T> mapper = databaseDialect.getMapper(fieldAccessor, annotationManager);
+        if (mapper == null) {
+            throw new NativSQLException(
+                    "No TypeMapper found for type: " + fieldAccessor.getType().getName() +
+                            ". Please ensure the type is properly configured in the database dialect.");
+        }
+        TypeInfo typeInfo = annotationManager.getTypeInfo(fieldAccessor);
+        return mapper.formatParameter(paramName, typeInfo.getParams());
     }
 
     /**
@@ -1130,42 +1145,20 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Returns null if value is null.
      * If dataType is null, the mapper will use its default behavior.
      */
-    private <PARAM_T> Object convertToSqlValue(PARAM_T value, FieldAccessor<?> fieldAccessor, DbDataType dataType) {
+    private <PARAM_T> Object convertToSqlValue(PARAM_T value, FieldAccessor<?> fieldAccessor,
+            TypeInfo typeInfo) {
         if (value == null) {
             return null;
         }
-
-        if (value instanceof List<?> list) {
-            return list.stream()
-                    .map(item -> {
-                        if (item == null) {
-                            return null;
-                        }
-                        @SuppressWarnings("unchecked")
-                        ITypeMapper<Object> itemMapper = (ITypeMapper<Object>) databaseDialect
-                                .getMapper(fieldAccessor, annotationManager);
-                        if (itemMapper == null) {
-                            throw new IllegalArgumentException(
-                                    "No TypeMapper found for type: " + item.getClass().getName() +
-                                            ". Please ensure the type is properly configured in the database dialect.");
-                        }
-                        return itemMapper.toDatabase(item, dataType);
-                    })
-                    .collect(Collectors.toList());
-        }
-
-        // Get the mapper for the actual value type
         @SuppressWarnings("unchecked")
         ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(fieldAccessor,
                 annotationManager);
         if (mapper == null) {
-            throw new IllegalArgumentException(
+            throw new NativSQLException(
                     "No TypeMapper found for type: " + value.getClass().getName() +
                             ". Please ensure the type is properly configured in the database dialect.");
         }
-        // Use toDatabase with the declared dataType (or null if no specific type
-        // declared)
-        return mapper.toDatabase(value, dataType);
+        return mapper.toDatabase(value, typeInfo.getParams());
     }
 
     /**
@@ -1173,25 +1166,63 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * mappers. Checks for @Type annotations on entity fields to determine the
      * appropriate database type for conversion.
      */
+    private Map<String, Object> convertParamsForLogging(Map<String, Object> rawParams) {
+        Map<String, Object> result = new HashMap<>();
+        for (Map.Entry<String, Object> entry : rawParams.entrySet()) {
+            String fieldName = entry.getKey();
+            Object value = entry.getValue();
+            if (value == null) {
+                result.put(fieldName, null);
+                continue;
+            }
+            FieldAccessor<Object> field = entityFields.getOrNull(fieldName);
+            if (field != null) {
+                TypeInfo typeInfo = annotationManager.getTypeInfo(field);
+                if (typeInfo.getParams().containsKey(TypeParamKey.ENCRYPTED)) {
+                    result.put(fieldName, value);
+                    continue;
+                }
+                result.put(fieldName, convertToSqlValue(value, field, typeInfo));
+            } else {
+                result.put(fieldName, value);
+            }
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
     private Map<String, Object> convertParamsToSqlValues(Map<String, Object> params) {
         Map<String, Object> converted = new HashMap<>();
         for (Map.Entry<String, Object> entry : params.entrySet()) {
-            DbDataType dbDataType = null;
+            if (entry.getValue() instanceof List<?> list) {
+                List<Object> convertedList = convertListParams((List<Object>) list);
+                converted.put(entry.getKey(), convertedList);
+            } else {
+                if (entry.getValue() == null) {
+                    converted.put(entry.getKey(), null);
+                } else {
+                    FieldAccessor<Object> field = entityFields.getOrNull(entry.getKey());
 
-            // Try to find the field in the entity and get its declared DbDataType
-            FieldAccessor<Object> field = entityFields.get(entry.getKey());
-            if (field != null) {
-                var typeInfo = annotationManager.getTypeInfo(field);
-                if (typeInfo != null && typeInfo.getDataType() != null) {
-                    dbDataType = typeInfo.getDataType();
+                    if (field == null) {
+                        field = new FieldAccessor<Object>(entry.getValue().getClass());
+                    }
+                    TypeInfo typeInfo = annotationManager.getTypeInfo(field);
+                    converted.put(entry.getKey(), convertToSqlValue(entry.getValue(), field, typeInfo));
                 }
-            } else if (entry.getValue() != null) {
-                field = new FieldAccessor<Object>(entry.getValue().getClass());
             }
-
-            converted.put(entry.getKey(), convertToSqlValue(entry.getValue(), field, dbDataType));
         }
         return converted;
+
+    }
+
+    private List<Object> convertListParams(List<Object> list) {
+        return list.stream()
+                .map(item -> {
+                    FieldAccessor<Object> field = new FieldAccessor<>(item.getClass());
+                    TypeInfo typeInfo = annotationManager.getTypeInfo(field);
+                    return convertToSqlValue(item, field, typeInfo);
+                })
+                .collect(Collectors.toList());
     }
 
     /**
@@ -1206,7 +1237,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         if (results.size() > 1) {
             throw new NativSQLException("Query returned multiple results but expected at most one");
         }
-        return results.isEmpty() ? null : results.get(0);
+        return results.isEmpty() ? (E) null : results.get(0);
     }
 
     /**
@@ -1266,12 +1297,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param entities    the list of entities to load the association for
      * @param association the association configuration
      */
-    private <SUBT extends IEntity<ID>> void loadAssociationInBatch(List<T> entities, Association association) {
+    private <SUBT extends IEntity<ID>> void loadAssociationInBatch(List<T> entities,
+            Association association) {
         FieldAccessor<List<SUBT>> fieldAccessor = entityFields.get(association.getName());
-        if (fieldAccessor == null) {
-            throw new NativSQLException("Association field not found: " + association.getName());
-        }
-
         OneToManyAssociation associationAnnotation = annotationManager.getOneToManyInfo(fieldAccessor);
         if (associationAnnotation == null) {
             throw new NativSQLException("Field is not annotated with @OneToMany: " + association.getName());
@@ -1281,6 +1309,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         @SuppressWarnings("unchecked")
         GenericRepository<SUBT, ID> repository = (GenericRepository<SUBT, ID>) applicationContext
                 .getBean(associationAnnotation.getRepositoryClass());
+        if (repository == null) {
+            throw new NativSQLException(
+                    "Repository not found for association: " + association.getName() +
+                            ". Ensure the repository class is correctly specified in the @OneToMany annotation and is a Spring bean.");
+        }
 
         // Create a map of entities by their ID for direct access
         Map<ID, T> entitiesById = entities.stream()
@@ -1305,15 +1338,22 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         // Initialize associations on each entity
         for (T entity : entities) {
+            if (entity == null) {
+                throw new NativSQLException("Entity cannot be null when loading associations");
+            }
             fieldAccessor.setValue(entity, new ArrayList<>());
         }
 
         // Add associated entities directly to their parent
         for (SUBT associated : allAssociatedEntities) {
+
             ID parentIdValue = repository.getFieldValue(associated, foreignKeyField);
             T parentEntity = entitiesById.get(parentIdValue);
             if (parentEntity != null) {
                 List<SUBT> associatedList = fieldAccessor.getValue(parentEntity);
+                if (associatedList == null) {
+                    throw new NativSQLException("Entity cannot be null when loading associations");
+                }
                 associatedList.add(associated);
             }
         }
@@ -1327,12 +1367,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @return the field value with the correct type
      * @throws NativSQLException if the field is not found
      */
+
     protected <V> V getFieldValue(Object entity, String fieldName) throws NativSQLException {
         @SuppressWarnings("unchecked")
         FieldAccessor<V> accessor = (FieldAccessor<V>) entityFields.get(fieldName);
-        if (accessor == null) {
-            throw new NativSQLException("Field not found: " + fieldName);
-        }
         return accessor.getValue(entity);
     }
 
@@ -1346,7 +1384,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param resultClass the class of the external object to return
      * @return the first result or null if not found
      */
-    protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Class<EXT> resultClass) {
+
+    protected <EXT> EXT findExternal(String sql, Class<EXT> resultClass) {
         return findExternal(sql, new HashMap<>(), resultClass);
     }
 
@@ -1361,8 +1400,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param resultClass the class of the external object to return
      * @return the first result or null if not found
      */
-    protected <EXT> EXT findExternal(@NonNull String sql, @NonNull Map<String, Object> params,
-            @NonNull Class<EXT> resultClass) {
+
+    protected <EXT> EXT findExternal(String sql, Map<String, Object> params,
+            Class<EXT> resultClass) {
         List<EXT> results = dbOperationLogger.execute(getClass(), "SELECT", getTableName(), sql, params,
                 () -> findAllExternal(sql, params, resultClass));
         return getFirstOrNull(results);
@@ -1378,7 +1418,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param resultClass the class of the external objects to return
      * @return a list of results
      */
-    protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Class<EXT> resultClass) {
+    protected <EXT> List<EXT> findAllExternal(String sql, Class<EXT> resultClass) {
         return findAllExternal(sql, new HashMap<>(), resultClass);
     }
 
@@ -1393,8 +1433,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param resultClass the class of the external objects to return
      * @return a list of results
      */
-    protected <EXT> List<EXT> findAllExternal(@NonNull String sql, @NonNull Map<String, Object> params,
-            @NonNull Class<EXT> resultClass) {
+    protected <EXT> List<EXT> findAllExternal(String sql, Map<String, Object> params,
+            Class<EXT> resultClass) {
         Map<String, Object> convertedParams = convertParamsToSqlValues(params);
         return jdbcTemplate.query(sql, convertedParams,
                 rowMapperFactory.getRowMapper(resultClass, databaseDialect, identifierConverter));

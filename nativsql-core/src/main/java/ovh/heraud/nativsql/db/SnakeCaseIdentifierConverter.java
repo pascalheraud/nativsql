@@ -13,7 +13,7 @@ public class SnakeCaseIdentifierConverter implements IdentifierConverter {
 
     @Override
     public String toDB(String javaIdentifier) {
-        return JdbcUtils.convertPropertyNameToUnderscoreName(javaIdentifier);
+        return (JdbcUtils.convertPropertyNameToUnderscoreName(javaIdentifier));
     }
 
     @Override
@@ -33,6 +33,6 @@ public class SnakeCaseIdentifierConverter implements IdentifierConverter {
             }
         }
 
-        return result.toString();
+        return (result.toString());
     }
 }

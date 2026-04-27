@@ -3,23 +3,23 @@ package ovh.heraud.nativsql.util;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 
-import org.jspecify.annotations.NonNull;
 import ovh.heraud.nativsql.exception.NativSQLException;
 
 /**
  * Represents the details of a OneToMany association.
  */
 public class OneToManyAssociation {
-    private final @NonNull String foreignKey;
-    private final @NonNull Class<?> repositoryClass;
+    private final String foreignKey;
+    private final Class<?> repositoryClass;
 
     /**
      * Creates a new OneToManyAssociation.
      *
-     * @param foreignKey the field name in the target entity that references this entity's ID
+     * @param foreignKey      the field name in the target entity that references
+     *                        this entity's ID
      * @param repositoryClass the repository class to use
      */
-    public OneToManyAssociation(@NonNull  String foreignKey,@NonNull  Class<?> repositoryClass) {
+    public OneToManyAssociation(String foreignKey, Class<?> repositoryClass) {
         this.foreignKey = foreignKey;
         this.repositoryClass = repositoryClass;
     }
@@ -29,19 +29,19 @@ public class OneToManyAssociation {
      *
      * @return the field name in the target entity that references this entity's ID
      */
-    @NonNull
-    public String getForeignKey() {
+   public String getForeignKey() {
         return foreignKey;
     }
 
     /**
-     * Gets the target entity class by extracting it from the repository generic type.
+     * Gets the target entity class by extracting it from the repository generic
+     * type.
      *
      * @return the target entity class
-     * @throws NativSQLException if the entity type cannot be extracted from the repository
+     * @throws NativSQLException if the entity type cannot be extracted from the
+     *                           repository
      */
-    @NonNull
-    public Class<?> getEntity() {
+   public Class<?> getEntity() {
         Type[] genericInterfaces = repositoryClass.getGenericInterfaces();
         for (Type genericInterface : genericInterfaces) {
             if (genericInterface instanceof ParameterizedType) {
@@ -51,7 +51,10 @@ public class OneToManyAssociation {
                 if (rawType instanceof Class<?> && isGenericRepositoryClass((Class<?>) rawType)) {
                     Type[] typeArguments = parameterizedType.getActualTypeArguments();
                     if (typeArguments.length > 0 && typeArguments[0] instanceof Class<?>) {
-                        return (Class<?>) typeArguments[0];
+                        Class<?> tp = (Class<?>) typeArguments[0];
+                        if (tp != null) {
+                            return tp;
+                        }
                     }
                 }
             }
@@ -79,8 +82,7 @@ public class OneToManyAssociation {
      *
      * @return the repository class
      */
-    @NonNull
-    public Class<?> getRepositoryClass() {
+   public Class<?> getRepositoryClass() {
         return repositoryClass;
     }
 }

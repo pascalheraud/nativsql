@@ -1,12 +1,13 @@
 package ovh.heraud.nativsql.mapper;
 
 import java.sql.ResultSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import ovh.heraud.nativsql.exception.NativSQLException;
-import org.jspecify.annotations.Nullable;
+import ovh.heraud.nativsql.util.TypeInfo;
 import org.springframework.jdbc.core.RowMapper;
 
 /**
@@ -49,7 +50,6 @@ public class GenericRowMapper<T> implements RowMapper<T> {
     }
 
     @Override
-    @Nullable
     public T mapRow(ResultSet rs, int rowNum) throws NativSQLException {
         try {
             T instance = null;
@@ -122,22 +122,30 @@ public class GenericRowMapper<T> implements RowMapper<T> {
     /**
      * Maps a single column value to a simple property of a target object.
      *
-     * @param targetObject the object to set the property on
+     * @param targetObject       the object to set the property on
      * @param propertyColumnName the column name to search for in this mapper
-     * @param rs the result set
-     * @param columnLabel the actual column label from the result set
-     * @param prefix the prefix for this property (e.g., "group" for "group.id"), or null for root properties
+     * @param rs                 the result set
+     * @param columnLabel        the actual column label from the result set
+     * @param prefix             the prefix for this property (e.g., "group" for
+     *                           "group.id"), or null for root properties
      * @throws NativSQLException if the property metadata is not found
      */
-    private void mapColumn(Object targetObject, String propertyColumnName, ResultSet rs, String columnLabel, String prefix)
+    private void mapColumn(Object targetObject, String propertyColumnName, ResultSet rs,
+            String columnLabel,
+            String prefix)
             throws NativSQLException {
         PropertyMetadata<?> prop = simpleProperties.get(propertyColumnName);
 
         if (prop == null) {
-            throw new NativSQLException("Property "+propertyColumnName+" not found for in class " + targetObject.getClass());
+            throw new NativSQLException(
+                    "Property " + propertyColumnName + " not found for in class " + targetObject.getClass());
         }
 
-        Object value = prop.getTypeMapper().map(rs, columnLabel);
+        TypeInfo typeInfo = prop.getTypeInfo();
+        Object value = typeInfo != null
+                ? prop.getTypeMapper().map(rs, columnLabel, prop.getFieldAccessor(), typeInfo.getParams())
+                : prop.getTypeMapper().map(rs, columnLabel, prop.getFieldAccessor(),
+                        (Collections.emptyMap()));
         prop.getFieldAccessor().setValue(targetObject, value);
     }
 

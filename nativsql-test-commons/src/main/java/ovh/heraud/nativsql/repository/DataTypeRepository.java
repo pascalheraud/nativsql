@@ -7,14 +7,15 @@ import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
 
 /**
- * Generic data type repository that can be instantiated with any entity class and table name.
+ * Generic data type repository that can be instantiated with any entity class
+ * and table name.
  * This allows creating a matrix of repositories for testing type mappings.
  *
  * Usage:
- *   DataTypeRepository<DataTypeLong> longRepo = new DataTypeRepository<>(
- *       DataTypeLong.class, "data_type_long", dataSource, dialect, rowMapperFactory
- *   );
- *   longRepo.initialize(); // Must be called to initialize JDBC template
+ * DataTypeRepository<DataTypeLong> longRepo = new DataTypeRepository<>(
+ * DataTypeLong.class, "data_type_long", dataSource, dialect, rowMapperFactory
+ * );
+ * longRepo.initialize(); // Must be called to initialize JDBC template
  *
  * @param <T> the entity type implementing IEntity with Long ID
  */
@@ -25,8 +26,8 @@ public class DataTypeRepository<T extends IEntity<Long>> extends GenericReposito
     private final DatabaseDialect databaseDialect;
 
     public DataTypeRepository(Class<T> entityClass, String tableName, DataSource dataSource,
-                            DatabaseDialect databaseDialect, RowMapperFactory rowMapperFactory,
-                            AnnotationManager annotationManager, DbOperationLogger dbOperationLogger) {
+            DatabaseDialect databaseDialect, RowMapperFactory rowMapperFactory,
+            AnnotationManager annotationManager, DbOperationLogger dbOperationLogger) {
         super(entityClass, tableName, rowMapperFactory, annotationManager, dbOperationLogger);
         this.entityClass = entityClass;
         this.dataSource = dataSource;

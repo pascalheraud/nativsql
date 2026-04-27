@@ -827,7 +827,7 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 // When - Call a custom query with null parameter
                 // This tests how the repository handles null param values in custom queries
                 // PostgreSQL requires COALESCE with type casting for NULL inference
-                List<User> results = userRepository.findByIdWithNullParam(userId, null);
+                List<User> results = userRepository.findAllByIdWithNullParam(userId, null);
 
                 // Then - Should not throw NullPointerException and return the user
                 assertThat(results).isNotNull().isNotEmpty();
@@ -885,5 +885,100 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(found.getFirstName()).isEqualTo("MixedTest");
                 assertThat(found.getAddress()).isNotNull();
                 assertThat(found.getAddress().getCity()).isEqualTo("Toulouse");
+        }
+
+        @Test
+        void testInsertUserWithEncryptedLastName() {
+                // Given
+                User user = User.builder()
+                                .firstName("Alice")
+                                .lastName("Secret")
+                                .email("encrypted@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                // Then - lastName is decrypted transparently on read
+                User found = userRepository.findByEmail("encrypted@example.com", "id", "firstName", "lastName", "email");
+                assertThat(found).isNotNull();
+                assertThat(found.getLastName()).isEqualTo("Secret");
+
+                // Verify the raw value in DB is prefixed and not plaintext
+                String rawInDb = new org.springframework.jdbc.core.JdbcTemplate(getDataSource())
+                                .queryForObject("SELECT last_name FROM users WHERE email = 'encrypted@example.com'",
+                                                String.class);
+                assertThat(rawInDb).startsWith("{ENC}");
+                assertThat(rawInDb).doesNotContain("Secret");
+        }
+
+        @Test
+        void testUpdateEncryptedLastName() {
+                // Given
+                User user = User.builder()
+                                .firstName("Bob")
+                                .lastName("OldName")
+                                .email("updateenc@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                User found = userRepository.findByEmail("updateenc@example.com", "id", "firstName", "lastName");
+                assertThat(found.getLastName()).isEqualTo("OldName");
+
+                // When
+                found.setLastName("NewName");
+                userRepository.update(found, "lastName");
+
+                // Then
+                User updated = userRepository.findByEmail("updateenc@example.com", "id", "lastName");
+                assertThat(updated.getLastName()).isEqualTo("NewName");
+
+                String rawInDb = new org.springframework.jdbc.core.JdbcTemplate(getDataSource())
+                                .queryForObject("SELECT last_name FROM users WHERE email = 'updateenc@example.com'",
+                                                String.class);
+                assertThat(rawInDb).startsWith("{ENC}");
+        }
+
+        @Test
+        void testInsertUserWithNullEncryptedLastName() {
+                // Given
+                User user = User.builder()
+                                .firstName("Charlie")
+                                .email("nulllastname@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                // Then
+                User found = userRepository.findByEmail("nulllastname@example.com", "id", "firstName", "lastName");
+                assertThat(found).isNotNull();
+                assertThat(found.getLastName()).isNull();
+        }
+
+        @Test
+        void testDeleteUserWithEncryptedLastName() {
+                // Given
+                User user = User.builder()
+                                .firstName("Dave")
+                                .lastName("ToDelete")
+                                .email("deleteenc@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                User found = userRepository.findByEmail("deleteenc@example.com", "id", "lastName");
+                assertThat(found).isNotNull();
+                assertThat(found.getLastName()).isEqualTo("ToDelete");
+
+                // When
+                userRepository.delete(found);
+
+                // Then
+                User deleted = userRepository.findByEmail("deleteenc@example.com", "id");
+                assertThat(deleted).isNull();
         }
 }

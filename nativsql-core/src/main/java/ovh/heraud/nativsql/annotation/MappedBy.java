@@ -5,7 +5,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.jspecify.annotations.NonNull;
 
 /**
  * Annotation to specify the foreign key property and repository for a jointure.
@@ -19,7 +18,6 @@ public @interface MappedBy {
      *
      * @return the foreign key property name (e.g., "groupId")
      */
-    @NonNull
     String value();
 
     /**
@@ -27,6 +25,5 @@ public @interface MappedBy {
      *
      * @return the repository class
      */
-    @NonNull
     Class<?> repository();
 }

@@ -3,9 +3,7 @@ package ovh.heraud.nativsql.repository.mariadb;
 import java.util.List;
 
 import ovh.heraud.nativsql.domain.mariadb.ContactInfo;
-import ovh.heraud.nativsql.domain.mariadb.ContactType;
-import org.jspecify.annotations.NonNull;
-import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.mariadb.ContactType;import org.springframework.stereotype.Repository;
 
 /**
  * Repository for ContactInfo entities using MariaDB.
@@ -14,13 +12,11 @@ import org.springframework.stereotype.Repository;
 public class MariaDBContactInfoRepository extends MariaDBRepository<ContactInfo, Long> {
 
     @Override
-    @NonNull
     public String getTableName() {
         return "contact_info";
     }
 
     @Override
-    @NonNull
     protected Class<ContactInfo> getEntityClass() {
         return ContactInfo.class;
     }
@@ -32,7 +28,7 @@ public class MariaDBContactInfoRepository extends MariaDBRepository<ContactInfo,
      * @param columns the property names (camelCase) to retrieve
      * @return list of contact info for the user
      */
-    public List<ContactInfo> findByUserId(Long userId, String... columns) {
+   public List<ContactInfo> findByUserId(Long userId, String... columns) {
         return findAllByProperty("userId", userId, columns);
     }
 
@@ -44,7 +40,7 @@ public class MariaDBContactInfoRepository extends MariaDBRepository<ContactInfo,
      * @param columns     the property names (camelCase) to retrieve
      * @return list of matching contacts
      */
-    public List<ContactInfo> findByUserIdAndType(Long userId, ContactType contactType, String... columns) {
+   public List<ContactInfo> findByUserIdAndType(Long userId, ContactType contactType, String... columns) {
         return findAll(
                 newFindQuery()
                         .select(columns)
@@ -60,6 +56,7 @@ public class MariaDBContactInfoRepository extends MariaDBRepository<ContactInfo,
      * @param columns     the property names (camelCase) to retrieve
      * @return the primary contact or null if not found
      */
+
     public ContactInfo findPrimaryByUserIdAndType(Long userId, ContactType contactType, String... columns) {
         return find(
                 newFindQuery()

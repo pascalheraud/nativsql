@@ -1,10 +1,12 @@
-package ovh.heraud.nativsql.annotation;
+package ovh.heraud.nativsql.annotation.type;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
+import ovh.heraud.nativsql.annotation.DbDataType;
 
 /**
  * Annotation to specify the database data type for a field.
@@ -34,4 +36,5 @@ public @interface Type {
      * @return the database data type
      */
     DbDataType value();
+
 }

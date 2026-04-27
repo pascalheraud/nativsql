@@ -5,6 +5,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+
+import ovh.heraud.nativsql.exception.NativSQLException;
 
 /**
  * Wrapper around a list of FieldAccessors with fast lookup by name.
@@ -23,9 +26,24 @@ public class Fields {
 
     /**
      * Gets a field by name.
+     * 
+     * @throws NativSQLException if the field does not exist
+     */
+    public <T> FieldAccessor<T> get(String name) {
+        FieldAccessor<T> fieldAccessor = getOrNull(name);
+        if (fieldAccessor == null) {
+            throw new NativSQLException("Field with name " + name + " not found");
+        }
+        return fieldAccessor;
+    }
+
+    /**
+     * Gets a field by name.
+     * 
+     * @return null if the field does not exist
      */
     @SuppressWarnings("unchecked")
-    public <T> FieldAccessor<T> get(String name) {
+    public <T> FieldAccessor<T> getOrNull(String name) {
         return (FieldAccessor<T>) fieldsByName.get(name);
     }
 
@@ -33,14 +51,14 @@ public class Fields {
      * Gets all fields as a list.
      */
     public List<FieldAccessor<?>> list() {
-        return Collections.unmodifiableList(fields);
+        return (Collections.unmodifiableList(fields));
     }
 
     /**
      * Gets all field names.
      */
-    public java.util.Set<String> names() {
-        return Collections.unmodifiableSet(fieldsByName.keySet());
+    public Set<String> names() {
+        return (Collections.unmodifiableSet(fieldsByName.keySet()));
     }
 
     /**

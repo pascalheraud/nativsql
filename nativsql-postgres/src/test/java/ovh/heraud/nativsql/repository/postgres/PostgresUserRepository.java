@@ -8,9 +8,7 @@ import java.util.UUID;
 import org.postgis.Point;
 import ovh.heraud.nativsql.domain.data.IData;
 import ovh.heraud.nativsql.domain.postgres.User;
-import ovh.heraud.nativsql.domain.postgres.UserReport;
-import org.jspecify.annotations.NonNull;
-import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.postgres.UserReport;import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities.
@@ -19,13 +17,11 @@ import org.springframework.stereotype.Repository;
 public class PostgresUserRepository extends PostgresRepository<User, Long> {
 
     @Override
-    @NonNull
     public String getTableName() {
         return "users";
     }
 
     @Override
-    @NonNull
     protected Class<User> getEntityClass() {
         return User.class;
     }
@@ -247,7 +243,7 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
      * @param nullParam a null parameter to test null handling
      * @return list of users found
      */
-    public List<User> findByIdWithNullParam(Long userId, Object nullParam) {
+   public List<User> findAllByIdWithNullParam(Long userId, Object nullParam) {
         String sql = """
                 SELECT id, first_name as "firstName", email
                 FROM users

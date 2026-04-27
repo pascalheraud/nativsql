@@ -19,9 +19,9 @@ public class Condition {
      * @param value    the value to compare (required)
      */
     public Condition(String column, Operator operator, Object value) {
-        this.column = Objects.requireNonNull(column, "Column cannot be null");
-        this.operator = Objects.requireNonNull(operator, "Operator cannot be null");
-        this.value = Objects.requireNonNull(value, "Value cannot be null");
+        this.column = column;
+        this.operator = operator;
+        this.value = value;
     }
 
     public String getColumn() {
@@ -38,8 +38,10 @@ public class Condition {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         Condition condition = (Condition) o;
         return Objects.equals(column, condition.column) &&
                 operator == condition.operator &&

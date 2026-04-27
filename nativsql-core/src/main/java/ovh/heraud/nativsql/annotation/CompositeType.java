@@ -7,15 +7,15 @@ import java.lang.annotation.Target;
 
 /**
  * Marks a class as a database composite type.
- * This annotation indicates that a class represents a composite type in the database.
+ * The SQL type name is declared separately via {@link ovh.heraud.nativsql.annotation.type.SqlType}.
+ *
+ * <pre>
+ * {@literal @}CompositeType
+ * {@literal @}SqlType("address_type")
+ * public class Address { ... }
+ * </pre>
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 public @interface CompositeType {
-    /**
-     * The database type name for this composite type.
-     *
-     * @return the database type name
-     */
-    String typeName();
 }

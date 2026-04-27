@@ -1,9 +1,11 @@
 package ovh.heraud.nativsql.db;
 
 /**
- * Converts between Java identifiers (camelCase) and database identifiers (snake_case).
+ * Converts between Java identifiers (camelCase) and database identifiers
+ * (snake_case).
  *
- * Allows different databases to use different naming conventions for columns and fields.
+ * Allows different databases to use different naming conventions for columns
+ * and fields.
  */
 public interface IdentifierConverter {
 

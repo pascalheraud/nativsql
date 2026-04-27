@@ -5,7 +5,6 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import org.jspecify.annotations.NonNull;
 
 /**
  * Annotation to mark a field as a one-to-many relationship.
@@ -15,14 +14,15 @@ import org.jspecify.annotations.NonNull;
  * </p>
  * 
  * <pre>
- * {@code
- * @Data
- * public class User implements IEntity<Long> {
- *     private Long id;
+ * {
+ *     &#64;code
+ *     &#64;Data
+ *     public class User implements IEntity<Long> {
+ *         private Long id;
  *
- *     @OneToMany(mappedBy = "userId", repository = ContactInfoRepository.class)
- *     private List<ContactInfo> contacts;
- * }
+ *         @OneToMany(mappedBy = "userId", repository = ContactInfoRepository.class)
+ *         private List<ContactInfo> contacts;
+ *     }
  * }
  * </pre>
  */
@@ -35,7 +35,6 @@ public @interface OneToMany {
      *
      * @return the foreign key field name (e.g., "userId")
      */
-    @NonNull
     String mappedBy();
 
     /**
@@ -43,6 +42,5 @@ public @interface OneToMany {
      *
      * @return the repository class
      */
-    @NonNull
     Class<?> repository();
 }

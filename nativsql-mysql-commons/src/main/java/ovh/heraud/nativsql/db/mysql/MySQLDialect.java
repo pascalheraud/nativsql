@@ -2,12 +2,9 @@ package ovh.heraud.nativsql.db.mysql;
 
 import java.util.Map;
 
-import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.AbstractChainedDialect;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.generic.GenericDialect;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * MySQL/MariaDB specific implementation of DatabaseDialect.
@@ -20,8 +17,10 @@ import ovh.heraud.nativsql.util.FieldAccessor;
  * MySQL stores enums as VARCHAR and composites as JSON, which matches the
  * generic behavior.
  *
- * Part of the Chain of Responsibility pattern, chains to GenericDialect for unmapped types.
- * Can be extended to create specialized MySQL dialects (e.g., with spatial Point support).
+ * Part of the Chain of Responsibility pattern, chains to GenericDialect for
+ * unmapped types.
+ * Can be extended to create specialized MySQL dialects (e.g., with spatial
+ * Point support).
  */
 public class MySQLDialect extends AbstractChainedDialect {
 
@@ -41,28 +40,9 @@ public class MySQLDialect extends AbstractChainedDialect {
         super(new GenericDialect());
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public <T> ITypeMapper<T> getMapper(FieldAccessor<T>fieldAccessor, AnnotationManager annotationManager) {
-        // Check for JSON types via AnnotationManager
-        if (annotationManager != null && annotationManager.getJsonInfo(fieldAccessor.getType()) != null) {
-            return (ITypeMapper<T>) getJsonMapper(fieldAccessor.getType());
-        }
-
-        // Fall back to next dialect in chain for other types
-        return super.getMapper(fieldAccessor, annotationManager);
-    }
-
-    @Override
-    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager) {
-        // MySQL does not support native composite types like PostgreSQL
-        throw new UnsupportedOperationException(
-                "MySQL does not support native composite types. " +
-                        "Use JSON columns instead for composite data: " + compositeClass.getSimpleName());
-    }
-
-        @SuppressWarnings("unchecked")
-        @Override
-    public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
+  public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
         return (ID) keys.get("GENERATED_KEY");
     }
 }

@@ -1,14 +1,17 @@
 package ovh.heraud.nativsql.db.postgres.mapper;
 
 import java.lang.reflect.Field;
-import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
-import ovh.heraud.nativsql.annotation.DbDataType;
-import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
 import org.postgresql.util.PGobject;
+import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.ParamKey;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.ConversionException;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * PostgreSQL-specific TypeMapper for composite types.
@@ -16,129 +19,104 @@ import org.postgresql.util.PGobject;
  *
  * @param <T> the composite type class
  */
-public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
+public class PostgresCompositeTypeMapper<T> extends AbstractTypeMapper<T> {
 
-    private final Class<T> compositeClass;
-    private final String dbTypeName;
-
-    public PostgresCompositeTypeMapper(Class<T> compositeClass, String dbTypeName) {
-        this.compositeClass = compositeClass;
-        this.dbTypeName = dbTypeName;
-    }
-
+    @SuppressWarnings("unchecked")
     @Override
-    public T map(ResultSet rs, String columnName) throws NativSQLException {
+    public T fromValue(Object value, FieldAccessor<?> fieldAccessor,
+            Map<ParamKey, Object> params) throws ConversionException {
+        Class<T> compositeClass = (Class<T>) fieldAccessor.getType();
         try {
-            Object dbValue = rs.getObject(columnName);
-            if (dbValue == null) {
-                return null;
+            String compositeStr;
+            if (value instanceof PGobject pgObject) {
+                compositeStr = pgObject.getValue();
+            } else if (value instanceof String str) {
+                compositeStr = str;
+            } else {
+                throw new ConversionException(compositeClass);
             }
+            return parseComposite(compositeStr, compositeClass);
+        } catch (ReflectiveOperationException | IllegalArgumentException | SecurityException e) {
+            throw new ConversionException(compositeClass, e);
+        }
+    }
 
-            // PostgreSQL returns PGobject for composite types
-            if (!(dbValue instanceof PGobject)) {
-                throw new java.sql.SQLException("Expected PGobject for composite type, got: " + dbValue.getClass());
+    private T parseComposite(String compositeStr, Class<T> compositeClass) throws ReflectiveOperationException {
+        String trimmed = compositeStr.substring(1, compositeStr.length() - 1);
+        String[] rawValues = trimmed.split(",", -1);
+        Field[] fields = compositeClass.getDeclaredFields();
+
+        Object[] convertedValues = new Object[Math.min(fields.length, rawValues.length)];
+        for (int i = 0; i < convertedValues.length; i++) {
+            String value = rawValues[i];
+            if (value.startsWith("\"") && value.endsWith("\"")) {
+                value = value.substring(1, value.length() - 1);
             }
+            convertedValues[i] = convertValue(value, fields[i].getType());
+        }
 
-            PGobject pgObject = (PGobject) dbValue;
-            String compositeStr = pgObject.getValue();
-
-            // Remove outer parentheses and split by comma
-            String trimmed = compositeStr.substring(1, compositeStr.length() - 1);
-            String[] values = trimmed.split(",", -1);
-
+        try {
             T instance = compositeClass.getDeclaredConstructor().newInstance();
-            Field[] fields = compositeClass.getDeclaredFields();
-
-            for (int i = 0; i < fields.length && i < values.length; i++) {
-                Field field = fields[i];
-                field.setAccessible(true);
-
-                String value = values[i];
-                // Remove quotes if present
-                if (value.startsWith("\"") && value.endsWith("\"")) {
-                    value = value.substring(1, value.length() - 1);
-                }
-
-                Object convertedValue = convertValue(value, field.getType());
-                field.set(instance, convertedValue);
+            for (int i = 0; i < convertedValues.length; i++) {
+                fields[i].setAccessible(true);
+                fields[i].set(instance, convertedValues[i]);
             }
-
             return instance;
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException(e);
-        } catch (ReflectiveOperationException e) {
-            throw new NativSQLException(e);
-        } catch (IllegalArgumentException e) {
-            throw new NativSQLException(e);
-        } catch (SecurityException e) {
-            throw new NativSQLException(e);
+        } catch (NoSuchMethodException e) {
+            Class<?>[] types = java.util.Arrays.stream(fields)
+                    .map(Field::getType).toArray(Class[]::new);
+            java.lang.reflect.Constructor<T> ctor = compositeClass.getDeclaredConstructor(types);
+            ctor.setAccessible(true);
+            return ctor.newInstance(convertedValues);
         }
     }
 
     @Override
-    public Object toDatabase(T value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
-        // Composite types must be converted to PGobject, no other conversion is allowed
+    protected Object toDatabaseValue(T value, Map<ParamKey, Object> params)
+            throws ConversionException {
+        DbDataType dataType = (DbDataType) params.get(TypeParamKey.DB_DATA_TYPE);
         if (dataType != null) {
-            throw new NativSQLException(
-                    "Cannot convert composite type " + compositeClass.getSimpleName() + " to " + dataType);
+            throw new ConversionException(dataType.name());
         }
-
         try {
             List<String> fieldValues = new ArrayList<>();
-
-            for (Field field : compositeClass.getDeclaredFields()) {
+            for (Field field : value.getClass().getDeclaredFields()) {
                 field.setAccessible(true);
                 Object fieldValue = field.get(value);
-                String quoted = quoteCompositeValue(fieldValue);
-                fieldValues.add(quoted);
+                fieldValues.add(quoteCompositeValue(fieldValue));
             }
-
+            String sqlTypeName = (String) params.get(TypeParamKey.SQL_TYPE);
             PGobject pgObject = new PGobject();
-            pgObject.setType(dbTypeName);
+            pgObject.setType(sqlTypeName);
             pgObject.setValue("(" + String.join(",", fieldValues) + ")");
             return pgObject;
         } catch (java.sql.SQLException | IllegalAccessException e) {
-            throw new RuntimeException("Failed to convert composite to SQL", e);
+            throw new ConversionException(value.getClass(), e);
         }
     }
 
     @Override
-    public String formatParameter(String paramName) {
-        // PostgreSQL composite types use :: casting syntax
-        return "(:" + paramName + ")::" + dbTypeName;
+    public String formatParameter(String paramName, Map<ParamKey, Object> params) {
+        String sqlTypeName = (String) params.get(TypeParamKey.SQL_TYPE);
+        return "(:" + paramName + ")::" + sqlTypeName;
     }
 
-    /**
-     * Quotes a value for use in a PostgreSQL composite type string.
-     * Handles null values, strings, and other types.
-     */
     private String quoteCompositeValue(Object value) {
         if (value == null) {
             return "";
         }
-
         if (value instanceof String) {
             String str = (String) value;
-            // Escape backslashes and quotes
             str = str.replace("\\", "\\\\").replace("\"", "\\\"");
             return "\"" + str + "\"";
         }
-
         return value.toString();
     }
 
-    /**
-     * Converts a string value to the target type.
-     */
     private Object convertValue(String value, Class<?> targetType) {
         if (value == null || value.isEmpty()) {
             return null;
         }
-
         if (String.class == targetType) {
             return value;
         } else if (Integer.class == targetType || int.class == targetType) {
@@ -150,7 +128,6 @@ public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
         } else if (Boolean.class == targetType || boolean.class == targetType) {
             return Boolean.parseBoolean(value);
         }
-
         return value;
     }
 }

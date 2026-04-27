@@ -4,7 +4,7 @@ import java.util.List;
 
 import ovh.heraud.nativsql.domain.postgres.ContactInfo;
 import ovh.heraud.nativsql.domain.postgres.ContactType;
-import org.jspecify.annotations.NonNull;
+
 import org.springframework.stereotype.Repository;
 
 /**
@@ -14,14 +14,12 @@ import org.springframework.stereotype.Repository;
 public class PostgresContactInfoRepository extends PostgresRepository<ContactInfo, Long> {
 
     @Override
-    @NonNull
-    public String getTableName() {
+  public String getTableName() {
         return "contact_info";
     }
 
     @Override
-    @NonNull
-    protected Class<ContactInfo> getEntityClass() {
+ protected Class<ContactInfo> getEntityClass() {
         return ContactInfo.class;
     }
 

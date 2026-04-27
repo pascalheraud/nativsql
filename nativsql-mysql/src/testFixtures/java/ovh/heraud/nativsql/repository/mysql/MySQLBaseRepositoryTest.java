@@ -1,8 +1,7 @@
 package ovh.heraud.nativsql.repository.mysql;
 
 import org.testcontainers.containers.JdbcDatabaseContainer;
-import org.testcontainers.containers.MySQLContainer;
-
+import org.testcontainers.mysql.MySQLContainer;
 import ovh.heraud.nativsql.repository.BaseRepositoryTest;
 
 /**

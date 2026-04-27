@@ -2,7 +2,6 @@ package ovh.heraud.nativsql.repository.mariadb;
 
 import javax.sql.DataSource;
 
-import org.jspecify.annotations.NonNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import ovh.heraud.nativsql.db.DatabaseDialect;
@@ -21,7 +20,6 @@ public abstract class MariaDBRepository<T extends IEntity<ID>, ID> extends Gener
 
     @Autowired(required = false)
     @Qualifier("mariaDBDataSource")
-    @NonNull
     private DataSource mariadbDataSource;
 
     /**
@@ -36,7 +34,6 @@ public abstract class MariaDBRepository<T extends IEntity<ID>, ID> extends Gener
     private MariaDBDialect mariadbDialect;
 
     @Override
-    @NonNull
     protected DataSource getDataSource() {
         return mariadbDataSource;
     }

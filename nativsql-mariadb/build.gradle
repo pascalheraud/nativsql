@@ -11,6 +11,9 @@ dependencies {
     // MySQL commons dialect (MariaDB extends MySQLDialect)
     implementation project(':nativsql-mysql-commons')
 
+    // Annotations
+    implementation 'org.jspecify:jspecify'
+
     // Core Spring Boot dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-jdbc'
     testImplementation 'org.springframework.boot:spring-boot-starter'
