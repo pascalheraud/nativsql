@@ -32,10 +32,10 @@ public class FieldAccessor<T> {
     /**
      * Gets the field name.
      *
-     * @return the field name
+     * @return the field name or UNKNOWN if the field is null
      */
     public String getName() {
-        return field.getName();
+        return (field == null ? "UNKNOWN" : field.getName());
     }
 
     /**
@@ -48,6 +48,10 @@ public class FieldAccessor<T> {
         return field == null ? this.fieldType : (Class<T>) field.getType();
     }
 
+    public Class<?> getDeclaringClass() {
+        return field == null ? this.fieldType : field.getDeclaringClass();
+    }
+
     /**
      * Gets the value of the field on the instance.
      *
@@ -56,6 +60,7 @@ public class FieldAccessor<T> {
      * @throws RuntimeException if access fails
      */
     @SuppressWarnings("unchecked")
+
     public T getValue(Object instance) {
         try {
             return (T) field.get(instance);
@@ -86,8 +91,9 @@ public class FieldAccessor<T> {
      * @param annotationClass the annotation class
      * @return the annotation if present, null otherwise
      */
+
     public <AT extends Annotation> AT getAnnotation(Class<AT> annotationClass) {
-        return field.getAnnotation(annotationClass);
+        return field != null ? field.getAnnotation(annotationClass) : null;
     }
 
     /**
@@ -97,7 +103,7 @@ public class FieldAccessor<T> {
      * @return true if the annotation is present, false otherwise
      */
     public boolean hasAnnotation(Class<? extends Annotation> annotationClass) {
-        return field.isAnnotationPresent(annotationClass);
+        return field != null && field.isAnnotationPresent(annotationClass);
     }
 
     /**
@@ -115,5 +121,12 @@ public class FieldAccessor<T> {
                 "field=" + field.getName() +
                 ", type=" + field.getType().getSimpleName() +
                 '}';
+    }
+
+    public Annotation[] getAnnotations() {
+        if (field != null) {
+            return field.getAnnotations();
+        }
+        return new Annotation[0];
     }
 }

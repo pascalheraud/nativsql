@@ -4,9 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.oracle.User;
-import ovh.heraud.nativsql.domain.oracle.UserReport;
-import org.jspecify.annotations.NonNull;
-import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.oracle.UserReport;import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities using Oracle.
@@ -15,13 +13,11 @@ import org.springframework.stereotype.Repository;
 public class OracleUserRepository extends OracleRepository<User, Long> {
 
     @Override
-    @NonNull
     public String getTableName() {
         return "users";
     }
 
     @Override
-    @NonNull
     protected Class<User> getEntityClass() {
         return User.class;
     }
@@ -56,8 +52,16 @@ public class OracleUserRepository extends OracleRepository<User, Long> {
      * @param columns the property names (camelCase) to retrieve
      * @return list of users from the specified city
      */
+    public List<User> findByValidated(Boolean validated, String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals(User::getValidated, validated));
+    }
+
     public List<User> findByCity(String city, String... columns) {
-        // Using JSON_VALUE(address, '$.city') to access JSON field, similar to PostgreSQL's (address).city
+        // Using JSON_VALUE(address, '$.city') to access JSON field, similar to
+        // PostgreSQL's (address).city
         return findAllByPropertyExpression("JSON_VALUE(address, '$.city')", "city", city, columns);
     }
 
@@ -111,7 +115,8 @@ public class OracleUserRepository extends OracleRepository<User, Long> {
 
     /**
      * Generates a hierarchical user statistics report with group details.
-     * The report includes nested group statistics for the group with the most users.
+     * The report includes nested group statistics for the group with the most
+     * users.
      *
      * @return the user report with group statistics
      */
@@ -169,7 +174,7 @@ public class OracleUserRepository extends OracleRepository<User, Long> {
      * @param nullParam a null parameter to test null handling
      * @return list of users found
      */
-    public List<User> findByIdWithNullParam(Long userId, Object nullParam) {
+   public List<User> findAllByIdWithNullParam(Long userId, Object nullParam) {
         String sql = """
                 SELECT id, first_name as "firstName", email
                 FROM users

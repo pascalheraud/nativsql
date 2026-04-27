@@ -73,7 +73,8 @@ public interface IDataTypeTests {
                         data.setData((I) convertedValue);
                         // Register the dataType for writing conversion if specified
                         if (writingDataType != null) {
-                                getAnnotationManager().setTypeInfo(valueToInsertDataTypeClass, "data", writingDataType);
+                                getAnnotationManager().setDbDataType(valueToInsertDataTypeClass, "data",
+                                                writingDataType);
                         }
 
                         insertRepo.insertData(data);
@@ -322,7 +323,7 @@ public interface IDataTypeTests {
         default void testWritingFloatToInteger()
                         throws InstantiationException, IllegalAccessException, IllegalArgumentException,
                         InvocationTargetException, NoSuchMethodException, SecurityException {
-                testWritingToDB(123.7f, 123);
+                testWritingToDB(123.7f, 124);
         }
 
         @Test
@@ -1258,7 +1259,7 @@ public interface IDataTypeTests {
         @Test
         default void testReadingLocalDateFromString() {
                 LocalDate date1 = LocalDate.of(2024, 1, 15);
-                testReadingFromDBError("2024-01-15", date1);
+                testReadingFromDB("2024-01-15", date1);
         }
 
         @Test
@@ -1307,7 +1308,7 @@ public interface IDataTypeTests {
         @Test
         default void testReadingLocalDateTimeFromString() {
                 LocalDateTime dateTime1 = LocalDateTime.of(2024, 1, 15, 10, 30, 45);
-                testReadingFromDBError("2024-01-15T10:30:45", dateTime1);
+                testReadingFromDB("2024-01-15T10:30:45", dateTime1);
         }
 
         @Test
@@ -1476,7 +1477,7 @@ public interface IDataTypeTests {
 
         @Test
         default void testConversionFloatToLong() {
-                testWritingToDB(123.7f, 123L);
+                testWritingToDB(123.7f, 124L);
         }
 
         @Test

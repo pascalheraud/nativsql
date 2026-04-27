@@ -1,11 +1,11 @@
 package ovh.heraud.nativsql.domain.mysql;
 
-import ovh.heraud.nativsql.annotation.EnumMapping;
+import ovh.heraud.nativsql.annotation.type.SqlType;
 
 /**
  * Contact type enum that maps to database ENUM type.
  */
-@EnumMapping(typeName = "contact_type")
+@SqlType("contact_type")
 public enum ContactType {
     EMAIL,
     PHONE,

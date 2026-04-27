@@ -4,9 +4,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import ovh.heraud.nativsql.annotation.Type;
+import ovh.heraud.nativsql.annotation.type.CryptAlgo;
+import ovh.heraud.nativsql.annotation.type.Encrypted;
+import ovh.heraud.nativsql.annotation.type.Type;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.MappedBy;
+import ovh.heraud.nativsql.crypt.CryptAlgorithm;
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.mysql.MySQLContactInfoRepository;
@@ -26,6 +29,9 @@ import lombok.NoArgsConstructor;
 public class User implements IEntity<Long> {
     private Long id;
     private String firstName;
+    @Encrypted
+    @CryptAlgo(CryptAlgorithm.BCRYPT)
+    private String password;
     private String lastName;
     private String email;
     private UUID externalId;

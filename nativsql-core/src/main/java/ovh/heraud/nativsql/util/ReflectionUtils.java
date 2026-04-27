@@ -21,7 +21,7 @@ public final class ReflectionUtils {
     /**
      * Finds a getter method for a property.
      *
-     * @param clazz the class containing the property
+     * @param clazz        the class containing the property
      * @param propertyName the property name (camelCase)
      * @return the getter method
      * @throws NativSQLException if no getter is found
@@ -37,7 +37,8 @@ public final class ReflectionUtils {
             try {
                 return clazz.getMethod(booleanGetterName);
             } catch (NoSuchMethodException ex) {
-                throw new NativSQLException("No getter found for property: " + propertyName + " in class: " + clazz.getName(), ex);
+                throw new NativSQLException(
+                        "No getter found for property: " + propertyName + " in class: " + clazz.getName(), ex);
             }
         }
     }
@@ -45,8 +46,8 @@ public final class ReflectionUtils {
     /**
      * Finds a setter method for a property.
      *
-     * @param clazz the class containing the property
-     * @param propertyName the property name (camelCase)
+     * @param clazz         the class containing the property
+     * @param propertyName  the property name (camelCase)
      * @param parameterType the parameter type of the setter
      * @return the setter method
      * @throws NativSQLException if no setter is found
@@ -56,14 +57,15 @@ public final class ReflectionUtils {
         try {
             return clazz.getMethod(setterName, parameterType);
         } catch (NoSuchMethodException e) {
-            throw new NativSQLException("No setter found for property: " + propertyName + " in class: " + clazz.getName(), e);
+            throw new NativSQLException(
+                    "No setter found for property: " + propertyName + " in class: " + clazz.getName(), e);
         }
     }
 
     /**
      * Invokes a getter method on an object.
      *
-     * @param object the object to invoke the getter on
+     * @param object       the object to invoke the getter on
      * @param propertyName the property name (camelCase)
      * @return the value returned by the getter
      * @throws RuntimeException if invocation fails
@@ -80,9 +82,9 @@ public final class ReflectionUtils {
     /**
      * Invokes a setter method on an object.
      *
-     * @param object the object to invoke the setter on
+     * @param object       the object to invoke the setter on
      * @param propertyName the property name (camelCase)
-     * @param value the value to set
+     * @param value        the value to set
      * @throws RuntimeException if invocation fails
      */
     public static void invokeSetter(Object object, String propertyName, Object value) {
@@ -138,14 +140,14 @@ public final class ReflectionUtils {
      */
     @Deprecated
     public static FieldAccessor<?>[] getFieldAccessors(Object instance) {
-        List<FieldAccessor<?>> list = getFields(instance.getClass()).list();
+        var list = getFields(instance.getClass()).list();
         return list.toArray(new FieldAccessor<?>[0]);
     }
 
     /**
      * @deprecated Use {@link #getFields(Class)} instead
-     * Creates FieldAccessors for all declared fields of a class.
-     * Includes inherited fields from superclasses.
+     *             Creates FieldAccessors for all declared fields of a class.
+     *             Includes inherited fields from superclasses.
      *
      * @param clazz the class to get fields from
      * @return array of FieldAccessors
@@ -184,18 +186,19 @@ public final class ReflectionUtils {
      * Extract the method name from a getter method reference.
      * Uses SerializedLambda to inspect the underlying method.
      *
-     * IMPORTANT: The method reference MUST be assigned to a variable for this to work.
+     * IMPORTANT: The method reference MUST be assigned to a variable for this to
+     * work.
      * This is a limitation of Java's SerializedLambda mechanism.
      *
      * Example:
-     *   var email = User::getEmail;  // OK - assigned to variable
-     *   method(User::getEmail);       // NOT OK - inline method reference won't work
+     * var email = User::getEmail; // OK - assigned to variable
+     * method(User::getEmail); // NOT OK - inline method reference won't work
      *
      * Best practice: Define constants in a companion class:
-     *   public class UserColumns {
-     *       public static final Getter<User> EMAIL = User::getEmail;
-     *       public static final Getter<User> ID = User::getId;
-     *   }
+     * public class UserColumns {
+     * public static final Getter<User> EMAIL = User::getEmail;
+     * public static final Getter<User> ID = User::getId;
+     * }
      *
      * @param getter the getter method reference (must be assigned to a variable)
      * @return the method name (e.g., "getEmail", "getId", "isActive")
@@ -222,9 +225,9 @@ public final class ReflectionUtils {
      * Handles both "get" and "is" prefixes.
      *
      * Examples:
-     *   getEmail -> email
-     *   getId -> id
-     *   isActive -> active
+     * getEmail -> email
+     * getId -> id
+     * isActive -> active
      *
      * @param methodName the getter method name
      * @return the database column name
@@ -243,9 +246,9 @@ public final class ReflectionUtils {
      * Combines extractMethodName and convertToColumnName in one call.
      *
      * Examples:
-     *   User::getEmail -> "email"
-     *   User::getId -> "id"
-     *   User::isActive -> "active"
+     * User::getEmail -> "email"
+     * User::getId -> "id"
+     * User::isActive -> "active"
      *
      * @param getter the getter method reference
      * @return the database column name
@@ -261,8 +264,8 @@ public final class ReflectionUtils {
      * Converts each getter reference to its corresponding column name.
      *
      * Examples:
-     *   User::getEmail, User::getId -> ["email", "id"]
-     *   User::getFirstName, User::getLastName -> ["firstName", "lastName"]
+     * User::getEmail, User::getId -> ["email", "id"]
+     * User::getFirstName, User::getLastName -> ["firstName", "lastName"]
      *
      * @param getters the getter method references
      * @return an array of database column names
@@ -275,6 +278,45 @@ public final class ReflectionUtils {
             columns[i] = getColumnName(getters[i]);
         }
         return columns;
+    }
+
+    /**
+     * Reads the {@code value()} attribute of an annotation via reflection.
+     *
+     * @param annotation the annotation instance
+     * @return the value returned by {@code value()}
+     * @throws NativSQLException if the method cannot be invoked
+     */
+    public static Object readAnnotationValue(java.lang.annotation.Annotation annotation) {
+        try {
+            return annotation.annotationType().getMethod("value").invoke(annotation);
+        } catch (ReflectiveOperationException e) {
+            throw new NativSQLException(
+                    "Failed to read value() from @" + annotation.annotationType().getSimpleName(), e);
+        }
+    }
+
+    /**
+     * Instantiates a class using its no-arg constructor.
+     *
+     * @param cls       the class to instantiate
+     * @param fieldName used in the error message for context
+     * @return a new instance
+     * @throws NativSQLException if no no-arg constructor exists or instantiation
+     *                           fails
+     */
+    public static Object instantiate(Class<?> cls, String fieldName) {
+        try {
+            return cls.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException e) {
+            throw new NativSQLException(
+                    "Field '" + fieldName + "': " + cls.getName()
+                            + " has no no-arg constructor and is not a Spring bean",
+                    e);
+        } catch (ReflectiveOperationException e) {
+            throw new NativSQLException(
+                    "Field '" + fieldName + "': failed to instantiate " + cls.getName(), e);
+        }
     }
 
     /**

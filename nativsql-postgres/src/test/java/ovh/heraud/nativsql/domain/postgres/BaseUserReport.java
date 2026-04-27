@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BaseUserReport {
-    private long usersWithEmailContact;
-    private long usersWithFrenchPreference;
+    private Long usersWithEmailContact;
+    private Long usersWithFrenchPreference;
     private GroupStats groupStats;
 }

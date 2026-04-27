@@ -15,6 +15,7 @@ CREATE TABLE users (
     external_id CHAR(36) UNIQUE,
     status ENUM('ACTIVE', 'INACTIVE', 'SUSPENDED'),
     address JSON,
+    password VARCHAR(60),
     age BIGINT,
     preferences JSON,
     position POINT,

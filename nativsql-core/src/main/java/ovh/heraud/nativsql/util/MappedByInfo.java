@@ -1,21 +1,20 @@
 package ovh.heraud.nativsql.util;
 
-import org.jspecify.annotations.NonNull;
 
 /**
  * Represents the details of a MappedBy association (ToOne relationship).
  */
 public class MappedByInfo {
-    private final @NonNull String foreignKeyProperty;
-    private final @NonNull Class<?> repositoryClass;
+    private final String foreignKeyProperty;
+    private final Class<?> repositoryClass;
 
     /**
      * Creates a new MappedByInfo.
      *
      * @param foreignKeyProperty the property name that contains the foreign key
-     * @param repositoryClass the repository class to use
+     * @param repositoryClass    the repository class to use
      */
-    public MappedByInfo(@NonNull String foreignKeyProperty, @NonNull Class<?> repositoryClass) {
+    public MappedByInfo(String foreignKeyProperty, Class<?> repositoryClass) {
         this.foreignKeyProperty = foreignKeyProperty;
         this.repositoryClass = repositoryClass;
     }
@@ -25,8 +24,7 @@ public class MappedByInfo {
      *
      * @return the property name that contains the foreign key
      */
-    @NonNull
-    public String getForeignKeyProperty() {
+   public String getForeignKeyProperty() {
         return foreignKeyProperty;
     }
 
@@ -35,8 +33,7 @@ public class MappedByInfo {
      *
      * @return the repository class
      */
-    @NonNull
-    public Class<?> getRepositoryClass() {
+   public Class<?> getRepositoryClass() {
         return repositoryClass;
     }
 }

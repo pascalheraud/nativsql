@@ -20,7 +20,8 @@ import ovh.heraud.nativsql.util.FieldAccessor;
  * - Composite types not supported (Oracle doesn't have native composite types)
  * - Generated keys extracted from OJDBC KeyHolder using uppercase column names
  *
- * Part of the Chain of Responsibility pattern, chains to GenericDialect for unmapped types.
+ * Part of the Chain of Responsibility pattern, chains to GenericDialect for
+ * unmapped types.
  */
 public class OracleDialect extends AbstractChainedDialect {
 
@@ -41,33 +42,20 @@ public class OracleDialect extends AbstractChainedDialect {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, AnnotationManager annotationManager) {
+ @SuppressWarnings("unchecked")
+ public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor,
+ AnnotationManager annotationManager) {
         // Check for UUID types (handle oracle.sql.BLOB)
         if (fieldAccessor.getType() == UUID.class) {
             return (ITypeMapper<T>) new OracleUUIDTypeMapper();
         }
 
-        // Check for JSON types via AnnotationManager
-        if (annotationManager != null && annotationManager.getJsonInfo(fieldAccessor.getType()) != null) {
-            return (ITypeMapper<T>) getJsonMapper(fieldAccessor.getType());
-        }
-
-        // Fall back to next dialect in chain for other types
         return super.getMapper(fieldAccessor, annotationManager);
-    }
-
-    @Override
-    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager) {
-        // Oracle does not support native composite types
-        throw new UnsupportedOperationException(
-                "Oracle does not support native composite types. " +
-                        "Use JSON columns instead for composite data: " + compositeClass.getSimpleName());
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
+  public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
         // Oracle JDBC returns column names in uppercase in KeyHolder.getKeys()
         Object value = keys.get(idColumn.toUpperCase());
         if (value == null) {

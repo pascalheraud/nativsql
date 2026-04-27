@@ -30,7 +30,7 @@ public class TestPostgresConfig {
         // Configure types via AnnotationManager (annotations can be overridden here)
         annotationManager.setCompositeTypeInfo(Address.class, "address_type");
         annotationManager.setJsonInfo(Preferences.class);
-        annotationManager.setEnumMappingInfo(UserStatus.class, "user_status");
+        annotationManager.setEnumSqlType(UserStatus.class, "user_status");
 
         return postgisDialect;
     }

@@ -6,9 +6,14 @@ import java.util.UUID;
 
 import org.postgis.Point;
 
-import ovh.heraud.nativsql.annotation.Type;
+import ovh.heraud.nativsql.annotation.type.CryptAlgo;
+import ovh.heraud.nativsql.annotation.type.CryptPrefix;
+import ovh.heraud.nativsql.annotation.type.CryptKeyProvider;
+import ovh.heraud.nativsql.annotation.type.Encrypted;
+import ovh.heraud.nativsql.annotation.type.Type;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.MappedBy;
+import ovh.heraud.nativsql.crypt.CryptAlgorithm;
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.postgres.PostgresContactInfoRepository;
@@ -28,6 +33,10 @@ import lombok.NoArgsConstructor;
 public class User implements IEntity<Long> {
     private Long id;
     private String firstName;
+    @Encrypted
+    @CryptAlgo(CryptAlgorithm.GCM)
+    @CryptKeyProvider(TestPasswordKeyProvider.class)
+    @CryptPrefix("{ENC}")
     private String lastName;
     private String email;
     private UUID externalId;

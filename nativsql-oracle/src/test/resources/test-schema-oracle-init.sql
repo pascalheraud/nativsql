@@ -17,6 +17,7 @@ CREATE TABLE users (
     address CLOB,
     age NUMBER(19,0),
     preferences CLOB,
+    validated VARCHAR2(10),
     group_id NUMBER(19,0),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

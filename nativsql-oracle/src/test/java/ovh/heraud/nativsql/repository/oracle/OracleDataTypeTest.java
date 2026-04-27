@@ -1,5 +1,6 @@
 package ovh.heraud.nativsql.repository.oracle;
 
+import java.lang.reflect.InvocationTargetException;
 import java.time.LocalDate;
 
 import org.junit.jupiter.api.Test;
@@ -60,8 +61,16 @@ class OracleDataTypeTest extends OracleRepositoryTest implements IDataTypeTests 
 	}
 
 	@Override
+	@Test
 	public void testReadingStringFromDate() {
-		// Specific format for Oracle
-		testReadingFromDB(java.sql.Date.valueOf(LocalDate.of(2024, 1, 15)), "2024-01-15T12:00");
+		// Oracle DATE includes time, so the string representation includes T00:00
+		testReadingFromDB(java.sql.Date.valueOf(LocalDate.of(2024, 1, 15)), "2024-01-15T00:00");
+	}
+
+	@Override
+	@Test
+	public void testWritingFloatToInteger() throws InstantiationException, IllegalAccessException,
+			IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException {
+		IDataTypeTests.super.testWritingFloatToInteger();
 	}
 }

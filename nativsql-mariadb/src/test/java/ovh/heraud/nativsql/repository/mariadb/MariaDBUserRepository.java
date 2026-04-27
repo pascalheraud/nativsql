@@ -5,9 +5,7 @@ import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.mariadb.User;
 import ovh.heraud.nativsql.domain.mariadb.UserReport;
-import ovh.heraud.nativsql.domain.mariadb.UserStatus;
-import org.jspecify.annotations.NonNull;
-import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.mariadb.UserStatus;import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities using MariaDB.
@@ -16,13 +14,11 @@ import org.springframework.stereotype.Repository;
 public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
 
     @Override
-    @NonNull
     public String getTableName() {
         return "users";
     }
 
     @Override
-    @NonNull
     protected Class<User> getEntityClass() {
         return User.class;
     }
@@ -99,7 +95,8 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
 
     /**
      * Generates a hierarchical user statistics report with group details.
-     * The report includes nested group statistics for the group with the most users.
+     * The report includes nested group statistics for the group with the most
+     * users.
      *
      * @return the user report with group statistics
      */
@@ -182,7 +179,7 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
      * @param nullParam a null parameter to test null handling
      * @return list of users found
      */
-    public List<User> findByIdWithNullParam(Long userId, Object nullParam) {
+   public List<User> findAllByIdWithNullParam(Long userId, Object nullParam) {
         String sql = """
                 SELECT id, first_name as "firstName", email
                 FROM users

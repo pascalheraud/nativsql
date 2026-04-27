@@ -1,7 +1,7 @@
 package ovh.heraud.nativsql.repository.mysql;
 
 import ovh.heraud.nativsql.domain.mysql.Group;
-import org.jspecify.annotations.NonNull;
+
 import org.springframework.stereotype.Repository;
 
 /**
@@ -11,14 +11,12 @@ import org.springframework.stereotype.Repository;
 public class MySQLGroupRepository extends MySQLRepository<Group, Long> {
 
     @Override
-    @NonNull
-    public String getTableName() {
+  public String getTableName() {
         return "user_group";
     }
 
     @Override
-    @NonNull
-    protected Class<Group> getEntityClass() {
+ protected Class<Group> getEntityClass() {
         return Group.class;
     }
 }

@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import ovh.heraud.nativsql.annotation.Type;
+import ovh.heraud.nativsql.annotation.type.Type;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OneToMany;
@@ -33,6 +33,8 @@ public class User implements IEntity<Long> {
     private Address address;
     @Type(DbDataType.BIG_INTEGER)
     private Integer age;
+    @Type(DbDataType.STRING)
+    private Boolean validated;
     private Preferences preferences;
     private Long groupId;
     @MappedBy(value = "groupId", repository = OracleGroupRepository.class)

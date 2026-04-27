@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.db;
 import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
 
@@ -44,23 +45,24 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
         this.nextDialect = null;
     }
 
-
     /**
      * Gets the appropriate TypeMapper for the given class.
      * Default implementation delegates to the next dialect in the chain.
      * Subclasses can override to provide dialect-specific type mappings.
      *
-     * @param fieldAccessor the field accessor for the type to get a mapper for
+     * @param fieldAccessor     the field accessor for the type to get a mapper for
      * @param annotationManager the annotation manager for type detection
      * @return a TypeMapper for the type, or null if not found
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, AnnotationManager annotationManager) {
+
+    public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor,
+            AnnotationManager annotationManager) {
         if (nextDialect != null) {
             return nextDialect.getMapper(fieldAccessor, annotationManager);
         }
-        return null;
+        throw new NativSQLException("No type mapper found in dialect chain");
     }
 
     /**
@@ -68,17 +70,18 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * Default implementation delegates to the next dialect in the chain.
      * Subclasses can override to provide dialect-specific enum mapping.
      *
-     * @param enumClass the enum class
+     * @param enumClass         the enum class
      * @param annotationManager the annotation manager for type detection
      * @return a mapper for the enum
      * @param <E> the enum type
      */
     @Override
-    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass, AnnotationManager annotationManager) {
+
+    public <E extends Enum<E>> ITypeMapper<E> getEnumMapper() {
         if (nextDialect != null) {
-            return nextDialect.getEnumMapper(enumClass, annotationManager);
+            return nextDialect.getEnumMapper();
         }
-        return null;
+        throw new NativSQLException("No enum mapper found in dialect chain");
     }
 
     /**
@@ -91,11 +94,12 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
+
+    public <T> ITypeMapper<T> getJsonMapper() {
         if (nextDialect != null) {
-            return nextDialect.getJsonMapper(jsonClass);
+            return nextDialect.getJsonMapper();
         }
-        return null;
+        throw new NativSQLException("No JSON mapper found in dialect chain");
     }
 
     /**
@@ -108,11 +112,12 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager) {
+
+    public <T> ITypeMapper<T> getCompositeMapper() {
         if (nextDialect != null) {
-            return nextDialect.getCompositeMapper(compositeClass, annotationManager);
+            return nextDialect.getCompositeMapper();
         }
-        return null;
+        throw new NativSQLException("No composite mapper found in dialect chain");
     }
 
     @SuppressWarnings("unchecked")
@@ -121,6 +126,99 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
         if (nextDialect != null) {
             return nextDialect.getGeneratedKey(keys, idColumn);
         }
-        return (ID) keys.get(idColumn);
+        if (!keys.containsKey(idColumn)) {
+            throw new NativSQLException("Generated key column '" + idColumn + "' not found in keys: " + keys);
+        }
+        return ((ID) keys.get(idColumn));
+    }
+
+    @Override
+
+    public ITypeMapper<String> getStringMapper() {
+        return nextDialect.getStringMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<Long> getLongMapper() {
+        return nextDialect.getLongMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<Integer> getIntegerMapper() {
+        return nextDialect.getIntegerMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<Double> getDoubleMapper() {
+        return nextDialect.getDoubleMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<Float> getFloatMapper() {
+        return nextDialect.getFloatMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<Short> getShortMapper() {
+        return nextDialect.getShortMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<Byte> getByteMapper() {
+        return nextDialect.getByteMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<java.math.BigDecimal> getBigDecimalMapper() {
+        return nextDialect.getBigDecimalMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<java.math.BigInteger> getBigIntegerMapper() {
+        return nextDialect.getBigIntegerMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<Boolean> getBooleanMapper() {
+        return nextDialect.getBooleanMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<java.util.UUID> getUUIDMapper() {
+        return nextDialect.getUUIDMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<java.time.LocalDate> getLocalDateMapper() {
+        return nextDialect.getLocalDateMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<java.time.LocalDateTime> getLocalDateTimeMapper() {
+        return nextDialect.getLocalDateTimeMapper();
+    }
+
+    @Override
+
+    public ITypeMapper<byte[]> getByteArrayMapper() {
+        return nextDialect.getByteArrayMapper();
+    }
+
+    @Override
+
+    public <T> ITypeMapper<T> getDefaultMapper() {
+        return nextDialect.getDefaultMapper();
     }
 }

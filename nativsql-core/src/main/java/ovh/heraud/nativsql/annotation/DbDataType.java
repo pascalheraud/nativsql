@@ -3,12 +3,14 @@ package ovh.heraud.nativsql.annotation;
 /**
  * Enumeration of all database data types supported by NativSQL.
  * Used by the @Type annotation to specify the database type of a field.
- * When no @Type annotation is present, dataType is passed as null to the mapper.
+ * When no @Type annotation is present, dataType is passed as null to the
+ * mapper.
  */
 public enum DbDataType {
     /**
      * Identity type: marker used in switch statements to indicate invalid usage.
-     * Should never be passed to mappers - null is used instead for default behavior.
+     * Should never be passed to mappers - null is used instead for default
+     * behavior.
      */
     IDENTITY,
 

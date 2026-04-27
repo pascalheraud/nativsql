@@ -8,6 +8,9 @@ dependencies {
     // Core dependencies (for dialect chain)
     implementation project(':nativsql-core')
 
+    // Annotations
+    implementation 'org.jspecify:jspecify:1.0.0'
+
     // PostGIS (for MySQL PostGIS support)
     implementation 'net.postgis:postgis-jdbc:2.5.1'
     implementation 'net.postgis:postgis-geometry:2.5.1'

@@ -6,10 +6,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.jspecify.annotations.NonNull;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.crypt.CryptAlgorithm;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
+import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.repository.GenericRepository;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 
@@ -45,10 +47,7 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * @param repository the repository to query (required)
      * @throws IllegalArgumentException if repository is null
      */
-    private FindQuery(@NonNull GenericRepository<T, ID> repository) {
-        if (repository == null) {
-            throw new IllegalArgumentException("Repository cannot be null");
-        }
+    private FindQuery(GenericRepository<T, ID> repository) {
         this.repository = repository;
         this.annotationManager = repository.getAnnotationManager();
     }
@@ -59,7 +58,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * @param repository the repository to query (required)
      * @return a new FindQuery builder instance
      */
-    public static <T extends IEntity<ID>, ID> FindQuery<T, ID> of(GenericRepository<T, ID> repository) {
+    public static <T extends IEntity<ID>, ID> FindQuery<T, ID> of(
+            GenericRepository<T, ID> repository) {
         return new FindQuery<>(repository);
     }
 
@@ -67,11 +67,11 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Adds column(s) to the SELECT clause.
      *
      * @param cols the columns to select (must not be empty)
-     * @throws ovh.heraud.nativsql.exception.NativSQLException if cols is empty
+     * @throws NativSQLException if cols is empty
      */
     public FindQuery<T, ID> select(String... cols) {
         if (cols == null || cols.length == 0) {
-            throw new ovh.heraud.nativsql.exception.NativSQLException("Column list cannot be empty");
+            throw new NativSQLException("Column list cannot be empty");
         }
         columns.addAll(Arrays.asList(cols));
         return this;
@@ -80,7 +80,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     /**
      * Adds column(s) to the SELECT clause using getter method references.
      *
-     * @param getters the getter method references (e.g., User::getId, User::getName)
+     * @param getters the getter method references (e.g., User::getId,
+     *                User::getName)
      */
     @SafeVarargs
     public final FindQuery<T, ID> select(Getter<T>... getters) {
@@ -91,11 +92,11 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Adds column(s) to the SELECT clause from a list.
      *
      * @param cols the columns to select (must not be empty)
-     * @throws ovh.heraud.nativsql.exception.NativSQLException if cols is null or empty
+     * @throws NativSQLException if cols is null or empty
      */
     public FindQuery<T, ID> select(List<String> cols) {
         if (cols == null || cols.isEmpty()) {
-            throw new ovh.heraud.nativsql.exception.NativSQLException("Column list cannot be empty");
+            throw new NativSQLException("Column list cannot be empty");
         }
         columns.addAll(cols);
         return this;
@@ -139,8 +140,10 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Sets the OrderBy builder for this query.
      */
     /**
-     * Merges order conditions from another OrderBy builder into this query's ordering.
-     * This is an efficient way to apply pre-configured ordering without duplicating logic.
+     * Merges order conditions from another OrderBy builder into this query's
+     * ordering.
+     * This is an efficient way to apply pre-configured ordering without duplicating
+     * logic.
      *
      * @param orderBy the OrderBy builder containing the order conditions to merge
      * @return this FindQuery for method chaining
@@ -154,6 +157,7 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Adds a WHERE condition with EQUALS operator (property = value).
      */
     public FindQuery<T, ID> whereAndEquals(String column, Object value) {
+        guardEncryptedColumn(column);
         whereClause.add(column, Operator.EQUALS, value);
         return this;
     }
@@ -172,8 +176,32 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Adds a WHERE condition with IN operator (property IN (...)).
      */
     public FindQuery<T, ID> whereAndIn(String column, List<?> values) {
+        guardEncryptedColumn(column);
         whereClause.add(column, Operator.IN, values);
         return this;
+    }
+
+    private void guardEncryptedColumn(String column) {
+        Fields entityFields = repository.getEntityFields();
+        if (entityFields == null) {
+            return;
+        }
+        FieldAccessor<?> field = entityFields.get(column);
+        TypeInfo typeInfo = annotationManager.getTypeInfo(field);
+        CryptAlgorithm[] algos = (CryptAlgorithm[]) typeInfo.getParam(TypeParamKey.ALGO);
+        if (algos == null) {
+            return;
+        }
+        for (CryptAlgorithm algo : algos) {
+            if (algo.isOneWay()) {
+                throw new NativSQLException("Column '" + column
+                        + "' uses a one-way algorithm and cannot be used in a WHERE equality check");
+            }
+            if (!algo.isDeterministic()) {
+                throw new NativSQLException("Column '" + column
+                        + "' uses a non-deterministic algorithm and cannot be used in a WHERE equality check");
+            }
+        }
     }
 
     /**
@@ -222,19 +250,23 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
-     * Adds an association to load (OneToMany relationship) using a getter method reference.
+     * Adds an association to load (OneToMany relationship) using a getter method
+     * reference.
      *
-     * @param getter  the getter method reference for the association field (e.g., User::getContacts)
+     * @param getter  the getter method reference for the association field (e.g.,
+     *                User::getContacts)
      * @param columns the columns to retrieve from the associated entity
      */
     public FindQuery<T, ID> associate(Getter<T> getter, String... columns) {
-        return associate(ReflectionUtils.getColumnName(getter), columns);
+        return associate(ReflectionUtils.getColumnName(getter), Arrays.asList(columns));
     }
 
     /**
-     * Adds an association to load (OneToMany relationship) using a getter method reference.
+     * Adds an association to load (OneToMany relationship) using a getter method
+     * reference.
      *
-     * @param getter  the getter method reference for the association field (e.g., User::getContacts)
+     * @param getter  the getter method reference for the association field (e.g.,
+     *                User::getContacts)
      * @param columns the columns to retrieve from the associated entity
      */
     public FindQuery<T, ID> associate(Getter<T> getter, List<String> columns) {
@@ -252,6 +284,10 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     public FindQuery<T, ID> leftJoin(String associationName, String... columns) {
         FieldAccessor<?> fieldAccessor = repository.getEntityFields().get(associationName);
         MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        if (mappedByInfo == null) {
+            throw new NativSQLException(
+                    "Field '" + associationName + "' is not annotated with @MappedBy. Cannot perform join.");
+        }
         GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, Arrays.asList(columns), true, joinRepository));
         return this;
@@ -268,6 +304,10 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     public FindQuery<T, ID> leftJoin(String associationName, List<String> columns) {
         FieldAccessor<?> fieldAccessor = repository.getEntityFields().get(associationName);
         MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        if (mappedByInfo == null) {
+            throw new NativSQLException(
+                    "Field '" + associationName + "' is not annotated with @MappedBy. Cannot perform join.");
+        }
         GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, columns, true, joinRepository));
         return this;
@@ -276,7 +316,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     /**
      * Adds a LEFT JOIN for a @MappedBy association using a getter method reference.
      *
-     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param getter  the getter method reference for the association field (e.g.,
+     *                User::getGroup)
      * @param columns the columns to retrieve from the joined entity
      */
     public FindQuery<T, ID> leftJoin(Getter<T> getter, String... columns) {
@@ -286,7 +327,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     /**
      * Adds a LEFT JOIN for a @MappedBy association using a getter method reference.
      *
-     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param getter  the getter method reference for the association field (e.g.,
+     *                User::getGroup)
      * @param columns the columns to retrieve from the joined entity
      */
     public FindQuery<T, ID> leftJoin(Getter<T> getter, List<String> columns) {
@@ -304,6 +346,10 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     public FindQuery<T, ID> innerJoin(String associationName, String... columns) {
         FieldAccessor<?> fieldAccessor = repository.getEntityFields().get(associationName);
         MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        if (mappedByInfo == null) {
+            throw new NativSQLException(
+                    "Field '" + associationName + "' is not annotated with @MappedBy. Cannot perform join.");
+        }
         GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, Arrays.asList(columns), false, joinRepository));
         return this;
@@ -320,15 +366,21 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     public FindQuery<T, ID> innerJoin(String associationName, List<String> columns) {
         FieldAccessor<?> fieldAccessor = repository.getEntityFields().get(associationName);
         MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
+        if (mappedByInfo == null) {
+            throw new NativSQLException(
+                    "Field '" + associationName + "' is not annotated with @MappedBy. Cannot perform join.");
+        }
         GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
         joins.add(new Join(associationName, columns, false, joinRepository));
         return this;
     }
 
     /**
-     * Adds an INNER JOIN for a @MappedBy association using a getter method reference.
+     * Adds an INNER JOIN for a @MappedBy association using a getter method
+     * reference.
      *
-     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param getter  the getter method reference for the association field (e.g.,
+     *                User::getGroup)
      * @param columns the columns to retrieve from the joined entity
      */
     public FindQuery<T, ID> innerJoin(Getter<T> getter, String... columns) {
@@ -336,9 +388,11 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
-     * Adds an INNER JOIN for a @MappedBy association using a getter method reference.
+     * Adds an INNER JOIN for a @MappedBy association using a getter method
+     * reference.
      *
-     * @param getter  the getter method reference for the association field (e.g., User::getGroup)
+     * @param getter  the getter method reference for the association field (e.g.,
+     *                User::getGroup)
      * @param columns the columns to retrieve from the joined entity
      */
     public FindQuery<T, ID> innerJoin(Getter<T> getter, List<String> columns) {
@@ -350,9 +404,13 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      */
     private GenericRepository<?, ?> getRepositoryInstance(Class<?> repositoryClass) {
         try {
-            return (GenericRepository<?, ?>) repositoryClass.getConstructor().newInstance();
+            Object result = repositoryClass.getConstructor().newInstance();
+            if (result == null) {
+                throw new NativSQLException("Failed to instantiate repository: " + repositoryClass.getName());
+            }
+            return (GenericRepository<?, ?>) result;
         } catch (Exception e) {
-            throw new RuntimeException("Failed to instantiate repository: " + repositoryClass.getName(), e);
+            throw new NativSQLException("Failed to instantiate repository: " + repositoryClass.getName(), e);
         }
     }
 
@@ -430,13 +488,14 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Builds the SQL SELECT query and returns it as a String.
      * This is a convenience method that creates a StringBuilder internally.
      *
-     * @param identifierConverter the identifier converter to use for name transformation
+     * @param identifierConverter the identifier converter to use for name
+     *                            transformation
      * @return the complete SQL query string
      */
     public String buildString(IdentifierConverter identifierConverter) {
         StringBuilder sb = new StringBuilder();
         buildSql(sb, identifierConverter);
-        return sb.toString();
+        return (sb.toString());
     }
 
     /**
@@ -444,13 +503,17 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * For main table columns: buildColumnExpression("user", "id", "id", null)
      * For joined table columns: buildColumnExpression("group", "id", "group", "id")
      *
-     * @param tableName the table name
-     * @param column the column name in Java naming
-     * @param aliasPrefix the alias prefix (same as column for main table, or property name for joined table)
-     * @param aliasSuffix the alias suffix (null for main table, column name for joined table)
+     * @param tableName   the table name
+     * @param column      the column name in Java naming
+     * @param aliasPrefix the alias prefix (same as column for main table, or
+     *                    property name for joined table)
+     * @param aliasSuffix the alias suffix (null for main table, column name for
+     *                    joined table)
      * @return the column expression with alias
      */
-    private String buildColumnExpression(IdentifierConverter identifierConverter, String tableName, String column, String aliasPrefix, String aliasSuffix) {
+    private String buildColumnExpression(IdentifierConverter identifierConverter, String tableName,
+            String column,
+            String aliasPrefix, String aliasSuffix) {
         String dbColumn = identifierConverter.toDB(column);
         String alias = aliasSuffix == null ? aliasPrefix : aliasPrefix + "." + aliasSuffix;
         return String.format("""
@@ -459,11 +522,13 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
-     * Builds the list of columns with proper prefixes and aliases for the SELECT clause.
+     * Builds the list of columns with proper prefixes and aliases for the SELECT
+     * clause.
      * Handles both simple cases and cases with joins.
      *
-     * @param identifierConverter the identifier converter to use for name transformation
-     * @param tableName the main table name
+     * @param identifierConverter the identifier converter to use for name
+     *                            transformation
+     * @param tableName           the main table name
      * @return a list of column expressions ready for the SELECT clause
      */
     private List<String> buildPrefixedColumns(IdentifierConverter identifierConverter, String tableName) {
@@ -471,6 +536,9 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
 
         // Add main table columns with table prefix and alias
         for (String col : columns) {
+            if (col == null || col.isEmpty()) {
+                throw new NativSQLException("Column name cannot be null or empty");
+            }
             String columnWithAlias = buildColumnExpression(identifierConverter, tableName, col, col, null);
             prefixedColumns.add(columnWithAlias);
         }
@@ -480,7 +548,11 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
             String joinTableName = join.getRepository().getTableName();
             String propertyName = join.getName(); // Use the property name (e.g., "group")
             for (String col : join.getColumns()) {
-                String columnWithAlias = buildColumnExpression(identifierConverter, joinTableName, col, propertyName, col);
+                if (col == null || col.isEmpty()) {
+                    throw new NativSQLException("Column name cannot be null or empty");
+                }
+                String columnWithAlias = buildColumnExpression(identifierConverter, joinTableName, col, propertyName,
+                        col);
                 prefixedColumns.add(columnWithAlias);
             }
         }
@@ -494,7 +566,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Appends the complete SQL query to the provided StringBuilder.
      *
      * @param sb                  the StringBuilder to append the SQL to
-     * @param identifierConverter the identifier converter to use for name transformation
+     * @param identifierConverter the identifier converter to use for name
+     *                            transformation
      */
     private void buildSql(StringBuilder sb, IdentifierConverter identifierConverter) {
         String tableName = repository.getTableName();
@@ -550,7 +623,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * @param valueConverter a function to convert values to SQL format
      * @return a map of parameter names to SQL values
      */
-    @NonNull
     public Map<String, Object> getParameters() {
         Map<String, Object> params = new HashMap<>();
         for (Condition condition : whereClause.getConditions()) {
