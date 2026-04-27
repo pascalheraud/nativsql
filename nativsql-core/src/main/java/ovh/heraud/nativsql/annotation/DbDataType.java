@@ -86,5 +86,15 @@ public enum DbDataType {
     /**
      * Binary data type: BYTEA, BLOB, etc.
      */
-    BYTE_ARRAY
+    BYTE_ARRAY,
+
+    /**
+     * Encrypted type: field is stored as an encrypted VARCHAR (STRING format) or VARBINARY (BINARY format).
+     * Requires {@code @TypeParam(key=ALGO)} and {@code @TypeParam(key=KEY_PROVIDER)} on the {@code @Type} annotation,
+     * plus {@code @TypeParam(key=PREFIX)} for reversible algorithms.
+     * One-way algorithms (BCRYPT) do not require KEY_PROVIDER or PREFIX.
+     *
+     * <p>Note: entity fields must use boxed types ({@code Integer}, {@code Long}, …) — primitive types are not supported.
+     */
+    ENCRYPTED
 }

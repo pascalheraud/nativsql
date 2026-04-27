@@ -34,4 +34,12 @@ public @interface Type {
      * @return the database data type
      */
     DbDataType value();
+
+    /**
+     * Optional parameters for this type mapping.
+     * Required when {@code value() == DbDataType.ENCRYPTED}.
+     *
+     * @return the type parameters
+     */
+    TypeParam[] params() default {};
 }
