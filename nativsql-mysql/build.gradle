@@ -21,7 +21,7 @@ dependencies {
     implementation project(':nativsql-mysql-commons')
 
     // MySQL JDBC Driver
-    implementation 'com.mysql:mysql-connector-j:9.6.0'
+    implementation 'com.mysql:mysql-connector-j:9.7.0'
 
     // Test fixtures from core
     testFixturesImplementation testFixtures(project(':nativsql-core'))
