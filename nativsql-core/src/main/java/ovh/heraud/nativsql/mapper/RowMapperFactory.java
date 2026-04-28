@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
@@ -18,12 +18,12 @@ import ovh.heraud.nativsql.util.ReflectionUtils;
  * Factory for creating and caching GenericRowMapper instances.
  * Performs class introspection once per type and caches the result.
  */
-@Component
+@Named
 public class RowMapperFactory {
 
     private final Map<Class<?>, GenericRowMapper<?>> cache = new ConcurrentHashMap<>();
 
-    @Autowired
+    @Inject
     private AnnotationManager annotationManager;
 
     public RowMapperFactory() {
@@ -33,11 +33,14 @@ public class RowMapperFactory {
      * Gets or creates a GenericRowMapper for the specified class.
      *
      * @param clazz               the class to create a mapper for
-     * @param dialect             the database dialect for dialect-specific type mapping
-     * @param identifierConverter the identifier converter for column name transformation
+     * @param dialect             the database dialect for dialect-specific type
+     *                            mapping
+     * @param identifierConverter the identifier converter for column name
+     *                            transformation
      * @return a GenericRowMapper for the class
      */
-    public <T> GenericRowMapper<T> getRowMapper(Class<T> clazz, DatabaseDialect dialect, IdentifierConverter identifierConverter) {
+    public <T> GenericRowMapper<T> getRowMapper(Class<T> clazz, DatabaseDialect dialect,
+            IdentifierConverter identifierConverter) {
         @SuppressWarnings("unchecked")
         GenericRowMapper<T> cached = (GenericRowMapper<T>) cache.get(clazz);
         if (cached != null) {
@@ -53,7 +56,8 @@ public class RowMapperFactory {
      * Creates a new GenericRowMapper by introspecting the class.
      * Automatically detects joined properties by examining all fields.
      */
-    private <T> GenericRowMapper<T> createRowMapper(Class<T> clazz, DatabaseDialect dialect, IdentifierConverter identifierConverter) {
+    private <T> GenericRowMapper<T> createRowMapper(Class<T> clazz, DatabaseDialect dialect,
+            IdentifierConverter identifierConverter) {
         List<PropertyMetadata<?>> simpleProperties = new ArrayList<>();
         Map<String, JoinedPropertyMetadata> subProperties = new HashMap<>();
 
@@ -73,7 +77,8 @@ public class RowMapperFactory {
                     // Simple type without a mapper → likely a joined property
                     // Will be discovered by RowMapper at runtime by checking if the ResultSet
                     // contains columns with the property name prefix (e.g., "group.id")
-                    GenericRowMapper<?> delegateMapper = getRowMapper(fieldAccessor.getType(), dialect, identifierConverter);
+                    GenericRowMapper<?> delegateMapper = getRowMapper(fieldAccessor.getType(), dialect,
+                            identifierConverter);
                     subProperties.put(fieldAccessor.getName(),
                             new JoinedPropertyMetadata(fieldAccessor, delegateMapper));
                 }

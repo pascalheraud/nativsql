@@ -13,6 +13,7 @@ rootProject.name = 'nativsql'
 
 include 'nativsql-test-commons'
 include 'nativsql-core'
+include 'nativsql-spring'
 include 'nativsql-mysql-commons'
 include 'nativsql-mysql'
 include 'nativsql-mariadb'

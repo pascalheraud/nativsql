@@ -5,18 +5,22 @@ plugins {
 }
 
 dependencies {
-    // Core Spring Boot dependencies
-    implementation 'org.springframework.boot:spring-boot-starter-jdbc'
-    implementation 'org.springframework.boot:spring-boot-starter'
+    // Core Spring JDBC dependencies
+    implementation 'org.springframework:spring-jdbc'
 
     // Annotations
     implementation 'org.jspecify:jspecify:1.0.0'
+    implementation 'javax.inject:javax.inject:1'
+    implementation 'jakarta.inject:jakarta.inject-api:2.0.1'
 
     // No DB drivers in core (all are in separate modules)
 
     // Jackson
     implementation 'com.fasterxml.jackson.core:jackson-databind'
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310'
+
+    // SLF4J API only, no implementation (users can choose their own logging framework)
+    implementation 'org.slf4j:slf4j-api'
 
     // Test dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

@@ -37,10 +37,8 @@ import org.testcontainers.containers.JdbcDatabaseContainer;
  * Subclasses create containers in @BeforeEach and set the DataSource.
  */
 @ExtendWith(SpringExtension.class)
-@TestExecutionListeners(
-    listeners = { DependencyInjectionTestExecutionListener.class },
-    mergeMode = TestExecutionListeners.MergeMode.REPLACE_DEFAULTS
-)
+@TestExecutionListeners(listeners = {
+        DependencyInjectionTestExecutionListener.class }, mergeMode = TestExecutionListeners.MergeMode.REPLACE_DEFAULTS)
 public abstract class BaseRepositoryTest {
     private static final Map<String, JdbcDatabaseContainer<?>> CONTAINER_CACHE = new HashMap<>();
 
@@ -102,7 +100,7 @@ public abstract class BaseRepositoryTest {
     public DataSource getDataSource() {
         return dataSource;
     }
-    
+
     /**
      * Set the DataSource for this test. Called from @BeforeEach.
      */
@@ -128,7 +126,7 @@ public abstract class BaseRepositoryTest {
 
                         // Reinitialize JdbcTemplate if it's a GenericRepository
                         if (repo instanceof GenericRepository) {
-                            ((GenericRepository<?, ?>) repo).reinitializeJdbcTemplate();
+                            ((GenericRepository<?, ?>) repo).initializeJdbcTemplate();
                         }
                     }
                 }
@@ -175,7 +173,8 @@ public abstract class BaseRepositoryTest {
 
     /**
      * Check if the exception is an ignorable schema error (already exists).
-     * Recursively searches the cause chain for SQLException with ignorable error codes.
+     * Recursively searches the cause chain for SQLException with ignorable error
+     * codes.
      */
     private boolean isIgnorableSchemaError(Throwable e) {
         Throwable cause = e;

@@ -10,12 +10,12 @@ A lightweight, reflection-based SQL mapping library for Java with Spring Boot an
 - **Generic RowMapper**: Automatic mapping from ResultSet to Java objects using reflection
 - **Nested Objects**: Support for nested objects using dot notation (`address.street`)
 - **Generic Repository**: Base repository with insert/update operations
-- **Type Conversions**: 
+- **Type Conversions**:
   - Automatic enum mapping (Java ↔ PostgreSQL ENUM)
   - JSON/JSONB support for complex objects
   - Custom type mappers for value objects
   - Geographic types (PostGIS)
-- **Convention over Configuration**: 
+- **Convention over Configuration**:
   - Automatic camelCase ↔ snake_case conversion
   - No annotations required (pure POJOs)
 - **Lazy Instantiation**: Objects created only when data exists
@@ -40,25 +40,25 @@ dependencies {
 ```java
 @Configuration
 public class NativSqlConfig {
-    
+
     @Bean
     public ObjectMapper objectMapper() {
         return new ObjectMapper()
             .registerModule(new JavaTimeModule())
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
-    
+
     @Bean
     public TypeMapperFactory typeMapperFactory(ObjectMapper objectMapper) {
         TypeMapperFactory factory = new TypeMapperFactory(objectMapper);
-        
+
         // Register JSON types
         factory.registerJsonType(Address.class);
         factory.registerJsonType(Preferences.class);
-        
+
         // Register value objects
         factory.registerCompositeMapper(Email.class, String.class, Email::new);
-        
+
         return factory;
     }
 }
@@ -76,7 +76,7 @@ public class User {
     private Address address;        // JSON
     private Preferences preferences; // JSON
     private LocalDateTime createdAt;
-    
+
     // Getters and setters
 }
 
@@ -93,7 +93,7 @@ import ovh.heraud.nativsql.repository.GenericRepository;
 @Repository
 public class UserRepository extends GenericRepository<User, Long> {
 
-    @Autowired
+    @Inject
     private RowMapperFactory rowMapperFactory;
 
     @Override
@@ -153,8 +153,8 @@ public class UserWithAddress {
 
 // In repository
 String sql = """
-    SELECT 
-        u.id, 
+    SELECT
+        u.id,
         u.email,
         a.id AS "address.id",
         a.street AS "address.street",
@@ -341,6 +341,7 @@ src/
 ## Documentation
 
 For more detailed information, see:
+
 - **[DOCS.md](DOCS.md)** - Complete documentation index
 - **[API.md](API.md)** - API reference
 - **[INSTALLATION.md](INSTALLATION.md)** - Installation guide

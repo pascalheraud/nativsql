@@ -1,0 +1,13 @@
+plugins {
+    id 'nativsql.java-conventions'
+    id 'nativsql.spring-bom'
+    id 'nativsql.publish-conventions'
+}
+
+dependencies {
+    // Depend on core
+    implementation project(':nativsql-core')
+
+    // Spring (for @Autowired, @Qualifier in Repository classes)
+    implementation 'org.springframework.boot:spring-boot-starter'
+}

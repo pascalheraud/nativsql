@@ -4,15 +4,16 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
+import jakarta.inject.Named;
 import ovh.heraud.nativsql.exception.NativSQLException;
 
 /**
- * Spring bean for logging database operations with consistent BEGIN/END/ERROR format.
+ * Spring bean for logging database operations with consistent BEGIN/END/ERROR
+ * format.
  * Provides timing information and exception handling.
  */
-@Component
+@Named
 public class DbOperationLogger {
 
     private final Logger logger = LoggerFactory.getLogger(DbOperationLogger.class);
@@ -31,12 +32,13 @@ public class DbOperationLogger {
      */
     private String getCallerMethodName() {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        // Find the first caller in our package that is not GenericRepository or DbOperationLogger
+        // Find the first caller in our package that is not GenericRepository or
+        // DbOperationLogger
         for (int i = 3; i < stackTrace.length; i++) {
             String className = stackTrace[i].getClassName();
             if (className.startsWith("ovh.heraud") &&
-                !className.contains("GenericRepository") &&
-                !className.contains("DbOperationLogger")) {
+                    !className.contains("GenericRepository") &&
+                    !className.contains("DbOperationLogger")) {
                 return stackTrace[i].getMethodName();
             }
         }
@@ -48,7 +50,8 @@ public class DbOperationLogger {
     }
 
     /**
-     * Gets the simple class name from a Class object, handling Spring CGLIB proxies.
+     * Gets the simple class name from a Class object, handling Spring CGLIB
+     * proxies.
      */
     private String getSimpleClassName(Class<?> clazz) {
         String className = clazz.getName();
@@ -64,19 +67,22 @@ public class DbOperationLogger {
     }
 
     /**
-     * Executes a database operation with logging (methodName extracted from call stack).
+     * Executes a database operation with logging (methodName extracted from call
+     * stack).
      * Logs DB.BEGIN, DB.END with duration, or DB.ERROR with exception.
      *
-     * @param <T>              the return type
-     * @param repositoryClass  the repository class
-     * @param operation        the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
-     * @param table            the table name
-     * @param sql              the SQL query
-     * @param callable         the operation to execute
+     * @param <T>             the return type
+     * @param repositoryClass the repository class
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
+     * @param table           the table name
+     * @param sql             the SQL query
+     * @param callable        the operation to execute
      * @return the result of the operation
      * @throws NativSQLException if the operation fails
      */
-    public <T> T execute(Class<?> repositoryClass, String operation, String table, String sql, SqlCallable<T> callable) {
+    public <T> T execute(Class<?> repositoryClass, String operation, String table, String sql,
+            SqlCallable<T> callable) {
         return execute(repositoryClass, getCallerMethodName(), operation, table, sql, callable);
     }
 
@@ -84,17 +90,19 @@ public class DbOperationLogger {
      * Executes a database operation with logging.
      * Logs DB.BEGIN, DB.END with duration, or DB.ERROR with exception.
      *
-     * @param <T>              the return type
-     * @param repositoryClass  the repository class
-     * @param methodName       the method name
-     * @param operation        the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
-     * @param table            the table name
-     * @param sql              the SQL query
-     * @param callable         the operation to execute
+     * @param <T>             the return type
+     * @param repositoryClass the repository class
+     * @param methodName      the method name
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
+     * @param table           the table name
+     * @param sql             the SQL query
+     * @param callable        the operation to execute
      * @return the result of the operation
      * @throws NativSQLException if the operation fails
      */
-    public <T> T execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql, SqlCallable<T> callable) {
+    public <T> T execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql,
+            SqlCallable<T> callable) {
         String opId = executionMetrics.generateOperationId();
         String repositoryName = getSimpleClassName(repositoryClass);
         String opLabel = repositoryName + "." + methodName + " - " + operation + " " + table + " [" + opId + "]";
@@ -120,39 +128,46 @@ public class DbOperationLogger {
     }
 
     /**
-     * Executes a database operation with logging and parameters (methodName extracted from call stack).
-     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with exception.
+     * Executes a database operation with logging and parameters (methodName
+     * extracted from call stack).
+     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with
+     * exception.
      *
-     * @param <T>              the return type
-     * @param repositoryClass  the repository class
-     * @param operation        the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
-     * @param table            the table name
-     * @param sql              the SQL query
-     * @param params           the SQL parameters (logged at DEBUG level)
-     * @param callable         the operation to execute
+     * @param <T>             the return type
+     * @param repositoryClass the repository class
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
+     * @param table           the table name
+     * @param sql             the SQL query
+     * @param params          the SQL parameters (logged at DEBUG level)
+     * @param callable        the operation to execute
      * @return the result of the operation
      * @throws NativSQLException if the operation fails
      */
-    public <T> T execute(Class<?> repositoryClass, String operation, String table, String sql, Map<String, Object> params, SqlCallable<T> callable) {
+    public <T> T execute(Class<?> repositoryClass, String operation, String table, String sql,
+            Map<String, Object> params, SqlCallable<T> callable) {
         return execute(repositoryClass, getCallerMethodName(), operation, table, sql, params, callable);
     }
 
     /**
      * Executes a database operation with logging and parameters.
-     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with exception.
+     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with
+     * exception.
      *
-     * @param <T>              the return type
-     * @param repositoryClass  the repository class
-     * @param methodName       the method name
-     * @param operation        the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
-     * @param table            the table name
-     * @param sql              the SQL query
-     * @param params           the SQL parameters (logged at DEBUG level)
-     * @param callable         the operation to execute
+     * @param <T>             the return type
+     * @param repositoryClass the repository class
+     * @param methodName      the method name
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
+     * @param table           the table name
+     * @param sql             the SQL query
+     * @param params          the SQL parameters (logged at DEBUG level)
+     * @param callable        the operation to execute
      * @return the result of the operation
      * @throws NativSQLException if the operation fails
      */
-    public <T> T execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql, Map<String, Object> params, SqlCallable<T> callable) {
+    public <T> T execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql,
+            Map<String, Object> params, SqlCallable<T> callable) {
         String opId = executionMetrics.generateOperationId();
         String repositoryName = getSimpleClassName(repositoryClass);
         String opLabel = repositoryName + "." + methodName + " - " + operation + " " + table + " [" + opId + "]";
@@ -181,11 +196,13 @@ public class DbOperationLogger {
     }
 
     /**
-     * Executes a database operation without return value (methodName extracted from call stack).
+     * Executes a database operation without return value (methodName extracted from
+     * call stack).
      * Logs DB.BEGIN, DB.END with duration, or DB.ERROR with exception.
      *
-     * @param repositoryClass  the repository class
-     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
+     * @param repositoryClass the repository class
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
      * @param table           the table name
      * @param sql             the SQL query
      * @param runnable        the operation to execute
@@ -199,15 +216,17 @@ public class DbOperationLogger {
      * Executes a database operation without return value.
      * Logs DB.BEGIN, DB.END with duration, or DB.ERROR with exception.
      *
-     * @param repositoryClass  the repository class
+     * @param repositoryClass the repository class
      * @param methodName      the method name
-     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
      * @param table           the table name
      * @param sql             the SQL query
      * @param runnable        the operation to execute
      * @throws NativSQLException if the operation fails
      */
-    public void execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql, SqlRunnable runnable) {
+    public void execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql,
+            SqlRunnable runnable) {
         String opId = executionMetrics.generateOperationId();
         String repositoryName = getSimpleClassName(repositoryClass);
         String opLabel = repositoryName + "." + methodName + " - " + operation + " " + table + " [" + opId + "]";
@@ -232,35 +251,42 @@ public class DbOperationLogger {
     }
 
     /**
-     * Executes a database operation without return value with parameters logging (methodName extracted from call stack).
-     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with exception.
+     * Executes a database operation without return value with parameters logging
+     * (methodName extracted from call stack).
+     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with
+     * exception.
      *
-     * @param repositoryClass  the repository class
-     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
+     * @param repositoryClass the repository class
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
      * @param table           the table name
      * @param sql             the SQL query
      * @param params          the SQL parameters (logged at DEBUG level)
      * @param runnable        the operation to execute
      * @throws NativSQLException if the operation fails
      */
-    public void execute(Class<?> repositoryClass, String operation, String table, String sql, Map<String, Object> params, SqlRunnable runnable) {
+    public void execute(Class<?> repositoryClass, String operation, String table, String sql,
+            Map<String, Object> params, SqlRunnable runnable) {
         execute(repositoryClass, getCallerMethodName(), operation, table, sql, params, runnable);
     }
 
     /**
      * Executes a database operation without return value with parameters logging.
-     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with exception.
+     * Logs DB.BEGIN with SQL and params, DB.END with duration, or DB.ERROR with
+     * exception.
      *
-     * @param repositoryClass  the repository class
+     * @param repositoryClass the repository class
      * @param methodName      the method name
-     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT, etc.)
+     * @param operation       the operation type (INSERT, UPDATE, DELETE, SELECT,
+     *                        etc.)
      * @param table           the table name
      * @param sql             the SQL query
      * @param params          the SQL parameters (logged at DEBUG level)
      * @param runnable        the operation to execute
      * @throws NativSQLException if the operation fails
      */
-    public void execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql, Map<String, Object> params, SqlRunnable runnable) {
+    public void execute(Class<?> repositoryClass, String methodName, String operation, String table, String sql,
+            Map<String, Object> params, SqlRunnable runnable) {
         String opId = executionMetrics.generateOperationId();
         String repositoryName = getSimpleClassName(repositoryClass);
         String opLabel = repositoryName + "." + methodName + " - " + operation + " " + table + " [" + opId + "]";

@@ -13,20 +13,19 @@ import java.util.stream.Collectors;
 import javax.sql.DataSource;
 
 import org.jspecify.annotations.NonNull;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationContext;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 
-import jakarta.annotation.PostConstruct;
+import jakarta.inject.Inject;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
+import ovh.heraud.nativsql.dependencies.IBeanProvider;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
@@ -55,15 +54,15 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     private NamedParameterJdbcTemplate jdbcTemplate;
 
-    @Autowired
+    @Inject
     @NonNull
     private RowMapperFactory rowMapperFactory;
 
-    @Autowired
+    @Inject
     @NonNull
     private AnnotationManager annotationManager;
 
-    @Autowired
+    @Inject
     private DbOperationLogger dbOperationLogger;
 
     private DatabaseDialect databaseDialect;
@@ -73,8 +72,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     @NonNull
     private final Class<T> entityClass;
 
-    @Autowired(required = false)
-    protected ApplicationContext applicationContext;
+    @Inject
+    protected IBeanProvider beanProvider;
 
     private Fields entityFields;
 
@@ -107,10 +106,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         this.dbOperationLogger = dbOperationLogger;
     }
 
-    @PostConstruct
     protected void initJdbcTemplate() {
         if (this.getProvidedDataSource() != null) {
-            this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
+            this.initializeJdbcTemplate();
         }
         this.databaseDialect = getDatabaseDialectInstance();
     }
@@ -119,13 +117,24 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Reinitialize JdbcTemplate after DataSource injection.
      * Called by tests when the DataSource is changed at runtime.
      */
-    public void reinitializeJdbcTemplate() {
-        this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
+    public void initializeJdbcTemplate() {
+        this.jdbcTemplate = new NamedParameterJdbcTemplate(retrieveDataSource());
         this.databaseDialect = getDatabaseDialectInstance();
     }
 
     @NonNull
     protected DataSource getProvidedDataSource() {
+        if (dataSource == null) {
+            dataSource = getDataSource();
+        }
+        if (this.jdbcTemplate == null) {
+            this.initializeJdbcTemplate();
+        }
+        return dataSource;
+    }
+
+    @NonNull
+    protected DataSource retrieveDataSource() {
         if (dataSource == null) {
             dataSource = getDataSource();
         }
@@ -507,7 +516,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getEmail)
      * @param value          the value to search for
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return the entity or null if not found
      * @see #findByProperty(String, Object, Getter...)
@@ -581,7 +591,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param value          the value to search for
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, Object, Getter...)
@@ -659,7 +670,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *                       filter by (e.g., User::getStatus)
      * @param value          the value to search for
      * @param orderBy        the order by clause
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, Object, OrderBy, Getter...)
@@ -726,7 +738,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param values         the list of values to search for (uses IN clause)
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, List, Getter...)
@@ -803,7 +816,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param values         the list of values to search for (uses IN clause)
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByPropertyIn(String, List, Getter...)
@@ -1219,7 +1233,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *                     If null or empty, no associations are loaded.
      */
     protected void loadOneToManyAssociations(IEntity<ID> entity, List<Association> associations) {
-        if (applicationContext == null || associations == null || associations.isEmpty()) {
+        if (beanProvider == null || associations == null || associations.isEmpty()) {
             return; // Cannot load associations without ApplicationContext or if no associations
                     // specified
         }
@@ -1251,7 +1265,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *                     configurations
      */
     private void loadAssociationsInBatch(List<T> entities, List<Association> associations) {
-        if (applicationContext == null || entities.isEmpty() || associations.isEmpty()) {
+        if (beanProvider == null || entities.isEmpty() || associations.isEmpty()) {
             return;
         }
 
@@ -1279,7 +1293,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         // Get the repository for the associated entity
         @SuppressWarnings("unchecked")
-        GenericRepository<SUBT, ID> repository = (GenericRepository<SUBT, ID>) applicationContext
+        GenericRepository<SUBT, ID> repository = (GenericRepository<SUBT, ID>) beanProvider
                 .getBean(associationAnnotation.getRepositoryClass());
 
         // Create a map of entities by their ID for direct access

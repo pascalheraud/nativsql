@@ -1,30 +1,32 @@
 package ovh.heraud.nativsql.annotation;
 
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import org.springframework.stereotype.Component;
-
-import ovh.heraud.nativsql.util.FieldAccessor;
+import jakarta.inject.Named;
+import ovh.heraud.nativsql.util.CompositeTypeInfo;
 import ovh.heraud.nativsql.util.EnumMappingInfo;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import ovh.heraud.nativsql.util.JsonInfo;
 import ovh.heraud.nativsql.util.MappedByInfo;
 import ovh.heraud.nativsql.util.OneToManyAssociation;
-import ovh.heraud.nativsql.util.JsonInfo;
-import ovh.heraud.nativsql.util.CompositeTypeInfo;
 import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
- * Centralized component for managing and retrieving annotations from entity classes.
- * This component encapsulates all annotation-related operations, providing a single
+ * Centralized component for managing and retrieving annotations from entity
+ * classes.
+ * This component encapsulates all annotation-related operations, providing a
+ * single
  * point of access for annotation metadata extraction.
  *
- * Rather than returning raw annotation objects, this manager returns domain-specific
+ * Rather than returning raw annotation objects, this manager returns
+ * domain-specific
  * information classes (e.g., MappedByInfo, OneToManyAssociation) that contain
  * the extracted and processed annotation data.
  *
  * Caches results of annotation introspection for performance optimization.
  */
-@Component
+@Named
 public class AnnotationManager {
 
     private final Map<FieldKey, MappedByInfo> mappedByCache = new ConcurrentHashMap<>();
@@ -46,7 +48,8 @@ public class AnnotationManager {
 
     /**
      * Retrieves MappedBy association information from a field.
-     * Returns a MappedByInfo object containing the foreign key property and repository class.
+     * Returns a MappedByInfo object containing the foreign key property and
+     * repository class.
      * Result is cached for subsequent calls.
      *
      * @param fieldAccessor the field accessor to inspect
@@ -65,7 +68,8 @@ public class AnnotationManager {
 
     /**
      * Retrieves OneToMany association information from a field.
-     * Returns a OneToManyAssociation object containing the foreign key and repository class.
+     * Returns a OneToManyAssociation object containing the foreign key and
+     * repository class.
      * Result is cached for subsequent calls.
      *
      * @param fieldAccessor the field accessor to inspect
@@ -120,7 +124,8 @@ public class AnnotationManager {
 
     /**
      * Retrieves CompositeType annotation information from a class.
-     * Returns a CompositeTypeInfo object containing the database composite type name.
+     * Returns a CompositeTypeInfo object containing the database composite type
+     * name.
      * Result is cached for subsequent calls.
      *
      * @param compositeClass the composite class to inspect
@@ -158,10 +163,10 @@ public class AnnotationManager {
     /**
      * Registers MappedBy association information programmatically.
      *
-     * @param clazz the class declaring the field
-     * @param fieldName the name of the field
+     * @param clazz              the class declaring the field
+     * @param fieldName          the name of the field
      * @param foreignKeyProperty the property name that contains the foreign key
-     * @param repositoryClass the repository class to use
+     * @param repositoryClass    the repository class to use
      */
     public void setMappedByInfo(Class<?> clazz, String fieldName, String foreignKeyProperty, Class<?> repositoryClass) {
         FieldKey key = new FieldKey(clazz, fieldName);
@@ -171,9 +176,10 @@ public class AnnotationManager {
     /**
      * Registers OneToMany association information programmatically.
      *
-     * @param clazz the class declaring the field
-     * @param fieldName the name of the field
-     * @param foreignKey the field name in the target entity that references this entity's ID
+     * @param clazz           the class declaring the field
+     * @param fieldName       the name of the field
+     * @param foreignKey      the field name in the target entity that references
+     *                        this entity's ID
      * @param repositoryClass the repository class to use
      */
     public void setOneToManyInfo(Class<?> clazz, String fieldName, String foreignKey, Class<?> repositoryClass) {
@@ -185,7 +191,7 @@ public class AnnotationManager {
      * Registers EnumMapping information programmatically.
      *
      * @param enumClass the enum class key
-     * @param typeName the database enum type name
+     * @param typeName  the database enum type name
      */
     public void setEnumMappingInfo(Class<?> enumClass, String typeName) {
         enumMappingCache.put(enumClass, new EnumMappingInfo(typeName));
@@ -204,7 +210,7 @@ public class AnnotationManager {
      * Registers CompositeType information programmatically.
      *
      * @param compositeClass the composite class key
-     * @param typeName the database composite type name
+     * @param typeName       the database composite type name
      */
     public void setCompositeTypeInfo(Class<?> compositeClass, String typeName) {
         compositeTypeCache.put(compositeClass, new CompositeTypeInfo(typeName));
@@ -213,9 +219,9 @@ public class AnnotationManager {
     /**
      * Registers Type information programmatically.
      *
-     * @param clazz the class declaring the field
+     * @param clazz     the class declaring the field
      * @param fieldName the name of the field
-     * @param dataType the database data type
+     * @param dataType  the database data type
      */
     public void setTypeInfo(Class<?> clazz, String fieldName, DbDataType dataType) {
         FieldKey key = new FieldKey(clazz, fieldName);
