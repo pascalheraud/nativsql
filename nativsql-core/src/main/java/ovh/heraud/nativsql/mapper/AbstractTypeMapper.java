@@ -123,7 +123,31 @@ public abstract class AbstractTypeMapper<T> implements ITypeMapper<T> {
      * (or the raw stored hash for one-way algorithms).
      * Must handle String input for all encrypted fields.
      */
-    public abstract T fromValue(Object value);
+    public T fromValue(Object value) {
+        throw new UnsupportedOperationException(
+                getClass().getSimpleName() + ".fromValue() is not implemented — override it to support DbDataType.ENCRYPTED");
+    }
+
+    /**
+     * Encrypts a value for use as a WHERE clause parameter.
+     * The caller must verify that the algorithm is deterministic before calling this.
+     * Applies the same serialization as {@code toDatabaseValue(value, STRING)}: {@code value.toString()}.
+     *
+     * @param value  the plain Java value — must not be null
+     * @param params the type params as resolved by AnnotationManager (must contain KEY, ALGO)
+     * @return the encrypted value: String (STRING format) or byte[] (BINARY format)
+     */
+    public static Object encryptForWhere(Object value, Map<TypeParamKey, Object> params) {
+        CryptConfig cfg = buildCryptConfig(params);
+        CryptUtils utils = new CryptUtils(cfg.getKey(), parseCost(params));
+        String plain = value.toString();
+        byte[] cipherBytes = utils.encryptGcm(plain);
+        if (cfg.isBinary()) {
+            return cipherBytes;
+        }
+        String prefix = cfg.getPrefix();
+        return (prefix != null ? prefix : "") + CryptUtils.toBase64(cipherBytes);
+    }
 
     // --- private crypt helpers ---
 

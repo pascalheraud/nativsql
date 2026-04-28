@@ -4,7 +4,6 @@ import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.TypeParamKey;
-import ovh.heraud.nativsql.crypt.CryptConfig;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
@@ -23,8 +22,8 @@ public class EnumStringMapper<E extends Enum<E>> extends AbstractTypeMapper<E> {
         this.enumClass = enumClass;
     }
 
-    public EnumStringMapper(Class<E> enumClass, Map<TypeParamKey, Object> params, CryptConfig cryptConfig) {
-        super(params, cryptConfig);
+    public EnumStringMapper(Class<E> enumClass, Map<TypeParamKey, Object> params) {
+        super(params);
         this.enumClass = enumClass;
     }
 

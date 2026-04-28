@@ -174,8 +174,8 @@ public class AnnotationManager {
                 params.put(paramKey, resolved);
             }
             if (type.value() == DbDataType.ENCRYPTED && params.containsKey(TypeParamKey.KEY_PROVIDER)) {
-                byte[] key = resolveKey(params, fieldAccessor.getName());
-                params.put(TypeParamKey.KEY, key);
+                byte[] resolvedKey = resolveKey(params, fieldAccessor.getName());
+                params.put(TypeParamKey.KEY, resolvedKey);
             }
             return new TypeInfo(type.value(), params);
         });

@@ -113,7 +113,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
             this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
         }
         this.databaseDialect = getDatabaseDialectInstance();
-        injectApplicationContextToDialect();
     }
 
     /**
@@ -123,13 +122,6 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     public void reinitializeJdbcTemplate() {
         this.jdbcTemplate = new NamedParameterJdbcTemplate(getProvidedDataSource());
         this.databaseDialect = getDatabaseDialectInstance();
-        injectApplicationContextToDialect();
-    }
-
-    private void injectApplicationContextToDialect() {
-        if (applicationContext != null && databaseDialect instanceof ovh.heraud.nativsql.db.AbstractChainedDialect chained) {
-            chained.injectApplicationContext(applicationContext);
-        }
     }
 
     @NonNull

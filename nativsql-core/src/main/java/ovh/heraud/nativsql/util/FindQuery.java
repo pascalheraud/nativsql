@@ -8,8 +8,13 @@ import java.util.Map;
 
 import org.jspecify.annotations.NonNull;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
+import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
+import ovh.heraud.nativsql.crypt.CryptAlgorithm;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
+import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 import ovh.heraud.nativsql.repository.GenericRepository;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 
@@ -152,9 +157,13 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
 
     /**
      * Adds a WHERE condition with EQUALS operator (property = value).
+     * If the column is annotated with {@code @Type(DbDataType.ENCRYPTED)}:
+     * - one-way algorithms (BCRYPT) always throw {@link NativSQLException}
+     * - non-deterministic algorithms (GCM) always throw {@link NativSQLException}
+     * - deterministic algorithms: the value is transparently encrypted before binding
      */
     public FindQuery<T, ID> whereAndEquals(String column, Object value) {
-        whereClause.add(column, Operator.EQUALS, value);
+        whereClause.add(column, Operator.EQUALS, resolveWhereValue(column, value));
         return this;
     }
 
@@ -170,10 +179,64 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
 
     /**
      * Adds a WHERE condition with IN operator (property IN (...)).
+     * If the column is annotated with {@code @Type(DbDataType.ENCRYPTED)}:
+     * - one-way algorithms (BCRYPT) always throw {@link NativSQLException}
+     * - non-deterministic algorithms (GCM) always throw {@link NativSQLException}
+     * - deterministic algorithms: each value is transparently encrypted before binding
      */
     public FindQuery<T, ID> whereAndIn(String column, List<?> values) {
-        whereClause.add(column, Operator.IN, values);
+        whereClause.add(column, Operator.IN, resolveWhereValues(column, values));
         return this;
+    }
+
+    /**
+     * Resolves the effective WHERE value for a column, encrypting it if the column
+     * is annotated with {@code @Type(DbDataType.ENCRYPTED)} and the algorithm is deterministic.
+     * Throws {@link NativSQLException} for one-way or non-deterministic encrypted fields.
+     */
+    private Object resolveWhereValue(String column, Object value) {
+        TypeInfo typeInfo = getEncryptedTypeInfo(column);
+        if (typeInfo == null) return value;
+        return AbstractTypeMapper.encryptForWhere(value, typeInfo.getParams());
+    }
+
+    /**
+     * Resolves the effective WHERE values for a column, encrypting each element if needed.
+     * Same guards as {@link #resolveWhereValue(String, Object)}.
+     */
+    private List<?> resolveWhereValues(String column, List<?> values) {
+        TypeInfo typeInfo = getEncryptedTypeInfo(column);
+        if (typeInfo == null) return values;
+        Map<TypeParamKey, Object> params = typeInfo.getParams();
+        List<Object> encrypted = new ArrayList<>(values.size());
+        for (Object v : values) {
+            encrypted.add(AbstractTypeMapper.encryptForWhere(v, params));
+        }
+        return encrypted;
+    }
+
+    /**
+     * Returns the {@link TypeInfo} for {@code column} if it is ENCRYPTED and the primary algorithm
+     * supports deterministic WHERE queries. Returns null for non-encrypted fields.
+     * Throws {@link NativSQLException} for one-way or non-deterministic encrypted fields.
+     */
+    private TypeInfo getEncryptedTypeInfo(String column) {
+        FieldAccessor<?> fieldAccessor = repository.getEntityFields().get(column);
+        if (fieldAccessor == null) return null;
+        TypeInfo typeInfo = annotationManager.getTypeInfo(fieldAccessor);
+        if (typeInfo == null || typeInfo.getDataType() != DbDataType.ENCRYPTED) return null;
+        CryptAlgorithm[] algorithms = (CryptAlgorithm[]) typeInfo.getParam(TypeParamKey.ALGO);
+        CryptAlgorithm primary = algorithms[0];
+        if (primary.isOneWay()) {
+            throw new NativSQLException(
+                    "WHERE on one-way hashed field '" + column + "' is not supported");
+        }
+        if (!primary.isDeterministic()) {
+            throw new NativSQLException(
+                    "WHERE on non-deterministic encrypted field '" + column + "' is not supported"
+                    + " — use a deterministic algorithm for searchable encrypted columns");
+        }
+        return typeInfo;
     }
 
     /**

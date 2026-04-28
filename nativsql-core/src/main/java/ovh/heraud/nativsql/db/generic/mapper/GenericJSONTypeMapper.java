@@ -6,7 +6,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.TypeParamKey;
-import ovh.heraud.nativsql.crypt.CryptConfig;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
@@ -27,8 +26,8 @@ public class GenericJSONTypeMapper<T> extends AbstractTypeMapper<T> {
         this.jsonClass = jsonClass;
     }
 
-    public GenericJSONTypeMapper(Class<T> jsonClass, Map<TypeParamKey, Object> params, CryptConfig cryptConfig) {
-        super(params, cryptConfig);
+    public GenericJSONTypeMapper(Class<T> jsonClass, Map<TypeParamKey, Object> params) {
+        super(params);
         this.jsonClass = jsonClass;
     }
 

@@ -4,7 +4,6 @@ import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.TypeParamKey;
-import ovh.heraud.nativsql.crypt.CryptConfig;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
@@ -18,8 +17,8 @@ public class LongTypeMapper extends AbstractTypeMapper<Long> {
         super();
     }
 
-    public LongTypeMapper(Map<TypeParamKey, Object> params, CryptConfig cryptConfig) {
-        super(params, cryptConfig);
+    public LongTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
