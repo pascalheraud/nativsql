@@ -70,7 +70,7 @@ public interface DatabaseDialect {
 
     /**
      * Extracts the generated key from the database after an insert operation.
-     * 
+     *
      * @param <ID>
      * @param keys
      * @param idColumn the name of the ID column to extract from the keys map

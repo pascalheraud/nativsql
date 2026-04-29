@@ -6,6 +6,7 @@ import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
 
+
 /**
  * Abstract base class implementing the Chain of Responsibility pattern for
  * database dialects.

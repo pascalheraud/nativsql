@@ -1,10 +1,16 @@
 package ovh.heraud.nativsql.annotation;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import ovh.heraud.nativsql.crypt.CryptAlgorithm;
+import ovh.heraud.nativsql.crypt.CryptKeyProvider;
+import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.EnumMappingInfo;
 import ovh.heraud.nativsql.util.MappedByInfo;
@@ -26,6 +32,9 @@ import ovh.heraud.nativsql.util.TypeInfo;
  */
 @Component
 public class AnnotationManager {
+
+    @Autowired(required = false)
+    private ApplicationContext applicationContext;
 
     private final Map<FieldKey, MappedByInfo> mappedByCache = new ConcurrentHashMap<>();
     private final Map<FieldKey, OneToManyAssociation> oneToManyCache = new ConcurrentHashMap<>();
@@ -138,7 +147,7 @@ public class AnnotationManager {
 
     /**
      * Retrieves Type annotation information from a field.
-     * Returns a TypeInfo object containing the database data type.
+     * Returns a TypeInfo object containing the database data type and optional params.
      * Result is cached for subsequent calls.
      *
      * @param fieldAccessor the field accessor to inspect
@@ -151,7 +160,24 @@ public class AnnotationManager {
             if (type == null) {
                 return null;
             }
-            return new TypeInfo(type.value());
+            TypeParam[] typeParams = type.params();
+            if (typeParams == null || typeParams.length == 0) {
+                return new TypeInfo(type.value());
+            }
+            Map<TypeParamKey, Object> params = new HashMap<>();
+            for (TypeParam tp : typeParams) {
+                TypeParamKey paramKey = tp.key();
+                // classValue takes precedence over value when set
+                Object resolved = (tp.classValue() != Void.class)
+                        ? tp.classValue()
+                        : parseParamValue(paramKey, tp.value(), fieldAccessor.getName());
+                params.put(paramKey, resolved);
+            }
+            if (type.value() == DbDataType.ENCRYPTED && params.containsKey(TypeParamKey.KEY_PROVIDER)) {
+                byte[] resolvedKey = resolveKey(params, fieldAccessor.getName());
+                params.put(TypeParamKey.KEY, resolvedKey);
+            }
+            return new TypeInfo(type.value(), params);
         });
     }
 
@@ -211,7 +237,7 @@ public class AnnotationManager {
     }
 
     /**
-     * Registers Type information programmatically.
+     * Registers Type information programmatically (without params).
      *
      * @param clazz the class declaring the field
      * @param fieldName the name of the field
@@ -220,6 +246,84 @@ public class AnnotationManager {
     public void setTypeInfo(Class<?> clazz, String fieldName, DbDataType dataType) {
         FieldKey key = new FieldKey(clazz, fieldName);
         typeCache.put(key, new TypeInfo(dataType));
+    }
+
+    /**
+     * Registers Type information programmatically with params.
+     *
+     * @param clazz     the class declaring the field
+     * @param fieldName the name of the field
+     * @param dataType  the database data type
+     * @param params    the type parameters (e.g. ALGO, KEY_PROVIDER, PREFIX)
+     */
+    public void setTypeInfo(Class<?> clazz, String fieldName, DbDataType dataType,
+                            Map<TypeParamKey, Object> params) {
+        FieldKey key = new FieldKey(clazz, fieldName);
+        typeCache.put(key, new TypeInfo(dataType, params));
+    }
+
+    private Object parseParamValue(TypeParamKey key, String value, String fieldName) {
+        return switch (key) {
+            case ALGO -> {
+                String[] parts = value.split(",");
+                CryptAlgorithm[] algos = new CryptAlgorithm[parts.length];
+                for (int i = 0; i < parts.length; i++) {
+                    String name = parts[i].trim();
+                    try {
+                        algos[i] = CryptAlgorithm.valueOf(name);
+                    } catch (IllegalArgumentException e) {
+                        throw new NativSQLException("Field '" + fieldName + "': unknown ALGO value '" + name + "'");
+                    }
+                }
+                yield algos;
+            }
+            // KEY_PROVIDER, PREFIX, COST, FORMAT, KEY are stored as-is (String)
+            default -> value;
+        };
+    }
+
+    private byte[] resolveKey(Map<TypeParamKey, Object> params, String fieldName) {
+        Object providerValue = params.get(TypeParamKey.KEY_PROVIDER);
+        Class<?> providerClass;
+        if (providerValue instanceof Class<?> cls) {
+            providerClass = cls;
+        } else if (providerValue instanceof String fqcn) {
+            if (fqcn.isEmpty()) {
+                throw new NativSQLException("Field '" + fieldName + "': KEY_PROVIDER value is missing");
+            }
+            try {
+                providerClass = Class.forName(fqcn);
+            } catch (ClassNotFoundException e) {
+                throw new NativSQLException("Field '" + fieldName + "': KEY_PROVIDER class not found: " + fqcn, e);
+            }
+        } else {
+            throw new NativSQLException("Field '" + fieldName + "': KEY_PROVIDER must be a class reference or a fully-qualified class name String");
+        }
+
+        // Try Spring context first
+        if (applicationContext != null) {
+            try {
+                Object bean = applicationContext.getBean(providerClass);
+                if (bean instanceof CryptKeyProvider provider) {
+                    return provider.getKey();
+                }
+            } catch (Exception ignored) {
+                // Not a Spring bean — fall through to newInstance
+            }
+        }
+
+        // Fall back to no-arg constructor
+        try {
+            Object instance = providerClass.getDeclaredConstructor().newInstance();
+            if (instance instanceof CryptKeyProvider provider) {
+                return provider.getKey();
+            }
+            throw new NativSQLException("Field '" + fieldName + "': " + providerClass.getName() + " does not implement CryptKeyProvider");
+        } catch (NoSuchMethodException e) {
+            throw new NativSQLException("Field '" + fieldName + "': " + providerClass.getName() + " has no no-arg constructor and is not a Spring bean", e);
+        } catch (ReflectiveOperationException e) {
+            throw new NativSQLException("Field '" + fieldName + "': failed to instantiate " + providerClass.getName(), e);
+        }
     }
 
     /**

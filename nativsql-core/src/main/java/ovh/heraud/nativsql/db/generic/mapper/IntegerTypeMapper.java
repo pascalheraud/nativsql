@@ -1,27 +1,24 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Integer type with flexible numeric conversion.
  * Converts from any numeric SQL type to Integer.
  */
-public class IntegerTypeMapper implements ITypeMapper<Integer> {
-    @Override
-    public Integer map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            return fromValue(value);
-        } catch (SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to Integer", e);
-        }
+public class IntegerTypeMapper extends AbstractTypeMapper<Integer> {
+
+    public IntegerTypeMapper() {
+        super();
+    }
+
+    public IntegerTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
@@ -32,7 +29,7 @@ public class IntegerTypeMapper implements ITypeMapper<Integer> {
             try {
                 return Integer.parseInt(str);
             } catch (NumberFormatException e) {
-                throw new NativSQLException("Cannot convert String '" + str + "' to Integer", e);
+                throw new NativSQLException("Cannot convert String to Integer", e);
             }
         }
         if (value instanceof Boolean bool) return bool ? 1 : 0;
@@ -40,11 +37,12 @@ public class IntegerTypeMapper implements ITypeMapper<Integer> {
     }
 
     @Override
-    public Object toDatabase(Integer value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
+    protected Integer doMap(Object raw, @SuppressWarnings("unused") Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
 
+    @Override
+    protected Object toDatabaseValue(Integer value, DbDataType dataType, @SuppressWarnings("unused") Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }

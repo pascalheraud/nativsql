@@ -1,58 +1,52 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Boolean type with flexible conversion.
  * Converts from boolean, numeric (0/1), and string representations.
  */
-public class BooleanTypeMapper implements ITypeMapper<Boolean> {
-    @Override
-    public Boolean map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            if (value == null) return null;
+public class BooleanTypeMapper extends AbstractTypeMapper<Boolean> {
 
-            if (value instanceof Boolean bool) {
-                return bool;
-            }
-            if (value instanceof Number num) {
-                return num.intValue() != 0;
-            }
-            if (value instanceof String str) {
-                String s = str.toLowerCase().trim();
-                if (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("t")) {
-                    return true;
-                }
-                if (s.equals("false") || s.equals("0") || s.equals("no") || s.equals("n") || s.equals("f")) {
-                    return false;
-                }
-                // Unknown string representation should be considered an error
-                throw new NativSQLException("Cannot convert String '" + str + "' to Boolean");
-            }
-            throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class " + value.getClass() + " to Boolean");
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException("Failed to map column: " + columnName, e);
-        }
+    public BooleanTypeMapper() {
+        super();
+    }
+
+    public BooleanTypeMapper(Map<TypeParamKey, Object> params) {
+        super(params);
     }
 
     @Override
-    public Object toDatabase(Boolean value, DbDataType dataType) {
-        if (value == null) {
-            return null;
+    public Boolean fromValue(Object value) {
+        if (value == null) return null;
+        if (value instanceof Boolean bool) return bool;
+        if (value instanceof Number num) return num.intValue() != 0;
+        if (value instanceof String str) {
+            String s = str.toLowerCase().trim();
+            if (s.equals("true") || s.equals("1") || s.equals("yes") || s.equals("y") || s.equals("t")) return true;
+            if (s.equals("false") || s.equals("0") || s.equals("no") || s.equals("n") || s.equals("f")) return false;
+            throw new NativSQLException("Cannot convert String '" + s + "' to Boolean");
         }
+        throw new NativSQLException("Cannot convert " + value.getClass().getSimpleName() + " to Boolean");
+    }
 
+    @Override
+    protected Boolean doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        return fromValue(raw);
+    }
+
+    @Override
+    protected Object toDatabaseValue(Boolean value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value;
         }
 
-        return switch (dataType) {            
+        return switch (dataType) {
             case STRING -> value.toString();
             case INTEGER -> value ? 1 : 0;
             case LONG -> value ? 1L : 0L;

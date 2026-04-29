@@ -1,8 +1,11 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
+import java.util.Map;
+
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * Mapper for enum types that handles reading String values from database
@@ -10,43 +13,35 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
  *
  * @param <E> the enum type
  */
-public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
+public class EnumStringMapper<E extends Enum<E>> extends AbstractTypeMapper<E> {
 
     private final Class<E> enumClass;
 
     public EnumStringMapper(Class<E> enumClass) {
+        super();
+        this.enumClass = enumClass;
+    }
+
+    public EnumStringMapper(Class<E> enumClass, Map<TypeParamKey, Object> params) {
+        super(params);
         this.enumClass = enumClass;
     }
 
     @Override
-    public E map(java.sql.ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            Object dbValue = rs.getObject(columnName);
-            if (dbValue == null) {
-                return null;
+    protected E doMap(Object raw, Map<TypeParamKey, Object> params) throws NativSQLException {
+        if (raw instanceof String str) {
+            try {
+                return Enum.valueOf(enumClass, str);
+            } catch (IllegalArgumentException e) {
+                throw new NativSQLException(
+                        "Invalid enum value for " + enumClass.getSimpleName() + ": " + str, e);
             }
-
-            // Handle String representation of enum from database
-            if (dbValue instanceof String) {
-                return Enum.valueOf(enumClass, (String) dbValue);
-            }
-
-            throw new NativSQLException("Cannot parse enum from value: " + dbValue);
-
-        } catch (IllegalArgumentException e) {
-            throw new NativSQLException(
-                    "Invalid enum value for " + enumClass.getSimpleName() + ": " + e.getMessage(), e);
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException(e);
         }
+        throw new NativSQLException("Cannot parse enum from value type: " + raw.getClass().getSimpleName());
     }
 
     @Override
-    public Object toDatabase(E value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
+    protected Object toDatabaseValue(E value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (dataType == null) {
             return value.name();
         }
