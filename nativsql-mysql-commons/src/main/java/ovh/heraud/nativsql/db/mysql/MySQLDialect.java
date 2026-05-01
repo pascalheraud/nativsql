@@ -45,7 +45,7 @@ public class MySQLDialect extends AbstractChainedDialect {
     public <T> ITypeMapper<T> getMapper(FieldAccessor<T>fieldAccessor, AnnotationManager annotationManager) {
         // Check for JSON types via AnnotationManager
         if (annotationManager != null && annotationManager.getJsonInfo(fieldAccessor.getType()) != null) {
-            return (ITypeMapper<T>) getJsonMapper(fieldAccessor.getType());
+            return (ITypeMapper<T>) getJsonMapper();
         }
 
         // Fall back to next dialect in chain for other types

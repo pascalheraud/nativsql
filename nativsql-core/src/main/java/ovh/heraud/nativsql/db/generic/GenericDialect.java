@@ -13,23 +13,8 @@ import ovh.heraud.nativsql.db.AbstractChainedDialect;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
-import ovh.heraud.nativsql.db.generic.mapper.BigDecimalTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.GenericJSONTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.BigIntegerTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.BooleanTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.ByteArrayTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.ByteTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.DefaultTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.DoubleTypeMapper;
 import ovh.heraud.nativsql.db.generic.mapper.EnumStringMapper;
-import ovh.heraud.nativsql.db.generic.mapper.FloatTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.IntegerTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.LocalDateTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.LocalDateTimeTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.LongTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.ShortTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.StringTypeMapper;
-import ovh.heraud.nativsql.db.generic.mapper.UUIDTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.GenericJSONTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
 
@@ -38,12 +23,17 @@ import ovh.heraud.nativsql.util.FieldAccessor;
  * Provides default implementations that can be overridden by specific dialects.
  *
  * Part of the Chain of Responsibility pattern, serves as the end of the chain.
- * Handles JDBC-supported types and provides sensible defaults for identifier conversion.
- * Can be extended by specialized dialects that want to add database-specific behavior.
+ * Handles JDBC-supported types and provides sensible defaults for identifier
+ * conversion.
+ * Can be extended by specialized dialects that want to add database-specific
+ * behavior.
  *
- * Type detection is performed via annotations (@Json, @CompositeType, @EnumMapping)
- * which are managed by AnnotationManager. Legacy registration methods (registerJsonType,
- * registerEnumType, registerCompositeType) are still supported for backward compatibility.
+ * Type detection is performed via annotations
+ * (@Json, @CompositeType, @EnumMapping)
+ * which are managed by AnnotationManager. Legacy registration methods
+ * (registerJsonType,
+ * registerEnumType, registerCompositeType) are still supported for backward
+ * compatibility.
  */
 public class GenericDialect extends AbstractChainedDialect {
 
@@ -74,15 +64,29 @@ public class GenericDialect extends AbstractChainedDialect {
 
     /**
      * Gets the appropriate TypeMapper for the given class.
-     * Returns a mapper only for types that JDBC can handle directly (primitives, strings, dates, etc.)
-     * Returns null for complex types that need custom mapping or are joined properties.
-     * Checks enum types first, then JSON types, then composite types, then type-specific mappers for numeric types.
+     * Returns a mapper only for types that JDBC can handle directly (primitives,
+     * strings, dates, etc.)
+     * Returns null for complex types that need custom mapping or are joined
+     * properties.
+     * Checks enum types first, then JSON types, then composite types, then
+     * type-specific mappers for numeric types.
+     * Encryption is handled transparently by
+     * {@link ovh.heraud.nativsql.mapper.AbstractTypeMapper} at
+     * map/toDatabase call time using the field's TypeInfo params — no special
+     * mapper is needed here.
      * Subclasses can override to add dialect-specific mappings.
      */
     @SuppressWarnings("unchecked")
     @Override
     public <T> ITypeMapper<T> getMapper(FieldAccessor<T> fieldAccessor, @NonNull AnnotationManager annotationManager) {
         Class<T> targetType = (Class<T>) fieldAccessor.getType();
+
+        if (targetType.isPrimitive()) {
+            throw new ovh.heraud.nativsql.exception.NativSQLException(
+                    "Field '" + fieldAccessor.getName() + "' has primitive type '" + targetType.getName()
+                            + "' — use the boxed type instead (e.g. int → Integer)");
+        }
+
         // Check if it's an enum
         if (targetType.isEnum()) {
             return (ITypeMapper<T>) getEnumMapperHelper((Class<?>) targetType, annotationManager);
@@ -90,7 +94,7 @@ public class GenericDialect extends AbstractChainedDialect {
 
         // Check if it's a JSON type via AnnotationManager
         if (annotationManager.getJsonInfo(targetType) != null) {
-            return (ITypeMapper<T>) getJsonMapper(targetType);
+            return (ITypeMapper<T>) getJsonMapper();
         }
 
         // Check if it's a composite type via AnnotationManager
@@ -98,58 +102,30 @@ public class GenericDialect extends AbstractChainedDialect {
             return (ITypeMapper<T>) getCompositeMapper(targetType, annotationManager);
         }
 
-        // Check if it's a UUID type
-        if (targetType == UUID.class) {
-            return (ITypeMapper<T>) new UUIDTypeMapper();
-        }
+        return getMapperForType(targetType);
+    }
 
-        // Check for type-specific numeric mappers
-        if (targetType == Long.class) {
-            return (ITypeMapper<T>) new LongTypeMapper();
-        }
-        if (targetType == Integer.class) {
-            return (ITypeMapper<T>) new IntegerTypeMapper();
-        }
-        if (targetType == Double.class) {
-            return (ITypeMapper<T>) new DoubleTypeMapper();
-        }
-        if (targetType == Float.class) {
-            return (ITypeMapper<T>) new FloatTypeMapper();
-        }
-        if (targetType == Short.class) {
-            return (ITypeMapper<T>) new ShortTypeMapper();
-        }
-        if (targetType == Byte.class) {
-            return (ITypeMapper<T>) new ByteTypeMapper();
-        }
-        if (targetType == BigDecimal.class) {
-            return (ITypeMapper<T>) new BigDecimalTypeMapper();
-        }
-        if (targetType == BigInteger.class) {
-            return (ITypeMapper<T>) new BigIntegerTypeMapper();
-        }
-        if (targetType == Boolean.class) {
-            return (ITypeMapper<T>) new BooleanTypeMapper();
-        }
-        if (targetType == String.class) {
-            return (ITypeMapper<T>) new StringTypeMapper();
-        }
-        if (targetType == LocalDate.class) {
-            return (ITypeMapper<T>) new LocalDateTypeMapper();
-        }
-        if (targetType == LocalDateTime.class) {
-            return (ITypeMapper<T>) new LocalDateTimeTypeMapper();
-        }
-        if (targetType == byte[].class) {
-            return (ITypeMapper<T>) new ByteArrayTypeMapper();
-        }
-
-        // Check if it's a JDBC-supported type (fallback for others like Date, etc.)
-        if (isJdbcType(targetType)) {
-            return new DefaultTypeMapper<T>();
-        }
-
-        // For unknown types (complex objects, joined properties), return null
+    /**
+     * Returns a mapper for the given Java type (non-encrypted path).
+     * Extracted to a helper so it can be reused when building encrypted mappers.
+     */
+    @SuppressWarnings("unchecked")
+    protected <T> ITypeMapper<T> getMapperForType(Class<T> targetType) {
+        if (targetType == UUID.class)          return (ITypeMapper<T>) getUUIDMapper();
+        if (targetType == Long.class)          return (ITypeMapper<T>) getLongMapper();
+        if (targetType == Integer.class)       return (ITypeMapper<T>) getIntegerMapper();
+        if (targetType == Double.class)        return (ITypeMapper<T>) getDoubleMapper();
+        if (targetType == Float.class)         return (ITypeMapper<T>) getFloatMapper();
+        if (targetType == Short.class)         return (ITypeMapper<T>) getShortMapper();
+        if (targetType == Byte.class)          return (ITypeMapper<T>) getByteMapper();
+        if (targetType == BigDecimal.class)    return (ITypeMapper<T>) getBigDecimalMapper();
+        if (targetType == BigInteger.class)    return (ITypeMapper<T>) getBigIntegerMapper();
+        if (targetType == Boolean.class)       return (ITypeMapper<T>) getBooleanMapper();
+        if (targetType == String.class)        return (ITypeMapper<T>) getStringMapper();
+        if (targetType == LocalDate.class)     return (ITypeMapper<T>) getLocalDateMapper();
+        if (targetType == LocalDateTime.class) return (ITypeMapper<T>) getLocalDateTimeMapper();
+        if (targetType == byte[].class)        return (ITypeMapper<T>) getByteArrayMapper();
+        if (isJdbcType(targetType))            return getDefaultMapper();
         return null;
     }
 
@@ -157,42 +133,23 @@ public class GenericDialect extends AbstractChainedDialect {
      * Determines if a type is supported by JDBC for direct mapping.
      */
     private boolean isJdbcType(Class<?> type) {
-        // Primitive types and their wrappers
-        if (type.isPrimitive() ||
-            type == String.class ||
-            type == Boolean.class ||
-            type == Integer.class ||
-            type == Long.class ||
-            type == Double.class ||
-            type == Float.class ||
-            type == Short.class ||
-            type == Byte.class ||
-            type == Character.class) {
+        if (type == String.class || type == Boolean.class ||
+                type == Integer.class || type == Long.class ||
+                type == Double.class || type == Float.class ||
+                type == Short.class || type == Byte.class ||
+                type == Character.class) {
             return true;
         }
-
-        // JDBC standard types
-        if (type == java.sql.Date.class ||
-            type == java.sql.Time.class ||
-            type == java.sql.Timestamp.class ||
-            type == java.util.Date.class ||
-            type == java.time.LocalDate.class ||
-            type == java.time.LocalTime.class ||
-            type == java.time.LocalDateTime.class ||
-            type == java.time.Instant.class ||
-            type == java.math.BigDecimal.class ||
-            type == java.math.BigInteger.class ||
-            type == byte[].class) {
-            return true;
-        }
-
-        return false;
+        return type == java.sql.Date.class || type == java.sql.Time.class ||
+                type == java.sql.Timestamp.class || type == java.util.Date.class ||
+                type == java.time.LocalDate.class || type == java.time.LocalTime.class ||
+                type == java.time.LocalDateTime.class || type == java.time.Instant.class ||
+                type == java.math.BigDecimal.class || type == java.math.BigInteger.class ||
+                type == byte[].class;
     }
 
-    /**
-     * Helper method to call getEnumMapper with proper type safety.
-     */
-    private <E extends Enum<E>> ITypeMapper<E> getEnumMapperHelper(Class<?> enumClass, AnnotationManager annotationManager) {
+    private <E extends Enum<E>> ITypeMapper<E> getEnumMapperHelper(Class<?> enumClass,
+            AnnotationManager annotationManager) {
         @SuppressWarnings("unchecked")
         Class<E> typedEnum = (Class<E>) enumClass;
         return (ITypeMapper<E>) getEnumMapper(typedEnum, annotationManager);
@@ -204,9 +161,8 @@ public class GenericDialect extends AbstractChainedDialect {
     }
 
     @Override
-    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
-        // Use GenericJSONTypeMapper for Jackson-based JSON handling
-        return new GenericJSONTypeMapper<>(jsonClass);
+    public <T> ITypeMapper<T> getJsonMapper() {
+        return new GenericJSONTypeMapper<>();
     }
 
     @Override

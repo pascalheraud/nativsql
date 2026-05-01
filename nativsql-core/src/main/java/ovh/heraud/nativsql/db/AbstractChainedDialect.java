@@ -91,9 +91,9 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
+    public <T> ITypeMapper<T> getJsonMapper() {
         if (nextDialect != null) {
-            return nextDialect.getJsonMapper(jsonClass);
+            return nextDialect.getJsonMapper();
         }
         return null;
     }

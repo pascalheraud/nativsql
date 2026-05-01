@@ -1,12 +1,14 @@
 package ovh.heraud.nativsql.db.postgres.mapper;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.postgresql.util.PGobject;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
-import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.db.generic.mapper.StringTypeMapper;
+import ovh.heraud.nativsql.exception.ConversionException;
 
 /**
  * PostgreSQL-specific subclass of {@link StringTypeMapper}.
@@ -16,22 +18,19 @@ import ovh.heraud.nativsql.db.generic.mapper.StringTypeMapper;
 public class PostgresStringTypeMapper extends StringTypeMapper {
 
     @Override
-    public Object toDatabase(String value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
+    protected Object toDatabaseValue(String value, DbDataType dataType, Map<TypeParamKey, Object> params)
+            throws ConversionException {
         if (dataType == DbDataType.UUID) {
             try {
-                // validate
                 UUID.fromString(value);
                 PGobject pgObject = new PGobject();
                 pgObject.setType("uuid");
                 pgObject.setValue(value);
                 return pgObject;
             } catch (IllegalArgumentException | java.sql.SQLException e) {
-                throw new NativSQLException("Failed to convert String to UUID PGobject: " + value, e);
+                throw new ConversionException(UUID.class, e);
             }
         }
-        return super.toDatabase(value, dataType);
+        return super.toDatabaseValue(value, dataType, params);
     }
 }

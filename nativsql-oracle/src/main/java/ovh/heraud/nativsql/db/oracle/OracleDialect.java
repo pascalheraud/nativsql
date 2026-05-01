@@ -50,7 +50,7 @@ public class OracleDialect extends AbstractChainedDialect {
 
         // Check for JSON types via AnnotationManager
         if (annotationManager != null && annotationManager.getJsonInfo(fieldAccessor.getType()) != null) {
-            return (ITypeMapper<T>) getJsonMapper(fieldAccessor.getType());
+            return (ITypeMapper<T>) getJsonMapper();
         }
 
         // Fall back to next dialect in chain for other types

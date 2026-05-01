@@ -4,8 +4,11 @@ import java.lang.reflect.Field;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.util.List;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import org.postgresql.util.PGobject;
@@ -27,7 +30,8 @@ public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public T map(ResultSet rs, String columnName) throws NativSQLException {
+    public T map(ResultSet rs, String columnName, DbDataType dataType,
+            FieldAccessor<?> fieldAccessor, Map<TypeParamKey, Object> params) throws NativSQLException {
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -76,7 +80,15 @@ public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
     }
 
     @Override
-    public Object toDatabase(T value, DbDataType dataType) {
+    public T fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) {
+        // FIXME : should be implemented
+        throw new UnsupportedOperationException(
+                "fromValue() is not supported for composite type: " + compositeClass.getSimpleName());
+    }
+
+    @Override
+    public Object toDatabase(T value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (value == null) {
             return null;
         }

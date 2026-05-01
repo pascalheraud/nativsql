@@ -56,6 +56,13 @@ public class OracleUserRepository extends OracleRepository<User, Long> {
      * @param columns the property names (camelCase) to retrieve
      * @return list of users from the specified city
      */
+    public List<User> findByValidated(Boolean validated, String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals(User::getValidated, validated));
+    }
+
     public List<User> findByCity(String city, String... columns) {
         // Using JSON_VALUE(address, '$.city') to access JSON field, similar to PostgreSQL's (address).city
         return findAllByPropertyExpression("JSON_VALUE(address, '$.city')", "city", city, columns);

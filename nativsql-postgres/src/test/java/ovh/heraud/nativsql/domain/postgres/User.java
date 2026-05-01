@@ -6,7 +6,7 @@ import java.util.UUID;
 
 import org.postgis.Point;
 
-import ovh.heraud.nativsql.annotation.Type;
+import ovh.heraud.nativsql.annotation.type.Type;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OneToMany;

@@ -1,11 +1,14 @@
 package ovh.heraud.nativsql.db.postgres.postgis;
 
 import java.sql.ResultSet;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import java.util.Map;
 
 import org.postgis.PGgeometry;
 import org.postgis.Point;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 
@@ -16,17 +19,18 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
 public class PostgresPointTypeMapper implements ITypeMapper<Point> {
 
     @Override
-    public Point map(ResultSet rs, String columnName) throws NativSQLException {
+    public Point map(ResultSet rs, String columnName, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params)
+            throws NativSQLException {
         try {
             Object value = rs.getObject(columnName);
             if (value == null) {
                 return null;
             }
-            if (value instanceof Point) {
-                return (Point) value;
+            if (value instanceof Point p) {
+                return p;
             }
-            if (value instanceof PGgeometry) {
-                PGgeometry pgGeom = (PGgeometry) value;
+            if (value instanceof PGgeometry pgGeom) {
                 return (Point) pgGeom.getGeometry();
             }
             throw new NativSQLException("Cannot parse Point from value: " + value);
@@ -36,7 +40,26 @@ public class PostgresPointTypeMapper implements ITypeMapper<Point> {
     }
 
     @Override
-    public Object toDatabase(Point value, DbDataType dataType) {
+    public Point fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) {
+        if (value == null)
+            return null;
+        if (value instanceof Point p)
+            return p;
+        if (value instanceof PGgeometry pgGeom)
+            return (Point) pgGeom.getGeometry();
+        if (value instanceof String str) {
+            try {
+                return (Point) new PGgeometry(str).getGeometry();
+            } catch (Exception e) {
+                throw new NativSQLException("Failed to parse Point: " + str, e);
+            }
+        }
+        throw new NativSQLException("Cannot parse Point from value: " + value);
+    }
+
+    @Override
+    public Object toDatabase(Point value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (value == null) {
             return null;
         }

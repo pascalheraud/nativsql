@@ -1,10 +1,12 @@
-package ovh.heraud.nativsql.annotation;
+package ovh.heraud.nativsql.annotation.type;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+
+import ovh.heraud.nativsql.annotation.DbDataType;
 
 /**
  * Annotation to specify the database data type for a field.
@@ -35,11 +37,4 @@ public @interface Type {
      */
     DbDataType value();
 
-    /**
-     * Optional parameters for this type mapping.
-     * Required when {@code value() == DbDataType.ENCRYPTED}.
-     *
-     * @return the type parameters
-     */
-    TypeParam[] params() default {};
 }
