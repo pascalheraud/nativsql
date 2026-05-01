@@ -102,6 +102,20 @@ public abstract class AbstractTypeMapper<T> implements ITypeMapper<T> {
                     + " to " + e.getTargetName(), e);
         }
     }
+
+    @Override
+    public final T fromValueWithLog(Object value, DbDataType dataType, Map<TypeParamKey, Object> params) {
+        try {
+            return fromValue(value, dataType, null, params);
+        } catch (ConversionException e) {
+            boolean encrypted = dataType == DbDataType.ENCRYPTED;
+            String valueStr = encrypted ? "#######" : String.valueOf(value);
+            throw new NativSQLException("Unable to convert value " + valueStr
+                    + " from class " + (value != null ? value.getClass() : "null")
+                    + " to " + e.getTargetName(), e);
+        }
+    }
+
     // ---- toDatabase path ----
 
     /**

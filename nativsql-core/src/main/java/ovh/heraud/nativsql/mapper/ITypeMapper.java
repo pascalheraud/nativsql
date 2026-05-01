@@ -58,7 +58,6 @@ public interface ITypeMapper<T> {
      * and rethrows as {@link NativSQLException} with a formatted message.
      * Values are masked as {@code #######} for encrypted fields.
      */
-    // FIXME move this method to AbstractTypeMapper and make it final
     default T fromValueWithLog(Object value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         try {
             return fromValue(value, dataType, null, params);

@@ -9,6 +9,7 @@ import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.ConversionException;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import org.postgresql.util.PGobject;
@@ -37,54 +38,53 @@ public class PostgresCompositeTypeMapper<T> implements ITypeMapper<T> {
             if (dbValue == null) {
                 return null;
             }
-
-            // PostgreSQL returns PGobject for composite types
-            if (!(dbValue instanceof PGobject)) {
+            if (!(dbValue instanceof PGobject pgObject)) {
                 throw new java.sql.SQLException("Expected PGobject for composite type, got: " + dbValue.getClass());
             }
-
-            PGobject pgObject = (PGobject) dbValue;
-            String compositeStr = pgObject.getValue();
-
-            // Remove outer parentheses and split by comma
-            String trimmed = compositeStr.substring(1, compositeStr.length() - 1);
-            String[] values = trimmed.split(",", -1);
-
-            T instance = compositeClass.getDeclaredConstructor().newInstance();
-            Field[] fields = compositeClass.getDeclaredFields();
-
-            for (int i = 0; i < fields.length && i < values.length; i++) {
-                Field field = fields[i];
-                field.setAccessible(true);
-
-                String value = values[i];
-                // Remove quotes if present
-                if (value.startsWith("\"") && value.endsWith("\"")) {
-                    value = value.substring(1, value.length() - 1);
-                }
-
-                Object convertedValue = convertValue(value, field.getType());
-                field.set(instance, convertedValue);
-            }
-
-            return instance;
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException(e);
-        } catch (ReflectiveOperationException e) {
-            throw new NativSQLException(e);
-        } catch (IllegalArgumentException e) {
-            throw new NativSQLException(e);
-        } catch (SecurityException e) {
+            return parseComposite(pgObject.getValue());
+        } catch (java.sql.SQLException | ReflectiveOperationException | IllegalArgumentException | SecurityException e) {
             throw new NativSQLException(e);
         }
     }
 
     @Override
     public T fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
-            Map<TypeParamKey, Object> params) {
-        // FIXME : should be implemented
-        throw new UnsupportedOperationException(
-                "fromValue() is not supported for composite type: " + compositeClass.getSimpleName());
+            Map<TypeParamKey, Object> params) throws ConversionException {
+        if (value == null) return null;
+        try {
+            String compositeStr;
+            if (value instanceof PGobject pgObject) {
+                compositeStr = pgObject.getValue();
+            } else if (value instanceof String str) {
+                compositeStr = str;
+            } else {
+                throw new ConversionException(compositeClass);
+            }
+            return parseComposite(compositeStr);
+        } catch (ReflectiveOperationException | IllegalArgumentException | SecurityException e) {
+            throw new ConversionException(compositeClass, e);
+        }
+    }
+
+    private T parseComposite(String compositeStr) throws ReflectiveOperationException {
+        // Remove outer parentheses and split by comma
+        String trimmed = compositeStr.substring(1, compositeStr.length() - 1);
+        String[] values = trimmed.split(",", -1);
+
+        T instance = compositeClass.getDeclaredConstructor().newInstance();
+        Field[] fields = compositeClass.getDeclaredFields();
+
+        for (int i = 0; i < fields.length && i < values.length; i++) {
+            Field field = fields[i];
+            field.setAccessible(true);
+            String value = values[i];
+            // Remove quotes if present
+            if (value.startsWith("\"") && value.endsWith("\"")) {
+                value = value.substring(1, value.length() - 1);
+            }
+            field.set(instance, convertValue(value, field.getType()));
+        }
+        return instance;
     }
 
     @Override

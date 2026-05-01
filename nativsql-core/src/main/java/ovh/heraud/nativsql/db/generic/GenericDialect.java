@@ -13,8 +13,23 @@ import ovh.heraud.nativsql.db.AbstractChainedDialect;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
+import ovh.heraud.nativsql.db.generic.mapper.BigDecimalTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.BigIntegerTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.BooleanTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.ByteArrayTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.ByteTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.DefaultTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.DoubleTypeMapper;
 import ovh.heraud.nativsql.db.generic.mapper.EnumStringMapper;
+import ovh.heraud.nativsql.db.generic.mapper.FloatTypeMapper;
 import ovh.heraud.nativsql.db.generic.mapper.GenericJSONTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.IntegerTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.LocalDateTimeTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.LocalDateTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.LongTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.ShortTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.StringTypeMapper;
+import ovh.heraud.nativsql.db.generic.mapper.UUIDTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
 
@@ -111,21 +126,36 @@ public class GenericDialect extends AbstractChainedDialect {
      */
     @SuppressWarnings("unchecked")
     protected <T> ITypeMapper<T> getMapperForType(Class<T> targetType) {
-        if (targetType == UUID.class)          return (ITypeMapper<T>) getUUIDMapper();
-        if (targetType == Long.class)          return (ITypeMapper<T>) getLongMapper();
-        if (targetType == Integer.class)       return (ITypeMapper<T>) getIntegerMapper();
-        if (targetType == Double.class)        return (ITypeMapper<T>) getDoubleMapper();
-        if (targetType == Float.class)         return (ITypeMapper<T>) getFloatMapper();
-        if (targetType == Short.class)         return (ITypeMapper<T>) getShortMapper();
-        if (targetType == Byte.class)          return (ITypeMapper<T>) getByteMapper();
-        if (targetType == BigDecimal.class)    return (ITypeMapper<T>) getBigDecimalMapper();
-        if (targetType == BigInteger.class)    return (ITypeMapper<T>) getBigIntegerMapper();
-        if (targetType == Boolean.class)       return (ITypeMapper<T>) getBooleanMapper();
-        if (targetType == String.class)        return (ITypeMapper<T>) getStringMapper();
-        if (targetType == LocalDate.class)     return (ITypeMapper<T>) getLocalDateMapper();
-        if (targetType == LocalDateTime.class) return (ITypeMapper<T>) getLocalDateTimeMapper();
-        if (targetType == byte[].class)        return (ITypeMapper<T>) getByteArrayMapper();
-        if (isJdbcType(targetType))            return getDefaultMapper();
+        if (targetType == UUID.class)
+            return (ITypeMapper<T>) getUUIDMapper();
+        if (targetType == Long.class)
+            return (ITypeMapper<T>) getLongMapper();
+        if (targetType == Integer.class)
+            return (ITypeMapper<T>) getIntegerMapper();
+        if (targetType == Double.class)
+            return (ITypeMapper<T>) getDoubleMapper();
+        if (targetType == Float.class)
+            return (ITypeMapper<T>) getFloatMapper();
+        if (targetType == Short.class)
+            return (ITypeMapper<T>) getShortMapper();
+        if (targetType == Byte.class)
+            return (ITypeMapper<T>) getByteMapper();
+        if (targetType == BigDecimal.class)
+            return (ITypeMapper<T>) getBigDecimalMapper();
+        if (targetType == BigInteger.class)
+            return (ITypeMapper<T>) getBigIntegerMapper();
+        if (targetType == Boolean.class)
+            return (ITypeMapper<T>) getBooleanMapper();
+        if (targetType == String.class)
+            return (ITypeMapper<T>) getStringMapper();
+        if (targetType == LocalDate.class)
+            return (ITypeMapper<T>) getLocalDateMapper();
+        if (targetType == LocalDateTime.class)
+            return (ITypeMapper<T>) getLocalDateTimeMapper();
+        if (targetType == byte[].class)
+            return (ITypeMapper<T>) getByteArrayMapper();
+        if (isJdbcType(targetType))
+            return getDefaultMapper();
         return null;
     }
 
@@ -158,6 +188,81 @@ public class GenericDialect extends AbstractChainedDialect {
     @Override
     public <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass, AnnotationManager annotationManager) {
         return new EnumStringMapper<E>(enumClass);
+    }
+
+    @Override
+    public ITypeMapper<String> getStringMapper() {
+        return new StringTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<Long> getLongMapper() {
+        return new LongTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<Integer> getIntegerMapper() {
+        return new IntegerTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<Double> getDoubleMapper() {
+        return new DoubleTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<Float> getFloatMapper() {
+        return new FloatTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<Short> getShortMapper() {
+        return new ShortTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<Byte> getByteMapper() {
+        return new ByteTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<BigDecimal> getBigDecimalMapper() {
+        return new BigDecimalTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<BigInteger> getBigIntegerMapper() {
+        return new BigIntegerTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<Boolean> getBooleanMapper() {
+        return new BooleanTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<UUID> getUUIDMapper() {
+        return new UUIDTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<LocalDate> getLocalDateMapper() {
+        return new LocalDateTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<LocalDateTime> getLocalDateTimeMapper() {
+        return new LocalDateTimeTypeMapper();
+    }
+
+    @Override
+    public ITypeMapper<byte[]> getByteArrayMapper() {
+        return new ByteArrayTypeMapper();
+    }
+
+    @Override
+    public <T> ITypeMapper<T> getDefaultMapper() {
+        return new DefaultTypeMapper<>();
     }
 
     @Override

@@ -30,6 +30,7 @@ import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
 import ovh.heraud.nativsql.util.Association;
@@ -282,6 +283,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         if (idField != null) {
             ITypeMapper<ID> idMapper = databaseDialect.getMapper(idField,
                     annotationManager);
+            if (idMapper instanceof AbstractTypeMapper<ID> abstractMapper) {
+                return abstractMapper.fromValueWithLog(ID_COLUMN, null, idValue, null, idField, Map.of());
+            }
             if (idMapper != null) {
                 return idMapper.fromValueWithLog(idValue, null, Map.of());
             }
