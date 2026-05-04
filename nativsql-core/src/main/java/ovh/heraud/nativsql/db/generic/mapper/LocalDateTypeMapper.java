@@ -1,53 +1,48 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
-import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.ConversionException;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for LocalDate type with flexible conversion.
- * Converts from java.sql.Date and java.util.Date (but NOT Timestamp, which would lose time information).
+ * Converts from java.sql.Date and java.util.Date (but NOT Timestamp, which
+ * would lose time information).
  */
-public class LocalDateTypeMapper implements ITypeMapper<LocalDate> {
-    @Override
-    public LocalDate map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            if (value == null) return null;
+public class LocalDateTypeMapper extends AbstractTypeMapper<LocalDate> {
 
-            if (value instanceof LocalDate ld) {
-                return ld;
+    @Override
+    public LocalDate fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) throws ConversionException {
+        if (value == null)
+            return null;
+        if (value instanceof LocalDate ld)
+            return ld;
+        if (value instanceof String str && dataType == DbDataType.ENCRYPTED) {
+            try {
+                return LocalDate.parse(str);
+            } catch (java.time.format.DateTimeParseException e) {
+                throw new ConversionException(LocalDate.class, e);
             }
-            // Accept java.time.LocalDateTime
-            if (value instanceof LocalDateTime ldt) {
-                return ldt.toLocalDate();
-            }
-            // Accept java.sql.Date
-            if (value instanceof java.sql.Date sqlDate) {
-                return sqlDate.toLocalDate();
-            }
-            // Accept java.util.Date
-            if (value instanceof java.util.Date utilDate) {
-                return new java.sql.Date(utilDate.getTime()).toLocalDate();
-            }
-            throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class " + value.getClass() + " to LocalDate");
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException("Failed to map column: " + columnName, e);
         }
+        if (value instanceof LocalDateTime ldt)
+            return ldt.toLocalDate();
+        if (value instanceof java.sql.Date sqlDate)
+            return sqlDate.toLocalDate();
+        if (value instanceof java.util.Date utilDate)
+            return new java.sql.Date(utilDate.getTime()).toLocalDate();
+        throw new ConversionException(LocalDate.class);
     }
 
     @Override
-    public Object toDatabase(LocalDate value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
+    protected Object toDatabaseValue(LocalDate value, DbDataType dataType, Map<TypeParamKey, Object> params)
+            throws ConversionException {
         if (dataType == null) {
             return value;
         }
@@ -57,8 +52,7 @@ public class LocalDateTypeMapper implements ITypeMapper<LocalDate> {
             case DATE -> value;
             case DATE_TIME -> value.atStartOfDay();
             case LOCAL_DATE_TIME -> value.atStartOfDay();
-            case IDENTITY -> throw new NativSQLException("IDENTITY type should not be passed to toDatabase");
-            default -> throw new NativSQLException("Cannot convert LocalDate to " + dataType);
+            default -> throw new ConversionException(dataType.name());
         };
     }
 }

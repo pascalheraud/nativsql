@@ -14,5 +14,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class UserReport extends BaseUserReport {
-    private long totalUsers;
+    private Long totalUsers;
 }

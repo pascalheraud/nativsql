@@ -1,64 +1,61 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
-import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.ConversionException;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Double type with flexible numeric conversion.
  * Converts from any numeric SQL type to Double.
  */
-public class DoubleTypeMapper implements ITypeMapper<Double> {
-    @Override
-    public Double map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            if (value == null)
-                return null;
+public class DoubleTypeMapper extends AbstractTypeMapper<Double> {
 
-            if (value instanceof Number num) {
-                return num.doubleValue();
-            }
-            if (value instanceof String str) {
+    @Override
+    public Double fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) throws ConversionException {
+        if (value == null)
+            return null;
+        if (value instanceof Number num)
+            return num.doubleValue();
+        if (value instanceof String str) {
+            try {
                 return Double.parseDouble(str);
+            } catch (NumberFormatException e) {
+                throw new ConversionException(Double.class, e);
             }
-            if (value instanceof Boolean bool) {
-                return bool ? 1.0d : 0.0d;
-            }
-            throw new NativSQLException("Unable to map column " + columnName + " with value " + value + " from class " + value.getClass() + " to Double");
-        } catch (RuntimeException | SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to Double", e);
         }
+        if (value instanceof Boolean bool)
+            return bool ? 1.0d : 0.0d;
+        throw new ConversionException(Double.class);
     }
 
     @Override
-    public Object toDatabase(Double value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
+    protected Object toDatabaseValue(Double value, DbDataType dataType, Map<TypeParamKey, Object> params)
+            throws ConversionException {
         if (dataType == null) {
             return value;
         }
 
-        return switch (dataType) {            
-            case STRING -> value.toString();
-            case INTEGER -> value.intValue();
-            case LONG -> value.longValue();
-            case SHORT -> value.shortValue();
-            case BYTE -> value.byteValue();
-            case FLOAT -> value.floatValue();
-            case DOUBLE -> value;
-            case DECIMAL -> new java.math.BigDecimal(value);
-            case BIG_INTEGER -> java.math.BigInteger.valueOf(value.longValue());
-            case BOOLEAN -> value != 0;
-            case IDENTITY -> throw new NativSQLException("IDENTITY type should not be passed to toDatabase");
-            default -> throw new NativSQLException("Cannot convert Double to " + dataType);
-        };
+        try {
+            return switch (dataType) {
+                case STRING -> value.toString();
+                case INTEGER -> value.intValue();
+                case LONG -> value.longValue();
+                case SHORT -> value.shortValue();
+                case BYTE -> value.byteValue();
+                case FLOAT -> value.floatValue();
+                case DOUBLE -> value;
+                case DECIMAL -> new java.math.BigDecimal(value);
+                case BIG_INTEGER -> java.math.BigInteger.valueOf(value.longValue());
+                case BOOLEAN -> value != 0;
+                default -> throw new ConversionException(dataType.name());
+            };
+        } catch (NumberFormatException e) {
+            throw new ConversionException(dataType.name());
+        }
     }
 }

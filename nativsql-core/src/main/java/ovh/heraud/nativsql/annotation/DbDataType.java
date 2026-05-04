@@ -3,12 +3,14 @@ package ovh.heraud.nativsql.annotation;
 /**
  * Enumeration of all database data types supported by NativSQL.
  * Used by the @Type annotation to specify the database type of a field.
- * When no @Type annotation is present, dataType is passed as null to the mapper.
+ * When no @Type annotation is present, dataType is passed as null to the
+ * mapper.
  */
 public enum DbDataType {
     /**
      * Identity type: marker used in switch statements to indicate invalid usage.
-     * Should never be passed to mappers - null is used instead for default behavior.
+     * Should never be passed to mappers - null is used instead for default
+     * behavior.
      */
     IDENTITY,
 
@@ -86,5 +88,19 @@ public enum DbDataType {
     /**
      * Binary data type: BYTEA, BLOB, etc.
      */
-    BYTE_ARRAY
+    BYTE_ARRAY,
+
+    /**
+     * Encrypted type: field is stored as an encrypted VARCHAR (STRING format) or
+     * VARBINARY (BINARY format).
+     * Requires {@code @CryptAlgo} and {@code @CryptKeyProvider} on the field,
+     * plus {@code @CryptPrefix} for reversible algorithms.
+     * One-way algorithms (BCRYPT) do not require {@code @CryptKeyProvider} or
+     * {@code @CryptPrefix}.
+     *
+     * <p>
+     * Note: entity fields must use boxed types ({@code Integer}, {@code Long}, …) —
+     * primitive types are not supported.
+     */
+    ENCRYPTED
 }

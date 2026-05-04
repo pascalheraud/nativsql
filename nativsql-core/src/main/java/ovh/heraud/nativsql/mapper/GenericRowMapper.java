@@ -1,11 +1,13 @@
 package ovh.heraud.nativsql.mapper;
 
 import java.sql.ResultSet;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.util.TypeInfo;
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.core.RowMapper;
 
@@ -137,7 +139,10 @@ public class GenericRowMapper<T> implements RowMapper<T> {
             throw new NativSQLException("Property "+propertyColumnName+" not found for in class " + targetObject.getClass());
         }
 
-        Object value = prop.getTypeMapper().map(rs, columnLabel);
+        TypeInfo typeInfo = prop.getTypeInfo();
+        Object value = typeInfo != null
+                ? prop.getTypeMapper().map(rs, columnLabel, typeInfo.getDataType(), prop.getFieldAccessor(), typeInfo.getParams())
+                : prop.getTypeMapper().map(rs, columnLabel, null, prop.getFieldAccessor(), Collections.emptyMap());
         prop.getFieldAccessor().setValue(targetObject, value);
     }
 

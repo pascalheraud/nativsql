@@ -13,6 +13,7 @@ import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.ReflectionUtils;
+import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
  * Factory for creating and caching GenericRowMapper instances.
@@ -67,8 +68,9 @@ public class RowMapperFactory {
 
                 if (typeMapper != null) {
                     // Simple type with a mapper
+                    TypeInfo typeInfo = annotationManager.getTypeInfo(fieldAccessor);
                     simpleProperties.add((PropertyMetadata<?>) new PropertyMetadata<>(
-                            fieldAccessor, typeMapper, identifierConverter));
+                            fieldAccessor, typeMapper, identifierConverter, typeInfo));
                 } else {
                     // Simple type without a mapper → likely a joined property
                     // Will be discovered by RowMapper at runtime by checking if the ResultSet

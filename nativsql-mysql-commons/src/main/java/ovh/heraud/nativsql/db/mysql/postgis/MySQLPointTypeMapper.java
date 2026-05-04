@@ -1,12 +1,15 @@
 package ovh.heraud.nativsql.db.mysql.postgis;
 
 import java.sql.ResultSet;
+import java.util.Map;
 
 import org.postgis.Point;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * MySQL-specific Point mapper for spatial coordinates.
@@ -15,7 +18,9 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
 public class MySQLPointTypeMapper implements ITypeMapper<Point> {
 
     @Override
-    public Point map(ResultSet rs, String columnName) throws NativSQLException {
+    public Point map(ResultSet rs, String columnName, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params)
+            throws NativSQLException {
         try {
             Object value = rs.getObject(columnName);
             if (value == null) {
@@ -34,7 +39,19 @@ public class MySQLPointTypeMapper implements ITypeMapper<Point> {
     }
 
     @Override
-    public Object toDatabase(Point value, DbDataType dataType) {
+    public Point fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) {
+        if (value == null)
+            return null;
+        if (value instanceof Point p)
+            return p;
+        if (value instanceof String str)
+            return parsePointFromString(str);
+        throw new NativSQLException("Cannot parse Point from value: " + value);
+    }
+
+    @Override
+    public Object toDatabase(Point value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (value == null) {
             return null;
         }

@@ -1,10 +1,18 @@
 package ovh.heraud.nativsql.annotation;
 
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
+import ovh.heraud.nativsql.annotation.type.CryptParam;
+import ovh.heraud.nativsql.annotation.type.Inject;
+import ovh.heraud.nativsql.annotation.type.Type;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.EnumMappingInfo;
 import ovh.heraud.nativsql.util.MappedByInfo;
@@ -26,6 +34,9 @@ import ovh.heraud.nativsql.util.TypeInfo;
  */
 @Component
 public class AnnotationManager {
+
+    @Autowired(required = false)
+    private ApplicationContext applicationContext;
 
     private final Map<FieldKey, MappedByInfo> mappedByCache = new ConcurrentHashMap<>();
     private final Map<FieldKey, OneToManyAssociation> oneToManyCache = new ConcurrentHashMap<>();
@@ -138,7 +149,7 @@ public class AnnotationManager {
 
     /**
      * Retrieves Type annotation information from a field.
-     * Returns a TypeInfo object containing the database data type.
+     * Returns a TypeInfo object containing the database data type and optional params.
      * Result is cached for subsequent calls.
      *
      * @param fieldAccessor the field accessor to inspect
@@ -151,8 +162,66 @@ public class AnnotationManager {
             if (type == null) {
                 return null;
             }
-            return new TypeInfo(type.value());
+            Map<TypeParamKey, Object> params = scanCryptParams(fieldAccessor);
+            if (params.isEmpty()) {
+                return new TypeInfo(type.value());
+            }
+            return new TypeInfo(type.value(), params);
         });
+    }
+
+    /**
+     * Scans the field's annotations for any annotation carrying {@link CryptParam},
+     * reads its {@code value()} via reflection, and returns the collected params.
+     *
+     * <p>If the annotation also carries {@link Inject}, the {@code Class<?>} returned by
+     * {@code value()} is resolved to an instance (Spring context first, then no-arg constructor).
+     */
+    private Map<TypeParamKey, Object> scanCryptParams(FieldAccessor<?> fieldAccessor) {
+        Map<TypeParamKey, Object> params = new HashMap<>();
+        for (java.lang.annotation.Annotation annotation : fieldAccessor.getField().getAnnotations()) {
+            CryptParam meta = annotation.annotationType().getAnnotation(CryptParam.class);
+            if (meta == null) {
+                continue;
+            }
+            try {
+                Object value = annotation.annotationType().getMethod("value").invoke(annotation);
+                if (annotation.annotationType().isAnnotationPresent(Inject.class)
+                        && value instanceof Class<?> cls) {
+                    value = resolveBean(cls, fieldAccessor.getName());
+                }
+                params.put(meta.key(), value);
+            } catch (ReflectiveOperationException e) {
+                throw new NativSQLException(
+                        "Failed to read @CryptParam value from @"
+                                + annotation.annotationType().getSimpleName()
+                                + " on field " + fieldAccessor.getName(), e);
+            }
+        }
+        return params;
+    }
+
+    /**
+     * Resolves a class to an instance: Spring context first, then no-arg constructor.
+     */
+    private Object resolveBean(Class<?> cls, String fieldName) {
+        if (applicationContext != null) {
+            try {
+                return applicationContext.getBean(cls);
+            } catch (Exception ignored) {
+                // not a Spring bean — fall through
+            }
+        }
+        try {
+            return cls.getDeclaredConstructor().newInstance();
+        } catch (NoSuchMethodException e) {
+            throw new NativSQLException(
+                    "Field '" + fieldName + "': " + cls.getName()
+                            + " has no no-arg constructor and is not a Spring bean", e);
+        } catch (ReflectiveOperationException e) {
+            throw new NativSQLException(
+                    "Field '" + fieldName + "': failed to instantiate " + cls.getName(), e);
+        }
     }
 
     /**
@@ -211,7 +280,7 @@ public class AnnotationManager {
     }
 
     /**
-     * Registers Type information programmatically.
+     * Registers Type information programmatically (without params).
      *
      * @param clazz the class declaring the field
      * @param fieldName the name of the field
@@ -220,6 +289,20 @@ public class AnnotationManager {
     public void setTypeInfo(Class<?> clazz, String fieldName, DbDataType dataType) {
         FieldKey key = new FieldKey(clazz, fieldName);
         typeCache.put(key, new TypeInfo(dataType));
+    }
+
+    /**
+     * Registers Type information programmatically with params.
+     *
+     * @param clazz     the class declaring the field
+     * @param fieldName the name of the field
+     * @param dataType  the database data type
+     * @param params    the type parameters (e.g. ALGO, KEY_PROVIDER, PREFIX)
+     */
+    public void setTypeInfo(Class<?> clazz, String fieldName, DbDataType dataType,
+                            Map<TypeParamKey, Object> params) {
+        FieldKey key = new FieldKey(clazz, fieldName);
+        typeCache.put(key, new TypeInfo(dataType, params));
     }
 
     /**

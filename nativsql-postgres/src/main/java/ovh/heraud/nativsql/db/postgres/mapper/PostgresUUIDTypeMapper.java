@@ -1,51 +1,50 @@
 package ovh.heraud.nativsql.db.postgres.mapper;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.postgresql.util.PGobject;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.db.generic.mapper.UUIDTypeMapper;
-import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.exception.ConversionException;
 import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
  * PostgreSQL-specific UUID mapper that uses ::uuid casting syntax.
- * Inherits from generic UUIDTypeMapper and handles PostgreSQL-specific conversions.
+ * Inherits from generic UUIDTypeMapper and handles PostgreSQL-specific
+ * conversions.
  */
 public class PostgresUUIDTypeMapper extends UUIDTypeMapper {
 
-    private TypeInfo typeInfo;
+    private final TypeInfo typeInfo;
 
     public PostgresUUIDTypeMapper(TypeInfo typeInfo) {
+        super();
         this.typeInfo = typeInfo;
     }
 
     @Override
-    public Object toDatabase(UUID value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
-        if (dataType== DbDataType.UUID || dataType == DbDataType.IDENTITY || dataType == null) {
+    protected Object toDatabaseValue(UUID value, DbDataType dataType, Map<TypeParamKey, Object> params)
+            throws ConversionException {
+        if (dataType == DbDataType.UUID || dataType == DbDataType.IDENTITY || dataType == null) {
             try {
                 PGobject pgObject = new PGobject();
                 pgObject.setType("uuid");
                 pgObject.setValue(value.toString());
                 return pgObject;
             } catch (java.sql.SQLException e) {
-                throw new NativSQLException("Failed to convert UUID to SQL", e);
+                throw new ConversionException(UUID.class, e);
             }
         }
-
-        // Fall back to parent implementation for other conversions
-        return super.toDatabase(value, dataType);
+        return super.toDatabaseValue(value, dataType, params);
     }
 
     @Override
     public String formatParameter(String paramName) {
-        if (typeInfo == null || typeInfo.getDataType() == DbDataType.UUID || typeInfo.getDataType() == DbDataType.IDENTITY) {
-            // PostgreSQL needs explicit ::uuid casting for type safety
+        if (typeInfo == null || typeInfo.getDataType() == DbDataType.UUID
+                || typeInfo.getDataType() == DbDataType.IDENTITY) {
             return "(:" + paramName + ")::uuid";
         }
         return ":" + paramName;

@@ -66,9 +66,9 @@ public class PostgresDialect extends AbstractChainedDialect {
     }
 
     @Override
-    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
+    public <T> ITypeMapper<T> getJsonMapper() {
         // PostgreSQL uses the dedicated PostgreJSONTypeMapper
-        return new PostgreJSONTypeMapper<>(jsonClass);
+        return new PostgreJSONTypeMapper<>();
     }
 
     @Override
@@ -96,7 +96,7 @@ public class PostgresDialect extends AbstractChainedDialect {
 
         // Check for registered JSON types
         if (annotationManager.getJsonInfo(targetType) != null) {
-            return getJsonMapper(targetType);
+            return getJsonMapper();
         }
 
         // Use PostgreSQL-specific UUID mapper

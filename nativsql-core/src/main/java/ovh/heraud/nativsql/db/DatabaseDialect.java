@@ -1,9 +1,13 @@
 package ovh.heraud.nativsql.db;
 
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 import ovh.heraud.nativsql.annotation.AnnotationManager;
-import ovh.heraud.nativsql.db.generic.mapper.GenericJSONTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.util.FieldAccessor;
 
@@ -33,7 +37,6 @@ public interface DatabaseDialect {
 
     /**
      * Creates a TypeMapper for the specified enum class.
-     * The mapper handles both reading from and writing to the database.
      *
      * @param enumClass         the enum class
      * @param annotationManager the annotation manager for type detection
@@ -43,34 +46,48 @@ public interface DatabaseDialect {
     <E extends Enum<E>> ITypeMapper<E> getEnumMapper(Class<E> enumClass, AnnotationManager annotationManager);
 
     /**
-     * Creates a TypeMapper for the specified JSON type class.
-     * The mapper handles both reading from and writing to the database as JSON.
+     * Creates a TypeMapper for JSON columns.
      *
-     * Default implementation uses GenericJSONTypeMapper which handles JSON
-     * serialization/deserialization via Jackson for databases that store JSON as String
-     * (MySQL, MariaDB, Oracle, etc).
-     *
-     * @param jsonClass the class to map as JSON
      * @return a mapper for JSON
      * @param <T> the type
      */
-    default <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
-        return new GenericJSONTypeMapper<>(jsonClass);
-    }
+    <T> ITypeMapper<T> getJsonMapper();
 
-    /**
-     * Creates a TypeMapper for the specified composite type class.
-     * The mapper handles both reading from and writing to the database.
-     *
-     * @param compositeClass the composite class
-     * @return a mapper for the composite
-     * @param <T> the type
-     */
     <T> ITypeMapper<T> getCompositeMapper(Class<T> compositeClass, AnnotationManager annotationManager);
+
+    ITypeMapper<String> getStringMapper();
+
+    ITypeMapper<Long> getLongMapper();
+
+    ITypeMapper<Integer> getIntegerMapper();
+
+    ITypeMapper<Double> getDoubleMapper();
+
+    ITypeMapper<Float> getFloatMapper();
+
+    ITypeMapper<Short> getShortMapper();
+
+    ITypeMapper<Byte> getByteMapper();
+
+    ITypeMapper<BigDecimal> getBigDecimalMapper();
+
+    ITypeMapper<BigInteger> getBigIntegerMapper();
+
+    ITypeMapper<Boolean> getBooleanMapper();
+
+    ITypeMapper<UUID> getUUIDMapper();
+
+    ITypeMapper<LocalDate> getLocalDateMapper();
+
+    ITypeMapper<LocalDateTime> getLocalDateTimeMapper();
+
+    ITypeMapper<byte[]> getByteArrayMapper();
+
+    <T> ITypeMapper<T> getDefaultMapper();
 
     /**
      * Extracts the generated key from the database after an insert operation.
-     * 
+     *
      * @param <ID>
      * @param keys
      * @param idColumn the name of the ID column to extract from the keys map

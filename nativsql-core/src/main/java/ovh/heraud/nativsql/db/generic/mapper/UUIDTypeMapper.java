@@ -1,55 +1,46 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import java.util.Map;
 import java.util.UUID;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.ConversionException;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * Type mapper for java.util.UUID.
  * Handles conversion between UUID and database string representation.
  */
-public class UUIDTypeMapper implements ITypeMapper<UUID> {
+public class UUIDTypeMapper extends AbstractTypeMapper<UUID> {
 
     @Override
-    public UUID map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            Object value = rs.getObject(columnName);
-            if (value == null) {
-                return null;
+    public UUID fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) throws ConversionException {
+        if (value == null)
+            return null;
+        if (value instanceof UUID u)
+            return u;
+        if (value instanceof String str) {
+            try {
+                return UUID.fromString(str);
+            } catch (IllegalArgumentException e) {
+                throw new ConversionException(UUID.class, e);
             }
-            
-            if (value instanceof UUID u) {
-                return u;
-            }
-            if (value instanceof byte[] bytes) {
-                if (bytes.length == 16) {
-                    return bytesToUUID(bytes);
-                } else {
-                    throw new NativSQLException("Invalid byte array length for UUID: " + bytes.length + ", expected 16");
-                }
-            } else if (value instanceof String str) {
-                try {
-                    return UUID.fromString(str);
-                } catch (IllegalArgumentException e) {
-                    throw new NativSQLException("Invalid UUID string: " + str, e);
-                }
-            } else {
-                throw new NativSQLException("Unexpected type for UUID column: " + value.getClass().getName());
-            }
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException("Failed to map UUID from column: " + columnName, e);
         }
+        if (value instanceof byte[] bytes) {
+            if (bytes.length == 16)
+                return bytesToUUID(bytes);
+            throw new ConversionException(UUID.class);
+        }
+        throw new ConversionException(UUID.class);
     }
 
     @Override
-    public Object toDatabase(UUID value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
+    protected Object toDatabaseValue(UUID value, DbDataType dataType, Map<TypeParamKey, Object> params)
+            throws ConversionException {
         if (dataType == null) {
             return value.toString();
         }
@@ -58,19 +49,12 @@ public class UUIDTypeMapper implements ITypeMapper<UUID> {
             case STRING -> value.toString();
             case UUID -> value.toString();
             case BYTE_ARRAY -> uuidToBytes(value);
-            case IDENTITY -> throw new NativSQLException("IDENTITY type should not be passed to toDatabase");
-            default -> throw new NativSQLException("Cannot convert UUID to " + dataType);
+            default -> throw new ConversionException(dataType.name());
         };
     }
 
     /**
-     * Convert a 16-byte array to a {@link UUID} by interpreting the bytes as a
-     * hexadecimal representation.
-     *
-     * @param bytes must be exactly 16 bytes long
-     * @return corresponding UUID
-     * @throws NativSQLException if the length is incorrect or the resulting
-     *                           string is not a valid UUID
+     * Convert a 16-byte array to a {@link UUID}.
      */
     public static UUID bytesToUUID(byte[] bytes) {
         if (bytes.length != 16) {
@@ -81,12 +65,11 @@ public class UUIDTypeMapper implements ITypeMapper<UUID> {
             hex.append(String.format("%02x", b));
         }
         String hexString = hex.toString();
-        // Format as UUID string with dashes: 8-4-4-4-12
         String uuidString = hexString.substring(0, 8) + "-" +
-                            hexString.substring(8, 12) + "-" +
-                            hexString.substring(12, 16) + "-" +
-                            hexString.substring(16, 20) + "-" +
-                            hexString.substring(20, 32);
+                hexString.substring(8, 12) + "-" +
+                hexString.substring(12, 16) + "-" +
+                hexString.substring(16, 20) + "-" +
+                hexString.substring(20, 32);
         try {
             return UUID.fromString(uuidString);
         } catch (IllegalArgumentException e) {
@@ -95,25 +78,19 @@ public class UUIDTypeMapper implements ITypeMapper<UUID> {
     }
 
     /**
-     * Convert a {@link UUID} to a 16-byte array by interpreting its canonical
-     * string representation as hexadecimal digits.
-     *
-     * @param uuid non-null UUID
-     * @return 16-byte array
+     * Convert a {@link UUID} to a 16-byte array.
      */
     public static byte[] uuidToBytes(UUID uuid) {
         String hexString = uuid.toString().replace("-", "");
         byte[] bytes = new byte[16];
         for (int i = 0; i < 16; i++) {
-            String hexByte = hexString.substring(i * 2, i * 2 + 2);
-            bytes[i] = (byte) Integer.parseInt(hexByte, 16);
+            bytes[i] = (byte) Integer.parseInt(hexString.substring(i * 2, i * 2 + 2), 16);
         }
         return bytes;
     }
 
     /**
-     * Convert a 16-byte array into the canonical dash‑separated UUID string
-     * (8-4-4-4-12). Useful when the database expects a string representation.
+     * Convert a 16-byte array to the canonical dash-separated UUID string.
      */
     public static String bytesToUuidString(byte[] bytes) {
         if (bytes.length != 16) {
@@ -128,5 +105,4 @@ public class UUIDTypeMapper implements ITypeMapper<UUID> {
         }
         return hex.toString();
     }
-
 }

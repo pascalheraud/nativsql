@@ -24,11 +24,13 @@ import org.springframework.jdbc.support.KeyHolder;
 import jakarta.annotation.PostConstruct;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.db.SnakeCaseIdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.exception.NativSQLException;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
 import ovh.heraud.nativsql.util.Association;
@@ -40,6 +42,7 @@ import ovh.heraud.nativsql.util.OrderBy;
 import ovh.heraud.nativsql.util.ReflectionUtils;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 import ovh.heraud.nativsql.util.SqlUtils;
+import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
  * Generic repository base class that provides insert and update operations
@@ -280,8 +283,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         if (idField != null) {
             ITypeMapper<ID> idMapper = databaseDialect.getMapper(idField,
                     annotationManager);
+            if (idMapper instanceof AbstractTypeMapper<ID> abstractMapper) {
+                return abstractMapper.fromValueWithLog(ID_COLUMN, null, idValue, null, idField, Map.of());
+            }
             if (idMapper != null) {
-                return idMapper.fromValue(idValue);
+                return idMapper.fromValueWithLog(idValue, null, Map.of());
             }
         }
         return idValue;
@@ -507,7 +513,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getEmail)
      * @param value          the value to search for
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return the entity or null if not found
      * @see #findByProperty(String, Object, Getter...)
@@ -581,7 +588,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param value          the value to search for
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, Object, Getter...)
@@ -659,7 +667,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *                       filter by (e.g., User::getStatus)
      * @param value          the value to search for
      * @param orderBy        the order by clause
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, Object, OrderBy, Getter...)
@@ -726,7 +735,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param values         the list of values to search for (uses IN clause)
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByProperty(String, List, Getter...)
@@ -803,7 +813,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param propertyGetter the getter method reference identifying the property to
      *                       filter by (e.g., User::getStatus)
      * @param values         the list of values to search for (uses IN clause)
-     * @param getters        the getter method references for selected columns (e.g.,
+     * @param getters        the getter method references for selected columns
+     *                       (e.g.,
      *                       User::getId, User::getEmail)
      * @return list of matching entities
      * @see #findAllByPropertyIn(String, List, Getter...)
@@ -1095,15 +1106,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         for (FieldAccessor<?> fieldAccessor : entityFields.list()) {
             if (propertySet.contains(fieldAccessor.getName())) {
                 Object value = fieldAccessor.getValue(entity);
-
-                // Get the declared DbDataType from @Type annotation, or null as default
-                DbDataType dbDataType = null;
-                var typeInfo = annotationManager.getTypeInfo(fieldAccessor);
-                if (typeInfo != null && typeInfo.getDataType() != null) {
-                    dbDataType = typeInfo.getDataType();
-                }
-
-                value = convertToSqlValue(value, fieldAccessor, dbDataType);
+                TypeInfo typeInfo = annotationManager.getTypeInfo(fieldAccessor);
+                value = convertToSqlValue(value, fieldAccessor, typeInfo);
                 params.put(fieldAccessor.getName(), value);
             }
         }
@@ -1130,10 +1134,12 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Returns null if value is null.
      * If dataType is null, the mapper will use its default behavior.
      */
-    private <PARAM_T> Object convertToSqlValue(PARAM_T value, FieldAccessor<?> fieldAccessor, DbDataType dataType) {
+    private <PARAM_T> Object convertToSqlValue(PARAM_T value, FieldAccessor<?> fieldAccessor, TypeInfo typeInfo) {
         if (value == null) {
             return null;
         }
+        DbDataType dataType = typeInfo != null ? typeInfo.getDataType() : null;
+        Map<TypeParamKey, Object> params = typeInfo != null ? typeInfo.getParams() : Map.of();
 
         if (value instanceof List<?> list) {
             return list.stream()
@@ -1149,12 +1155,11 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                                     "No TypeMapper found for type: " + item.getClass().getName() +
                                             ". Please ensure the type is properly configured in the database dialect.");
                         }
-                        return itemMapper.toDatabase(item, dataType);
+                        return itemMapper.toDatabase(item, dataType, params);
                     })
                     .collect(Collectors.toList());
         }
 
-        // Get the mapper for the actual value type
         @SuppressWarnings("unchecked")
         ITypeMapper<PARAM_T> mapper = (ITypeMapper<PARAM_T>) databaseDialect.getMapper(fieldAccessor,
                 annotationManager);
@@ -1163,9 +1168,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                     "No TypeMapper found for type: " + value.getClass().getName() +
                             ". Please ensure the type is properly configured in the database dialect.");
         }
-        // Use toDatabase with the declared dataType (or null if no specific type
-        // declared)
-        return mapper.toDatabase(value, dataType);
+        return mapper.toDatabase(value, dataType, params);
     }
 
     /**
@@ -1176,20 +1179,14 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     private Map<String, Object> convertParamsToSqlValues(Map<String, Object> params) {
         Map<String, Object> converted = new HashMap<>();
         for (Map.Entry<String, Object> entry : params.entrySet()) {
-            DbDataType dbDataType = null;
-
-            // Try to find the field in the entity and get its declared DbDataType
             FieldAccessor<Object> field = entityFields.get(entry.getKey());
+            TypeInfo typeInfo = null;
             if (field != null) {
-                var typeInfo = annotationManager.getTypeInfo(field);
-                if (typeInfo != null && typeInfo.getDataType() != null) {
-                    dbDataType = typeInfo.getDataType();
-                }
+                typeInfo = annotationManager.getTypeInfo(field);
             } else if (entry.getValue() != null) {
                 field = new FieldAccessor<Object>(entry.getValue().getClass());
             }
-
-            converted.put(entry.getKey(), convertToSqlValue(entry.getValue(), field, dbDataType));
+            converted.put(entry.getKey(), convertToSqlValue(entry.getValue(), field, typeInfo));
         }
         return converted;
     }

@@ -1,8 +1,13 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
+import ovh.heraud.nativsql.util.FieldAccessor;
+import java.util.Map;
+
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.ConversionException;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * Mapper for enum types that handles reading String values from database
@@ -10,43 +15,31 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
  *
  * @param <E> the enum type
  */
-public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
+public class EnumStringMapper<E extends Enum<E>> extends AbstractTypeMapper<E> {
 
     private final Class<E> enumClass;
 
     public EnumStringMapper(Class<E> enumClass) {
+        super();
         this.enumClass = enumClass;
     }
 
     @Override
-    public E map(java.sql.ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            Object dbValue = rs.getObject(columnName);
-            if (dbValue == null) {
-                return null;
+    public E fromValue(Object raw, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) throws ConversionException {
+        if (raw instanceof String str) {
+            try {
+                return Enum.valueOf(enumClass, str);
+            } catch (IllegalArgumentException e) {
+                throw new ConversionException(enumClass, e);
             }
-
-            // Handle String representation of enum from database
-            if (dbValue instanceof String) {
-                return Enum.valueOf(enumClass, (String) dbValue);
-            }
-
-            throw new NativSQLException("Cannot parse enum from value: " + dbValue);
-
-        } catch (IllegalArgumentException e) {
-            throw new NativSQLException(
-                    "Invalid enum value for " + enumClass.getSimpleName() + ": " + e.getMessage(), e);
-        } catch (java.sql.SQLException e) {
-            throw new NativSQLException(e);
         }
+        throw new ConversionException(enumClass);
     }
 
     @Override
-    public Object toDatabase(E value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
+    protected Object toDatabaseValue(E value, DbDataType dataType, Map<TypeParamKey, Object> params)
+            throws ConversionException {
         if (dataType == null) {
             return value.name();
         }
@@ -54,7 +47,7 @@ public class EnumStringMapper<E extends Enum<E>> implements ITypeMapper<E> {
         return switch (dataType) {
             case STRING -> value.name();
             case IDENTITY -> throw new NativSQLException("IDENTITY type should not be passed to toDatabase");
-            default -> throw new NativSQLException("Cannot convert Enum to " + dataType);
+            default -> throw new ConversionException(dataType.name());
         };
     }
 }

@@ -1,50 +1,42 @@
 package ovh.heraud.nativsql.db.generic.mapper;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import ovh.heraud.nativsql.util.FieldAccessor;
+import java.util.Map;
 
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.exception.ConversionException;
 import ovh.heraud.nativsql.exception.NativSQLException;
-import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.springframework.jdbc.support.JdbcUtils;
+import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
 /**
  * TypeMapper for Integer type with flexible numeric conversion.
  * Converts from any numeric SQL type to Integer.
  */
-public class IntegerTypeMapper implements ITypeMapper<Integer> {
-    @Override
-    public Integer map(ResultSet rs, String columnName) throws NativSQLException {
-        try {
-            int index = rs.findColumn(columnName);
-            Object value = JdbcUtils.getResultSetValue(rs, index);
-            return fromValue(value);
-        } catch (SQLException e) {
-            throw new NativSQLException("Unable to map column " + columnName + " to Integer", e);
-        }
-    }
+public class IntegerTypeMapper extends AbstractTypeMapper<Integer> {
 
     @Override
-    public Integer fromValue(Object value) {
-        if (value == null) return null;
-        if (value instanceof Number num) return num.intValue();
+    public Integer fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor,
+            Map<TypeParamKey, Object> params) throws ConversionException {
+        if (value == null)
+            return null;
+        if (value instanceof Number num)
+            return num.intValue();
         if (value instanceof String str) {
             try {
                 return Integer.parseInt(str);
             } catch (NumberFormatException e) {
-                throw new NativSQLException("Cannot convert String '" + str + "' to Integer", e);
+                throw new ConversionException(Integer.class, e);
             }
         }
-        if (value instanceof Boolean bool) return bool ? 1 : 0;
-        throw new NativSQLException("Cannot convert " + value.getClass().getSimpleName() + " to Integer");
+        if (value instanceof Boolean bool)
+            return bool ? 1 : 0;
+        throw new ConversionException(Integer.class);
     }
 
     @Override
-    public Object toDatabase(Integer value, DbDataType dataType) {
-        if (value == null) {
-            return null;
-        }
-
+    protected Object toDatabaseValue(Integer value, DbDataType dataType,
+            Map<TypeParamKey, Object> params) throws ConversionException {
         if (dataType == null) {
             return value;
         }
@@ -61,7 +53,7 @@ public class IntegerTypeMapper implements ITypeMapper<Integer> {
             case BIG_INTEGER -> java.math.BigInteger.valueOf(value);
             case BOOLEAN -> value != 0;
             case IDENTITY -> throw new NativSQLException("IDENTITY type should not be passed to toDatabase");
-            default -> throw new NativSQLException("Cannot convert Integer to " + dataType);
+            default -> throw new ConversionException(dataType.name());
         };
     }
 }

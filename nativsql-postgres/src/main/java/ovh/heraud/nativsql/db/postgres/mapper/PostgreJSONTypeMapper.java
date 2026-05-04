@@ -1,13 +1,17 @@
 package ovh.heraud.nativsql.db.postgres.mapper;
 
 import java.sql.ResultSet;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.postgresql.util.PGobject;
 import ovh.heraud.nativsql.annotation.DbDataType;
+import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
-import org.postgresql.util.PGobject;
+import ovh.heraud.nativsql.util.FieldAccessor;
 
 /**
  * PostgreSQL-specific TypeMapper for JSON/JSONB types.
@@ -18,14 +22,13 @@ import org.postgresql.util.PGobject;
 public class PostgreJSONTypeMapper<T> implements ITypeMapper<T> {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private final Class<T> jsonClass;
-
-    public PostgreJSONTypeMapper(Class<T> jsonClass) {
-        this.jsonClass = jsonClass;
-    }
+    private static final ConcurrentHashMap<java.lang.reflect.Field, JavaType> TYPE_CACHE = new ConcurrentHashMap<>();
 
     @Override
-    public T map(ResultSet rs, String columnName) throws NativSQLException {
+    public T map(ResultSet rs, String columnName, DbDataType dataType,
+            FieldAccessor<?> fieldAccessor, Map<TypeParamKey, Object> params) throws NativSQLException {
+        JavaType javaType = TYPE_CACHE.computeIfAbsent(fieldAccessor.getField(),
+                f -> objectMapper.constructType(f.getGenericType()));
         try {
             Object dbValue = rs.getObject(columnName);
             if (dbValue == null) {
@@ -42,21 +45,34 @@ public class PostgreJSONTypeMapper<T> implements ITypeMapper<T> {
             }
 
             String jsonStr = pgObject.getValue();
-
             if (jsonStr == null || jsonStr.isEmpty()) {
                 return null;
             }
 
-            return objectMapper.readValue(jsonStr, jsonClass);
+            return objectMapper.readValue(jsonStr, javaType);
         } catch (java.sql.SQLException e) {
             throw new NativSQLException("SQLException", e);
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new NativSQLException("JSONException", e);
         }
     }
 
     @Override
-    public Object toDatabase(T value, DbDataType dataType) {
+    public T fromValue(Object value, DbDataType dataType, FieldAccessor<?> fieldAccessor, Map<TypeParamKey, Object> params) {
+        JavaType javaType = TYPE_CACHE.computeIfAbsent(fieldAccessor.getField(),
+                f -> objectMapper.constructType(f.getGenericType()));
+        if (value == null) return null;
+        String jsonStr = value instanceof String str ? str : value.toString();
+        if (jsonStr.isEmpty()) return null;
+        try {
+            return objectMapper.readValue(jsonStr, javaType);
+        } catch (Exception e) {
+            throw new NativSQLException("Failed to parse JSON value", e);
+        }
+    }
+
+    @Override
+    public Object toDatabase(T value, DbDataType dataType, Map<TypeParamKey, Object> params) {
         if (value == null) {
             return null;
         }

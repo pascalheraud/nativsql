@@ -44,13 +44,12 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
         this.nextDialect = null;
     }
 
-
     /**
      * Gets the appropriate TypeMapper for the given class.
      * Default implementation delegates to the next dialect in the chain.
      * Subclasses can override to provide dialect-specific type mappings.
      *
-     * @param fieldAccessor the field accessor for the type to get a mapper for
+     * @param fieldAccessor     the field accessor for the type to get a mapper for
      * @param annotationManager the annotation manager for type detection
      * @return a TypeMapper for the type, or null if not found
      * @param <T> the type
@@ -68,7 +67,7 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * Default implementation delegates to the next dialect in the chain.
      * Subclasses can override to provide dialect-specific enum mapping.
      *
-     * @param enumClass the enum class
+     * @param enumClass         the enum class
      * @param annotationManager the annotation manager for type detection
      * @return a mapper for the enum
      * @param <E> the enum type
@@ -91,9 +90,9 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
      * @param <T> the type
      */
     @Override
-    public <T> ITypeMapper<T> getJsonMapper(Class<T> jsonClass) {
+    public <T> ITypeMapper<T> getJsonMapper() {
         if (nextDialect != null) {
-            return nextDialect.getJsonMapper(jsonClass);
+            return nextDialect.getJsonMapper();
         }
         return null;
     }
@@ -122,5 +121,80 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
             return nextDialect.getGeneratedKey(keys, idColumn);
         }
         return (ID) keys.get(idColumn);
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<String> getStringMapper() {
+        return nextDialect.getStringMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<Long> getLongMapper() {
+        return nextDialect.getLongMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<Integer> getIntegerMapper() {
+        return nextDialect.getIntegerMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<Double> getDoubleMapper() {
+        return nextDialect.getDoubleMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<Float> getFloatMapper() {
+        return nextDialect.getFloatMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<Short> getShortMapper() {
+        return nextDialect.getShortMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<Byte> getByteMapper() {
+        return nextDialect.getByteMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<java.math.BigDecimal> getBigDecimalMapper() {
+        return nextDialect.getBigDecimalMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<java.math.BigInteger> getBigIntegerMapper() {
+        return nextDialect.getBigIntegerMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<Boolean> getBooleanMapper() {
+        return nextDialect.getBooleanMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<java.util.UUID> getUUIDMapper() {
+        return nextDialect.getUUIDMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<java.time.LocalDate> getLocalDateMapper() {
+        return nextDialect.getLocalDateMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<java.time.LocalDateTime> getLocalDateTimeMapper() {
+        return nextDialect.getLocalDateTimeMapper();
+    }
+
+    @Override
+    public ovh.heraud.nativsql.mapper.ITypeMapper<byte[]> getByteArrayMapper() {
+        return nextDialect.getByteArrayMapper();
+    }
+
+    @Override
+    public <T> ovh.heraud.nativsql.mapper.ITypeMapper<T> getDefaultMapper() {
+        return nextDialect.getDefaultMapper();
     }
 }
