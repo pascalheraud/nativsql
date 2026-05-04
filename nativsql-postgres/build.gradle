@@ -18,7 +18,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
 
     // PostgreSQL drivers
-    implementation 'org.postgresql:postgresql:42.7.10'
+    implementation 'org.postgresql:postgresql:42.7.11'
     implementation 'net.postgis:postgis-jdbc:2.5.1'
     implementation 'net.postgis:postgis-geometry:2.5.1'
 
