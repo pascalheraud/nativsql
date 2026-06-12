@@ -128,6 +128,20 @@ String formatParameter(String paramName, Map<ParamKey, Object> params);
 
 ---
 
+## Query builders — FindQuery and DeleteQuery
+
+`FindQuery` and `DeleteQuery` are WHERE-clause builders used to construct typed SQL queries without raw string concatenation. Both are created via protected factory methods on `GenericRepository` and accept either string column names or type-safe getter references.
+
+**`FindQuery<T, ID>`** (`newFindQuery()`) — builds `SELECT` statements. Supports `.select(...)`, `.whereAndEquals(...)`, `.whereAndIn(...)`, `.whereExpression(...)`, and `.orderBy(...)`. Passed directly to `find()` (single result) or `findAll()` (list).
+
+**`DeleteQuery<T, ID>`** (`newDeleteQuery()`) — builds `DELETE` statements. Supports WHERE conditions only (`.whereAndEquals(...)`, `.whereAndIn(...)`, `.whereExpression(...)`). Entry points:
+- `delete(DeleteQuery)` — expects exactly 1 deleted row; throws `NativSQLException` otherwise
+- `deleteAll(DeleteQuery)` — deletes 0 or N rows with no row count validation
+
+Both builders guard against encrypted columns that use non-deterministic or one-way algorithms in WHERE equality checks.
+
+---
+
 ## Repository flow
 
 `GenericRepository` orchestrates the full read/write cycle:

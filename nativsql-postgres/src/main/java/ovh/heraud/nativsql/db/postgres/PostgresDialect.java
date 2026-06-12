@@ -2,7 +2,6 @@ package ovh.heraud.nativsql.db.postgres;
 
 import java.util.UUID;
 
-import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.DatabaseDialect;
 import ovh.heraud.nativsql.db.generic.GenericDialect;
 import ovh.heraud.nativsql.db.postgres.mapper.PostgreJSONTypeMapper;

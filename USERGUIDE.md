@@ -152,10 +152,9 @@ public class UserRepository extends PostgresRepository<User, Long> { ... }
 
 ### Insert
 
-```java
-// All non-null fields
-userRepository.insert(user);
+The property list is **mandatory** — passing no properties throws `NativSQLException`.
 
+```java
 // Explicit field list (null fields are included as NULL)
 userRepository.insert(user, "firstName", "email", "status");
 ```
@@ -176,8 +175,26 @@ userRepository.update(user, new String[]{"tenantId", "id"}, "firstName", "email"
 ### Delete
 
 ```java
+// Delete by primary key
 userRepository.deleteById(userId);
-userRepository.delete("email", "john@example.com");
+
+// Delete exactly 1 tuple by property — throws NativSQLException if 0 or more than 1 row deleted
+userRepository.deleteByProperty("email", "john@example.com");
+userRepository.deleteByProperty(User::getEmail, "john@example.com");
+
+// Delete exactly 1 tuple via DeleteQuery (multiple conditions)
+userRepository.delete(newDeleteQuery()
+    .whereAndEquals(User::getTenantId, tenantId)
+    .whereAndEquals(User::getEmail, email));
+
+// Delete N tuples by property (no row count validation)
+userRepository.deleteAllByProperty("status", UserStatus.INACTIVE);
+userRepository.deleteAllByProperty(User::getStatus, UserStatus.INACTIVE);
+
+// Delete N tuples via DeleteQuery
+userRepository.deleteAll(newDeleteQuery()
+    .whereAndEquals(User::getTenantId, tenantId)
+    .whereAndIn(User::getStatus, List.of(UserStatus.INACTIVE, UserStatus.SUSPENDED)));
 ```
 
 ### Find
@@ -194,7 +211,7 @@ List<User> users = userRepository.findAllByProperty("status",
 List<User> users = userRepository.findAllByIds(List.of(1L, 2L, 3L), "id", "firstName");
 ```
 
-NULL values are handled naturally: a `null` field is skipped in insert unless explicitly listed; a null value in a condition generates `IS NULL`.
+**The property list is mandatory for all `find*`, `insert`, and `update` methods** — passing an empty list throws `NativSQLException`. A `null` field value included in the list is written as `NULL`; a null value in a condition generates `IS NULL`.
 
 ---
 
@@ -493,7 +510,7 @@ No. Plain POJOs with getters/setters work out of the box. Annotations (`@Json`, 
 
 ### How do I handle NULL values?
 
-In `insert()` / `update()` with no field list, null fields are skipped. To explicitly write NULL, pass the field name in the explicit list:
+All `find*`, `insert`, and `update` methods require a non-empty property list — passing none throws `NativSQLException`. A field included in the list with a `null` value is written as `NULL`:
 
 ```java
 userRepository.insert(user, "firstName", "email");  // email=null → NULL in DB

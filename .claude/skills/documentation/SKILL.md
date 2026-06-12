@@ -15,7 +15,12 @@ Never report a feature as complete without completing the documentation.
 
 ## Feature plans
 
-Feature plans are stored in the `plans/` directory at the root of the repository, one subdirectory per feature number (e.g. `plans/49/`). The feature number is the issue number in the current git branch name (e.g. branch `49-feature-...` → `plans/49/`). Read the plan before starting implementation.
+Feature plans are stored in `doc/issues/NNN--short-name/` (e.g. `doc/issues/77--delete-query/`). The number is the GitHub issue number. Each feature directory contains:
+
+- `plan.md` — implementation steps, files to create/modify, patterns to reuse, verification commands
+- `spec.md` — contract, API, architecture, data flow, error handling
+
+Read both files before starting implementation.
 
 Before implementing or continuing a plan, always:
 
