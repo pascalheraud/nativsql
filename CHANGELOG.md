@@ -5,6 +5,20 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-06-12
+
+### Added
+
+- **`DeleteQuery` builder** — new builder symmetric to `FindQuery` for constructing typed `DELETE` statements:
+  - `whereAndEquals(String, Object)` / `whereAndEquals(Getter<T>, Object)`
+  - `whereAndIn(String, List<?>)` / `whereAndIn(Getter<T>, List<?>)`
+  - `whereExpression(String, String, Object)`
+- **`delete(DeleteQuery)`** — deletes exactly 1 tuple; throws `NativSQLException` if 0 or more than 1 row is affected
+- **`deleteByProperty(String, Object)`** / **`deleteByProperty(Getter<T>, Object)`** — convenience wrappers over `delete(DeleteQuery)`
+- **`deleteAll(DeleteQuery)`** — deletes 0 or N tuples with no row count validation
+- **`deleteAllByProperty(String, Object)`** / **`deleteAllByProperty(Getter<T>, Object)`** — convenience wrappers over `deleteAll(DeleteQuery)`
+- **`newDeleteQuery()`** — protected factory on `GenericRepository` (symmetric to `newFindQuery()`)
+
 ## [2.4.0] - 2026-06-08
 
 - Add Crypting for fields. Allows to setup encryption of any field. Different algorithms available, round-trip or single way.

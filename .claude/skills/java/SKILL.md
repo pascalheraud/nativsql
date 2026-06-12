@@ -103,6 +103,24 @@ After any Java code change, update `ARCHITECTURE.md` if the change affects:
 
 If work is guided by a feature plan, the last step of the plan must explicitly include: "Update ARCHITECTURE.md if the architecture has changed."
 
+## Logging
+
+- All queries are logged (at INFO level or equivalent).
+- Query parameters are logged at DEBUG level.
+- **Never log an encrypted parameter** — use `#######` as a placeholder, as the superclass already does for mapper errors.
+
+## Encrypted fields
+
+- `WHERE` clauses on encrypted fields are not supported and must never be generated.
+
+## Security
+
+- **Never build queries by concatenating user-supplied values** — always use parameterized queries (prepared statements / bind variables). Concatenating user input into SQL is a SQL injection vulnerability.
+
+## Tests
+
+Every new feature must be covered by tests added in a dedicated sub-module. Tests run against a real database via a container (not mocks). See the [[tests]] skill for test structure and naming conventions.
+
 ## Verification
 
 Always run after changes:

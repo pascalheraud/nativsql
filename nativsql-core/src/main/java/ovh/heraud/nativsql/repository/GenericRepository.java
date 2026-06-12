@@ -29,6 +29,7 @@ import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
 import ovh.heraud.nativsql.util.Association;
+import ovh.heraud.nativsql.util.DeleteQuery;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.Fields;
 import ovh.heraud.nativsql.util.FindQuery;
@@ -194,8 +195,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param entity  the entity to insert (will be modified with generated ID)
      * @param getters the getter method references (e.g., User::getEmail,
-     *                User::getId)
-     * @throws IllegalArgumentException if getters array is empty
+     *                User::getId) — must not be empty
+     * @throws NativSQLException if getters array is empty
      *
      * @see #insert(Object, String...)
      */
@@ -316,8 +317,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param entity  the entity to update
      * @param getters the getter method references (e.g., User::getEmail,
-     *                User::getId)
-     * @throws NativSQLException if the update doesn't affect exactly one row
+     *                User::getId) — must not be empty
+     * @throws NativSQLException if getters array is empty or if the update doesn't
+     *                           affect exactly one row
      * @see #update(Object, String...)
      */
     @SafeVarargs
@@ -412,6 +414,52 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
+     * Deletes exactly 1 row matching the given query.
+     * Throws NativSQLException if 0 or more than 1 row is deleted,
+     * causing any active transaction to roll back.
+     */
+    public void delete(DeleteQuery<T, ID> query) {
+        String sql = query.buildString(identifierConverter);
+        Map<String, Object> params = convertParamsToSqlValues(query.getParameters());
+        dbOperationLogger.execute(getClass(), "delete", "DELETE", getTableName(), sql, params, () -> {
+            int rowsDeleted = executeUpdate(sql, params);
+            if (rowsDeleted != 1) {
+                throw new NativSQLException(
+                        "delete failed: expected to delete exactly 1 row but deleted " + rowsDeleted);
+            }
+        });
+    }
+
+    /**
+     * Deletes exactly 1 row where the given property equals the given value.
+     * Throws NativSQLException if 0 or more than 1 row is deleted,
+     * causing any active transaction to roll back.
+     */
+    public final void deleteByProperty(Getter<T> getter, Object value) {
+        delete(newDeleteQuery().whereAndEquals(getter, value));
+    }
+
+    /** @see #deleteByProperty(Getter, Object) */
+    public void deleteByProperty(String property, Object value) {
+        delete(newDeleteQuery().whereAndEquals(property, value));
+    }
+
+    public void deleteAll(DeleteQuery<T, ID> query) {
+        String sql = query.buildString(identifierConverter);
+        Map<String, Object> params = convertParamsToSqlValues(query.getParameters());
+        dbOperationLogger.execute(getClass(), "deleteAll", "DELETE", getTableName(), sql, params,
+                () -> executeUpdate(sql, params));
+    }
+
+    public final void deleteAllByProperty(Getter<T> getter, Object value) {
+        deleteAll(newDeleteQuery().whereAndEquals(getter, value));
+    }
+
+    public void deleteAllByProperty(String property, Object value) {
+        deleteAll(newDeleteQuery().whereAndEquals(property, value));
+    }
+
+    /**
      * Finds an entity by ID with specified columns using getter method references
      * (assumes ID column is named "id").
      * Converts getter references to column names and delegates to
@@ -419,8 +467,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param id      the ID value
      * @param getters the getter method references (e.g., User::getEmail,
-     *                User::getId)
+     *                User::getId) — must not be empty
      * @return the entity or null if not found
+     * @throws NativSQLException if getters array is empty
      * @see #findById(Object, String...)
      */
     @SafeVarargs
@@ -458,8 +507,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      *
      * @param ids     the list of ID values
      * @param getters the getter method references (e.g., User::getEmail,
-     *                User::getId)
+     *                User::getId) — must not be empty
      * @return list of matching entities
+     * @throws NativSQLException if getters array is empty
      * @see #findAllByIds(List, String...)
      */
     @SafeVarargs
@@ -1018,8 +1068,9 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * {@link #findAll(String...)}.
      *
      * @param getters the getter method references (e.g., User::getEmail,
-     *                User::getId)
+     *                User::getId) — must not be empty
      * @return list of all entities
+     * @throws NativSQLException if getters array is empty
      * @see #findAll(String...)
      */
     @SafeVarargs
@@ -1101,6 +1152,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      */
     protected FindQuery<T, ID> newFindQuery() {
         return FindQuery.of(this);
+    }
+
+    protected DeleteQuery<T, ID> newDeleteQuery() {
+        return DeleteQuery.of(this);
     }
 
     // ==================== Private Helper Methods ====================

@@ -8,7 +8,8 @@ import java.util.UUID;
 import org.postgis.Point;
 import ovh.heraud.nativsql.domain.data.IData;
 import ovh.heraud.nativsql.domain.postgres.User;
-import ovh.heraud.nativsql.domain.postgres.UserReport;import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.postgres.UserReport;
+import ovh.heraud.nativsql.domain.postgres.UserStatus;import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities.
@@ -253,6 +254,17 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
         params.put("userId", userId);
         params.put("nullParam", nullParam); // This is null - tests the bug
         return findAllExternal(sql, params, User.class);
+    }
+
+    public void deleteByEmailAndStatus(String email, UserStatus status) {
+        delete(newDeleteQuery()
+                .whereAndEquals(User::getEmail, email)
+                .whereAndEquals(User::getStatus, status));
+    }
+
+    public void deleteAllByStatuses(List<UserStatus> statuses) {
+        deleteAll(newDeleteQuery()
+                .whereAndIn(User::getStatus, statuses));
     }
 
 }
