@@ -34,7 +34,13 @@ package ovh.heraud.nativsql.util;
  */
 public enum Operator {
     EQUALS("=", (col, param) -> col + " = :" + param),
-    IN("IN", (col, param) -> col + " IN (:" + param + ")");
+    IN("IN", (col, param) -> col + " IN (:" + param + ")"),
+    LESS_THAN("<", (col, param) -> col + " < :" + param),
+    LESS_OR_EQUAL("<=", (col, param) -> col + " <= :" + param),
+    GREATER_THAN(">", (col, param) -> col + " > :" + param),
+    GREATER_OR_EQUAL(">=", (col, param) -> col + " >= :" + param),
+    NOT_EQUALS("<>", (col, param) -> col + " <> :" + param),
+    LIKE("LIKE", (col, param) -> col + " LIKE :" + param);
 
     private final String sql;
     private final WhereExpressionBuilder expressionBuilder;

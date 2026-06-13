@@ -9,7 +9,11 @@ import org.postgis.Point;
 import ovh.heraud.nativsql.domain.data.IData;
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
-import ovh.heraud.nativsql.domain.postgres.UserStatus;import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.postgres.UserStatus;
+import ovh.heraud.nativsql.util.ColumnOperator;
+import ovh.heraud.nativsql.util.Operator;
+import ovh.heraud.nativsql.util.RangeOperator;
+import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities.
@@ -265,6 +269,36 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
     public void deleteAllByStatuses(List<UserStatus> statuses) {
         deleteAll(newDeleteQuery()
                 .whereAndIn(User::getStatus, statuses));
+    }
+
+    public List<User> findAllByAgeLessThan(int threshold, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .whereAndOperator(User::getAge, Operator.LESS_THAN, threshold));
+    }
+
+    public List<User> findAllByStatusNotEquals(UserStatus status, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .whereAndOperator(User::getStatus, Operator.NOT_EQUALS, status));
+    }
+
+    public List<User> findAllByFirstNameLike(String pattern, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .whereAndOperator(User::getFirstName, Operator.LIKE, pattern));
+    }
+
+    public List<User> findAllWithNullGroupId(String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .whereAndColumnOperator(User::getGroupId, ColumnOperator.IS_NULL));
+    }
+
+    public List<User> findAllByAgeBetween(int low, int high, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .whereAndRange(User::getAge, RangeOperator.BETWEEN, low, high));
     }
 
 }
