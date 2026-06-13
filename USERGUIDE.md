@@ -8,12 +8,13 @@
 4. [Repository basics](#repository-basics)
 5. [CRUD operations](#crud-operations)
 6. [Querying with FindQuery](#querying-with-findquery)
-7. [Relationships](#relationships)
-8. [Type mapping reference](#type-mapping-reference)
-9. [Encryption](#encryption)
-10. [Multiple databases](#multiple-databases)
-11. [Logging](#logging)
-12. [FAQ](#faq)
+7. [WHERE operators reference](#where-operators-reference)
+8. [Relationships](#relationships)
+9. [Type mapping reference](#type-mapping-reference)
+10. [Encryption](#encryption)
+11. [Multiple databases](#multiple-databases)
+12. [Logging](#logging)
+13. [FAQ](#faq)
 
 ---
 
@@ -213,6 +214,20 @@ List<User> users = userRepository.findAllByIds(List.of(1L, 2L, 3L), "id", "first
 
 **The property list is mandatory for all `find*`, `insert`, and `update` methods** — passing an empty list throws `NativSQLException`. A `null` field value included in the list is written as `NULL`; a null value in a condition generates `IS NULL`.
 
+> **Best practice — keep column lists in the caller, not in the repository.** Repository methods that hard-code a column list decide for every caller which fields are loaded, which can force unnecessary columns to be fetched or require duplicating the method for different use cases. Prefer passing the column list as a parameter so callers can select only what they need:
+>
+> ```java
+> // Recommended: caller decides which columns to load
+> public User findByEmail(String email, String... columns) {
+>     return findByProperty("email", email, columns);
+> }
+>
+> // Called with only the columns needed
+> User user = userRepository.findByEmail("john@example.com", "id", "firstName");
+> ```
+>
+> Hard-coding column lists inside the repository is not forbidden — it is reasonable for queries where the column set is tightly coupled to the query's purpose (e.g. a statistics projection or a join with a fixed shape).
+
 ---
 
 ## Querying with FindQuery
@@ -266,6 +281,67 @@ User userWithContacts = userRepository.find(
 ```
 
 Executes 2 queries (1 for user + 1 batch for contacts) — no N+1 problem. Requires `@OneToMany` on the domain class.
+
+---
+
+## WHERE operators reference
+
+All WHERE methods are available on both `FindQuery` and `DeleteQuery`.
+
+### Equality and membership
+
+```java
+query.whereAndEquals("status", UserStatus.ACTIVE)          // status = :status
+query.whereAndEquals(User::getStatus, UserStatus.ACTIVE)   // same, type-safe
+
+query.whereAndIn("status", List.of(ACTIVE, SUSPENDED))     // status IN (:status)
+query.whereAndIn(User::getStatus, List.of(ACTIVE, SUSPENDED))
+```
+
+### Comparison operators
+
+Use `whereAndOperator` with any `Operator` constant for single-value comparisons:
+
+```java
+query.whereAndOperator("age", Operator.GREATER_OR_EQUAL, 18)   // age >= :age
+query.whereAndOperator("age", Operator.LESS_THAN, 65)          // age < :age
+query.whereAndOperator("score", Operator.NOT_EQUALS, 0)        // score <> :score
+query.whereAndOperator("name", Operator.LIKE, "Dup%")          // name LIKE :name
+```
+
+Available `Operator` constants: `EQUALS`, `IN`, `LESS_THAN` (`<`), `LESS_OR_EQUAL` (`<=`), `GREATER_THAN` (`>`), `GREATER_OR_EQUAL` (`>=`), `NOT_EQUALS` (`<>`), `LIKE`.
+
+> The caller is responsible for adding `%` wildcards when using `LIKE`.
+
+### NULL checks
+
+```java
+query.whereAndColumnOperator("deletedAt", ColumnOperator.IS_NULL)      // deleted_at IS NULL
+query.whereAndColumnOperator("deletedAt", ColumnOperator.IS_NOT_NULL)  // deleted_at IS NOT NULL
+query.whereAndColumnOperator(User::getDeletedAt, ColumnOperator.IS_NULL)
+```
+
+No parameter is bound — `getParameters()` contains no entry for these conditions.
+
+### Range (BETWEEN)
+
+```java
+query.whereAndRange("birthDate", RangeOperator.BETWEEN,
+    LocalDate.of(1980, 1, 1), LocalDate.of(2000, 12, 31));
+// → birth_date BETWEEN :birthDateLow AND :birthDateHigh
+```
+
+Both bounds are required — passing `null` throws `NativSQLException`. Parameter names are derived from the camelCase column name with `Low` / `High` suffixes.
+
+### Custom SQL expressions
+
+`whereExpression` is designed for composite types or other non-standard column access. Multiple calls accumulate — each expression is AND-ed with the others:
+
+```java
+// PostgreSQL composite type
+query.whereExpression("(address).city", "city", "Paris");   // (address).city = :city
+query.whereExpression("(address).zip", "zip", "75001");     // AND (address).zip = :zip
+```
 
 ---
 

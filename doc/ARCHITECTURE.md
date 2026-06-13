@@ -132,13 +132,42 @@ String formatParameter(String paramName, Map<ParamKey, Object> params);
 
 `FindQuery` and `DeleteQuery` are WHERE-clause builders used to construct typed SQL queries without raw string concatenation. Both are created via protected factory methods on `GenericRepository` and accept either string column names or type-safe getter references.
 
-**`FindQuery<T, ID>`** (`newFindQuery()`) — builds `SELECT` statements. Supports `.select(...)`, `.whereAndEquals(...)`, `.whereAndIn(...)`, `.whereExpression(...)`, and `.orderBy(...)`. Passed directly to `find()` (single result) or `findAll()` (list).
+### Class hierarchy
 
-**`DeleteQuery<T, ID>`** (`newDeleteQuery()`) — builds `DELETE` statements. Supports WHERE conditions only (`.whereAndEquals(...)`, `.whereAndIn(...)`, `.whereExpression(...)`). Entry points:
+```
+AbstractWhereQuery<T, ID, Self>   (ovh.heraud.nativsql.util)
+  ├── FindQuery<T, ID>              extends AbstractWhereQuery<T,ID,FindQuery<T,ID>>
+  └── DeleteQuery<T, ID>            extends AbstractWhereQuery<T,ID,DeleteQuery<T,ID>>
+```
+
+`AbstractWhereQuery` uses the CRTP pattern (`Self` parameter) so that all fluent WHERE methods return the correct concrete type without casting. It holds the `WhereClause`, `GenericRepository`, and `AnnotationManager` references, and provides all WHERE methods and `getParameters()`.
+
+**`FindQuery<T, ID>`** (`newFindQuery()`) — builds `SELECT` statements. Adds `.select(...)`, `.leftJoin(...)`, `.innerJoin(...)`, `.associate(...)`, `.orderBy(...)` on top of the WHERE methods inherited from `AbstractWhereQuery`. Passed directly to `find()` (single result) or `findAll()` (list).
+
+**`DeleteQuery<T, ID>`** (`newDeleteQuery()`) — builds `DELETE` statements. Inherits all WHERE methods from `AbstractWhereQuery`. Entry points:
 - `delete(DeleteQuery)` — expects exactly 1 deleted row; throws `NativSQLException` otherwise
 - `deleteAll(DeleteQuery)` — deletes 0 or N rows with no row count validation
 
-Both builders guard against encrypted columns that use non-deterministic or one-way algorithms in WHERE equality checks.
+### WHERE condition types
+
+All WHERE methods are available on both `FindQuery` and `DeleteQuery` and guard against encrypted columns that use non-deterministic or one-way algorithms.
+
+| Method | SQL produced | Notes |
+|--------|-------------|-------|
+| `whereAndEquals(col, val)` | `col = :col` | — |
+| `whereAndIn(col, list)` | `col IN (:col)` | — |
+| `whereAndOperator(col, Operator, val)` | `col <op> :col` | generic single-value operator |
+| `whereAndColumnOperator(col, ColumnOperator)` | `col IS NULL` / `col IS NOT NULL` | no parameter bound |
+| `whereAndRange(col, RangeOperator, low, high)` | `col BETWEEN :colLow AND :colHigh` | null bound → `NativSQLException` |
+| `whereExpression(expr, param, val)` | `expr = :param` | multiple calls accumulate |
+
+### Operator enums
+
+**`Operator`** — single-value operators: `EQUALS`, `IN`, `LESS_THAN`, `LESS_OR_EQUAL`, `GREATER_THAN`, `GREATER_OR_EQUAL`, `NOT_EQUALS`, `LIKE`. Each constant holds a `WhereExpressionBuilder` strategy `(dbCol, paramName) → SQL fragment`.
+
+**`ColumnOperator`** — parameter-less operators: `IS_NULL`, `IS_NOT_NULL`. Each constant holds a `ColumnWhereExpressionBuilder` strategy `(dbCol) → SQL fragment`.
+
+**`RangeOperator`** — two-parameter operators: `BETWEEN`. Each constant holds a `RangeWhereExpressionBuilder` strategy `(dbCol, paramLow, paramHigh) → SQL fragment`. Parameter names are derived from the camelCase column name with `Low` / `High` suffixes.
 
 ---
 

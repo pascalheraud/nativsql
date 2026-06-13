@@ -2,13 +2,8 @@ package ovh.heraud.nativsql.util;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-import ovh.heraud.nativsql.annotation.AnnotationManager;
-import ovh.heraud.nativsql.annotation.type.TypeParamKey;
-import ovh.heraud.nativsql.crypt.CryptAlgorithm;
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.exception.NativSQLException;
@@ -30,14 +25,11 @@ import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
  * @param <T>  the entity type implementing IEntity
  * @param <ID> the entity ID type
  */
-public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
+public class FindQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, ID, FindQuery<T, ID>> {
     private static final String INDENT = "    ";
-    private final GenericRepository<T, ID> repository;
-    private final AnnotationManager annotationManager;
 
     private final List<String> columns = new ArrayList<>();
     private final OrderBy orderBy = new OrderBy();
-    private final WhereClause whereClause = new WhereClause();
     private final List<Association> associations = new ArrayList<>();
     private final List<Join> joins = new ArrayList<>();
 
@@ -45,11 +37,9 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * Creates a new FindQuery for the specified repository.
      *
      * @param repository the repository to query (required)
-     * @throws IllegalArgumentException if repository is null
      */
     private FindQuery(GenericRepository<T, ID> repository) {
-        this.repository = repository;
-        this.annotationManager = repository.getAnnotationManager();
+        super(repository);
     }
 
     /**
@@ -137,9 +127,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
-     * Sets the OrderBy builder for this query.
-     */
-    /**
      * Merges order conditions from another OrderBy builder into this query's
      * ordering.
      * This is an efficient way to apply pre-configured ordering without duplicating
@@ -154,82 +141,8 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
-     * Adds a WHERE condition with EQUALS operator (property = value).
-     */
-    public FindQuery<T, ID> whereAndEquals(String column, Object value) {
-        guardEncryptedColumn(column);
-        whereClause.add(column, Operator.EQUALS, value);
-        return this;
-    }
-
-    /**
-     * Adds a WHERE condition with EQUALS operator using a getter method reference.
-     *
-     * @param getter the getter method reference (e.g., User::getStatus)
-     * @param value  the value to compare against
-     */
-    public FindQuery<T, ID> whereAndEquals(Getter<T> getter, Object value) {
-        return whereAndEquals(ReflectionUtils.getColumnName(getter), value);
-    }
-
-    /**
-     * Adds a WHERE condition with IN operator (property IN (...)).
-     */
-    public FindQuery<T, ID> whereAndIn(String column, List<?> values) {
-        guardEncryptedColumn(column);
-        whereClause.add(column, Operator.IN, values);
-        return this;
-    }
-
-    private void guardEncryptedColumn(String column) {
-        Fields entityFields = repository.getEntityFields();
-        if (entityFields == null) {
-            return;
-        }
-        FieldAccessor<?> field = entityFields.get(column);
-        TypeInfo typeInfo = annotationManager.getTypeInfo(field);
-        CryptAlgorithm[] algos = (CryptAlgorithm[]) typeInfo.getParam(TypeParamKey.ALGO);
-        if (algos == null) {
-            return;
-        }
-        for (CryptAlgorithm algo : algos) {
-            if (algo.isOneWay()) {
-                throw new NativSQLException("Column '" + column
-                        + "' uses a one-way algorithm and cannot be used in a WHERE equality check");
-            }
-            if (!algo.isDeterministic()) {
-                throw new NativSQLException("Column '" + column
-                        + "' uses a non-deterministic algorithm and cannot be used in a WHERE equality check");
-            }
-        }
-    }
-
-    /**
-     * Adds a WHERE condition with IN operator using a getter method reference.
-     *
-     * @param getter the getter method reference (e.g., User::getId)
-     * @param values the list of values to match against
-     */
-    public FindQuery<T, ID> whereAndIn(Getter<T> getter, List<?> values) {
-        return whereAndIn(ReflectionUtils.getColumnName(getter), values);
-    }
-
-    /**
-     * Adds a custom WHERE expression (e.g., "(address).city" for composite types).
-     *
-     * @param expression the SQL expression (e.g., "(address).city")
-     * @param paramName  the parameter name to use in the query
-     * @param value      the value to bind to the parameter
-     */
-    public FindQuery<T, ID> whereExpression(String expression, String paramName, Object value) {
-        whereClause.custom(expression, paramName);
-        whereClause.add(paramName, Operator.EQUALS, value);
-        return this;
-    }
-
-    /**
      * Adds an association to load (OneToMany relationship).
-     * 
+     *
      * @param associationName the property name of the association
      * @param columns         the columns to retrieve from the associated entity
      */
@@ -459,13 +372,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     }
 
     /**
-     * Checks if there are any WHERE conditions.
-     */
-    public boolean hasWhereConditions() {
-        return !whereClause.isEmpty();
-    }
-
-    /**
      * Checks if there are any associations to load.
      */
     public boolean hasAssociations() {
@@ -495,7 +401,7 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     public String buildString(IdentifierConverter identifierConverter) {
         StringBuilder sb = new StringBuilder();
         buildSql(sb, identifierConverter);
-        return (sb.toString());
+        return sb.toString();
     }
 
     /**
@@ -503,17 +409,17 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
      * For main table columns: buildColumnExpression("user", "id", "id", null)
      * For joined table columns: buildColumnExpression("group", "id", "group", "id")
      *
-     * @param tableName   the table name
-     * @param column      the column name in Java naming
-     * @param aliasPrefix the alias prefix (same as column for main table, or
-     *                    property name for joined table)
-     * @param aliasSuffix the alias suffix (null for main table, column name for
-     *                    joined table)
+     * @param identifierConverter the identifier converter
+     * @param tableName           the table name
+     * @param column              the column name in Java naming
+     * @param aliasPrefix         the alias prefix (same as column for main table, or
+     *                            property name for joined table)
+     * @param aliasSuffix         the alias suffix (null for main table, column name for
+     *                            joined table)
      * @return the column expression with alias
      */
     private String buildColumnExpression(IdentifierConverter identifierConverter, String tableName,
-            String column,
-            String aliasPrefix, String aliasSuffix) {
+            String column, String aliasPrefix, String aliasSuffix) {
         String dbColumn = identifierConverter.toDB(column);
         String alias = aliasSuffix == null ? aliasPrefix : aliasPrefix + "." + aliasSuffix;
         return String.format("""
@@ -534,7 +440,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     private List<String> buildPrefixedColumns(IdentifierConverter identifierConverter, String tableName) {
         List<String> prefixedColumns = new ArrayList<>();
 
-        // Add main table columns with table prefix and alias
         for (String col : columns) {
             if (col == null || col.isEmpty()) {
                 throw new NativSQLException("Column name cannot be null or empty");
@@ -543,16 +448,14 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
             prefixedColumns.add(columnWithAlias);
         }
 
-        // Add joined table columns with their property name as prefix in aliases
         for (Join join : joins) {
             String joinTableName = join.getRepository().getTableName();
-            String propertyName = join.getName(); // Use the property name (e.g., "group")
+            String propertyName = join.getName();
             for (String col : join.getColumns()) {
                 if (col == null || col.isEmpty()) {
                     throw new NativSQLException("Column name cannot be null or empty");
                 }
-                String columnWithAlias = buildColumnExpression(identifierConverter, joinTableName, col, propertyName,
-                        col);
+                String columnWithAlias = buildColumnExpression(identifierConverter, joinTableName, col, propertyName, col);
                 prefixedColumns.add(columnWithAlias);
             }
         }
@@ -573,7 +476,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
         String tableName = repository.getTableName();
         List<String> prefixedColumns = buildPrefixedColumns(identifierConverter, tableName);
 
-        // Build formatted SELECT clause with proper indentation
         sb.append("SELECT\n");
         for (int i = 0; i < prefixedColumns.size(); i++) {
             sb.append(INDENT).append(prefixedColumns.get(i));
@@ -584,7 +486,6 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
         }
         sb.append("FROM ").append(tableName);
 
-        // Add JOINs for @MappedBy associations
         if (hasJoins()) {
             Fields entityFields = repository.getEntityFields();
             for (Join join : joins) {
@@ -600,35 +501,18 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
             }
         }
 
-        // Add WHERE clause
         if (hasWhereConditions()) {
             whereClause.withTablePrefix(tableName).withJoins(hasJoins());
             sb.append("\nWHERE\n");
             whereClause.buildFormatted(sb, identifierConverter);
         }
 
-        // Add ORDER BY clause
         if (!orderBy.isEmpty()) {
             sb.append("\nORDER BY\n");
             orderBy.buildFormatted(sb, identifierConverter);
         }
 
-        // Add trailing newline
         sb.append("\n");
-    }
-
-    /**
-     * Gets the parameters map for the SQL query with converted values.
-     *
-     * @param valueConverter a function to convert values to SQL format
-     * @return a map of parameter names to SQL values
-     */
-    public Map<String, Object> getParameters() {
-        Map<String, Object> params = new HashMap<>();
-        for (Condition condition : whereClause.getConditions()) {
-            params.put(condition.getColumn(), condition.getValue());
-        }
-        return params;
     }
 
     /**
@@ -638,5 +522,4 @@ public class FindQuery<T extends IEntity<ID>, ID> implements SQLBuilder {
     public interface ValueConverter {
         Object convert(Object value);
     }
-
 }

@@ -3,6 +3,10 @@ name: documentation
 description: Documentation rules and feature plan conventions for the NativSQL project
 ---
 
+## Language
+
+All documentation (spec, plan, CHANGELOG, README, ARCHITECTURE, API docs) must be written in English.
+
 ## Keeping docs up to date
 
 Always update documentation when implementing a feature:
@@ -15,7 +19,7 @@ Never report a feature as complete without completing the documentation.
 
 ## Feature plans
 
-Feature plans are stored in `doc/issues/NNN--short-name/` (e.g. `doc/issues/77--delete-query/`). The number is the GitHub issue number. Each feature directory contains:
+Feature plans are stored in `doc/issues/NNN-short-name/` (e.g. `doc/issues/77-delete-query/`). The number is the GitHub issue number. Each feature directory contains:
 
 - `plan.md` — implementation steps, files to create/modify, patterns to reuse, verification commands
 - `spec.md` — contract, API, architecture, data flow, error handling
