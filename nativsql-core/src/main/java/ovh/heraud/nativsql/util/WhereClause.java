@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ovh.heraud.nativsql.db.IdentifierConverter;
+import ovh.heraud.nativsql.exception.NativSQLException;
 
 /**
  * Builder for SQL WHERE clauses.
@@ -19,6 +20,7 @@ public class WhereClause implements SQLBuilder {
     private final List<CustomCondition> customConditions = new ArrayList<>();
     private String tablePrefix = "";
     private boolean hasJoins = false;
+    private JoinResolver joinResolver = null;
 
     /**
      * Adds a condition to this WHERE clause.
@@ -97,6 +99,19 @@ public class WhereClause implements SQLBuilder {
      */
     public WhereClause withJoins(boolean hasJoins) {
         this.hasJoins = hasJoins;
+        return this;
+    }
+
+    /**
+     * Registers the resolver that translates dot-notation column paths
+     * (e.g. "group.name") to fully-qualified SQL column references.
+     * Must be set before {@link #build} is called when dot-notation columns are used.
+     *
+     * @param resolver the join resolver
+     * @return this for method chaining
+     */
+    public WhereClause withJoinResolver(JoinResolver resolver) {
+        this.joinResolver = resolver;
         return this;
     }
 
@@ -192,7 +207,7 @@ public class WhereClause implements SQLBuilder {
 
         for (Condition condition : conditions) {
             String dbCol = toDbCol(identifierConverter, condition.getColumn());
-            String paramName = condition.getColumn();
+            String paramName = SqlUtils.columnPathToParamName(condition.getColumn());
             conditionStrings.add(condition.getOperator().getExpressionBuilder().buildExpression(dbCol, paramName));
         }
 
@@ -215,6 +230,13 @@ public class WhereClause implements SQLBuilder {
     }
 
     private String toDbCol(IdentifierConverter identifierConverter, String column) {
+        if (column.contains(".")) {
+            if (joinResolver == null) {
+                throw new NativSQLException(
+                    "Dot-notation column paths are not supported in this query type: '" + column + "'");
+            }
+            return joinResolver.resolve(column, identifierConverter);
+        }
         String dbCol = identifierConverter.toDB(column);
         if (hasJoins && !tablePrefix.isEmpty()) {
             dbCol = tablePrefix + "." + dbCol;

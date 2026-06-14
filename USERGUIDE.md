@@ -268,6 +268,41 @@ User userWithGroup = userRepository.find(
 
 Requires `@MappedBy` on the domain class — see [Relationships](#relationships).
 
+### Filtering on joined table columns
+
+Use dot-notation in any `whereAnd*` method to filter on a column of the joined entity. The segment before the dot is the association name (matching the `leftJoin`/`innerJoin` call); the segment after is the Java field name on the joined entity.
+
+```java
+// Filter on joined column — simple equality
+userRepository.findAll(
+    userRepository.newFindQuery()
+        .select("id", "firstName")
+        .leftJoin("group", "name")
+        .whereAndEquals("group.name", "Admins")  // WHERE user_group.name = :groupName
+);
+
+// Mix main-table and joined-table conditions
+userRepository.findAll(
+    userRepository.newFindQuery()
+        .select("id", "firstName", "status")
+        .leftJoin("group", "name")
+        .whereAndEquals("status", UserStatus.ACTIVE)       // WHERE users.status = :status
+        .whereAndEquals("group.name", "Admins")            //   AND user_group.name = :groupName
+);
+
+// Other operators work too
+query.whereAndOperator("group.name", Operator.LIKE, "Admin%")         // user_group.name LIKE :groupName
+query.whereAndColumnOperator("group.deletedAt", ColumnOperator.IS_NULL) // user_group.deleted_at IS NULL
+query.whereAndIn("group.status", List.of("ACTIVE", "PENDING"))        // user_group.status IN (:groupStatus)
+query.whereAndRange("group.age", RangeOperator.BETWEEN, 18, 65)       // user_group.age BETWEEN :groupAgeLow AND :groupAgeHigh
+```
+
+**Rules:**
+- Exactly one dot is allowed — `"a.b.col"` throws `NativSQLException`.
+- The association name must match a `leftJoin`/`innerJoin` call earlier in the chain.
+- Column names are camelCase Java field names; `identifierConverter` converts them to snake_case automatically.
+- Parameter names are derived by joining the two segments in camelCase: `"group.name"` → `:groupName`, `"group.deletedAt"` → `:groupDeletedAt`.
+
 ### Association loading (one-to-many)
 
 ```java
