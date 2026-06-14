@@ -301,4 +301,40 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 .whereAndRange(User::getAge, RangeOperator.BETWEEN, low, high));
     }
 
+    public List<User> findAllByGroupName(String groupName, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .leftJoin("group", "name")
+                .whereAndEquals("group.name", groupName));
+    }
+
+    public List<User> findAllByStatusAndGroupName(UserStatus status, String groupName, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .leftJoin("group", "name")
+                .whereAndEquals("status", status)
+                .whereAndEquals("group.name", groupName));
+    }
+
+    public List<User> findAllWithNullGroupName(String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .leftJoin("group", "name")
+                .whereAndColumnOperator("group.name", ColumnOperator.IS_NULL));
+    }
+
+    public List<User> findAllByGroupNameLike(String pattern, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .leftJoin("group", "name")
+                .whereAndOperator("group.name", Operator.LIKE, pattern));
+    }
+
+    public List<User> findAllByGroupCreatedAtIsNotNull(String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .leftJoin("group", "createdAt")
+                .whereAndColumnOperator("group.createdAt", ColumnOperator.IS_NOT_NULL));
+    }
+
 }

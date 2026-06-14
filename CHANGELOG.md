@@ -5,6 +5,12 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-06-14
+
+### Added
+
+- **Dot-notation column paths in `whereAnd*` methods of `FindQuery`** — filter on joined table columns without writing raw SQL: `whereAndEquals("group.name", "Admins")` produces `WHERE user_group.name = :groupName`. All existing WHERE methods (`whereAndEquals`, `whereAndIn`, `whereAndOperator`, `whereAndColumnOperator`, `whereAndRange`) accept the `"assoc.column"` form. Column names are camelCase and converted to snake_case automatically. Only one level of nesting is supported; `"a.b.col"` throws `NativSQLException`. See [User Guide](USERGUIDE.md#filtering-on-joined-table-columns) for details.
+
 ## [2.5.0] - 2026-06-12
 
 ### Added

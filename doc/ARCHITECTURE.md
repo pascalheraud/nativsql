@@ -161,6 +161,41 @@ All WHERE methods are available on both `FindQuery` and `DeleteQuery` and guard 
 | `whereAndRange(col, RangeOperator, low, high)` | `col BETWEEN :colLow AND :colHigh` | null bound → `NativSQLException` |
 | `whereExpression(expr, param, val)` | `expr = :param` | multiple calls accumulate |
 
+### Dot-notation column paths (FindQuery only)
+
+Any `whereAnd*` method accepts a dot-notation path `"assoc.column"` to filter on a joined table's column. The raw path is stored as-is in `WhereClause`; resolution is deferred to SQL build time via a `JoinResolver` registered by `FindQuery.buildSql()`.
+
+**`JoinResolver`** — functional interface in `ovh.heraud.nativsql.util`:
+
+```java
+@FunctionalInterface
+public interface JoinResolver {
+    String resolve(String path, IdentifierConverter identifierConverter);
+}
+```
+
+**Resolution flow:**
+
+1. `FindQuery.buildSql()` registers `this::resolveJoinColumn` on `whereClause.withJoinResolver(...)`.
+2. `WhereClause.toDbCol(column, converter)` detects a dot: delegates to `joinResolver.resolve(column, converter)`.
+3. `FindQuery.resolveJoinColumn(path, converter)` splits on `.`, finds the matching `Join` by association name, returns `join.getRepository().getTableName() + "." + converter.toDB(column)`.
+4. If no resolver is set (e.g. `DeleteQuery`), `WhereClause` throws `NativSQLException`.
+
+**`SqlUtils.columnPathToParamName(String column)`** — converts a dot path to a valid named-parameter key (no dots allowed in Spring JDBC parameter names):
+
+```
+"status"       → "status"       (unchanged)
+"group.name"   → "groupName"    (camelCase join)
+"group.createdAt" → "groupCreatedAt"
+"a.b.col"      → NativSQLException (only one dot supported)
+"group."       → NativSQLException (empty column segment)
+```
+
+Called in three places to keep SQL and parameter map consistent:
+- `WhereClause.buildConditionStrings()` — produces `:groupName` in SQL
+- `AbstractWhereQuery.getParameters()` — produces `{"groupName": value}` map key
+- `AbstractWhereQuery.whereAndRange()` — derives `camelBase` for `Low`/`High` suffix params
+
 ### Operator enums
 
 **`Operator`** — single-value operators: `EQUALS`, `IN`, `LESS_THAN`, `LESS_OR_EQUAL`, `GREATER_THAN`, `GREATER_OR_EQUAL`, `NOT_EQUALS`, `LIKE`. Each constant holds a `WhereExpressionBuilder` strategy `(dbCol, paramName) → SQL fragment`.

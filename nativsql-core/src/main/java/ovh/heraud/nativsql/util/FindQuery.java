@@ -313,6 +313,30 @@ public class FindQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, 
     }
 
     /**
+     * Resolves a dot-notation column path to a fully-qualified SQL column reference.
+     * Looks up the association name in the registered joins and uses its repository's
+     * table name as the column prefix.
+     *
+     * @param path      the dot-notation path (e.g. "group.name")
+     * @param converter the identifier converter for column name transformation
+     * @return the fully-qualified SQL column reference (e.g. "user_group.name")
+     * @throws NativSQLException if no join is registered for the association name
+     */
+    private String resolveJoinColumn(String path, IdentifierConverter converter) {
+        String[] segments = path.split("\\.", 2);
+        String associationName = segments[0];
+        String column = segments[1];
+        Join join = joins.stream()
+                .filter(j -> j.getName().equals(associationName))
+                .findFirst()
+                .orElseThrow(() -> new NativSQLException(
+                        "No join found for association '" + associationName
+                        + "' in dot-notation column '" + path + "'. "
+                        + "Add leftJoin/innerJoin before using this column in a WHERE condition."));
+        return join.getRepository().getTableName() + "." + converter.toDB(column);
+    }
+
+    /**
      * Gets a repository instance from its class.
      */
     private GenericRepository<?, ?> getRepositoryInstance(Class<?> repositoryClass) {
@@ -502,7 +526,7 @@ public class FindQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, 
         }
 
         if (hasWhereConditions()) {
-            whereClause.withTablePrefix(tableName).withJoins(hasJoins());
+            whereClause.withJoinResolver(this::resolveJoinColumn).withTablePrefix(tableName).withJoins(hasJoins());
             sb.append("\nWHERE\n");
             whereClause.buildFormatted(sb, identifierConverter);
         }

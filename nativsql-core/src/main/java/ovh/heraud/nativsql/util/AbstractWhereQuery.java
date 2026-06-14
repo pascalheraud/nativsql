@@ -136,7 +136,7 @@ public abstract class AbstractWhereQuery<T extends IEntity<ID>, ID, Self extends
             throw new NativSQLException("Range high value cannot be null for column '" + column + "'");
         }
         guardEncryptedColumn(column);
-        String camelBase = repository.getIdentifierConverter().fromDB(column);
+        String camelBase = SqlUtils.columnPathToParamName(column);
         whereClause.addRangeOperator(column, operator, camelBase + "Low", low, camelBase + "High", high);
         return self();
     }
@@ -163,7 +163,7 @@ public abstract class AbstractWhereQuery<T extends IEntity<ID>, ID, Self extends
     public Map<String, Object> getParameters() {
         Map<String, Object> params = new HashMap<>();
         for (Condition condition : whereClause.getConditions()) {
-            params.put(condition.getColumn(), condition.getValue());
+            params.put(SqlUtils.columnPathToParamName(condition.getColumn()), condition.getValue());
         }
         for (RangeCondition rc : whereClause.getRangeConditions()) {
             params.put(rc.getParamLow(), rc.getLow());
@@ -176,6 +176,9 @@ public abstract class AbstractWhereQuery<T extends IEntity<ID>, ID, Self extends
     }
 
     private void guardEncryptedColumn(String column) {
+        if (column.contains(".")) {
+            return; // joined entity column — encryption guard does not apply
+        }
         Fields entityFields = repository.getEntityFields();
         if (entityFields == null) {
             return;

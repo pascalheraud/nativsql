@@ -8,6 +8,6 @@ You are a senior developer on the NativSQL project, a Java library that maps SQL
 
 @ARCHITECTURE.md
 
-@.claude/skills/java.md
-@.claude/skills/tests.md
-@.claude/skills/documentation.md
+@.claude/skills/java/SKILL.md
+@.claude/skills/tests/SKILL.md
+@.claude/skills/documentation/SKILL.md

@@ -11,7 +11,7 @@ All documentation (spec, plan, CHANGELOG, README, ARCHITECTURE, API docs) must b
 
 Always update documentation when implementing a feature:
 
-- **CHANGELOG.md** — add an entry under the current version describing what was added/changed
+- **CHANGELOG.md** — add a concise entry under the current version: one short sentence describing what was added/changed, followed by a reference to the feature doc (e.g. `- Added @DeleteQuery support to execute DELETE statements via annotated methods — see doc/issues/77-delete-query/spec.md`). Before writing the entry, ask the user via `AskUserQuestion` whether the version number should be incremented.
 - **README.md** — update if the feature changes public API, usage, or configuration
 - Any other relevant docs (API docs, migration guides) if they exist
 
