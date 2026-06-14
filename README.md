@@ -18,6 +18,7 @@ NativSQL occupies the middle ground:
 - **Zero annotations required** on domain classes — plain POJOs, no framework coupling
 - **Rich type system** — enums, JSON/JSONB, composite types (PostgreSQL), UUID, encryption, PostGIS
 - **Relationship support** — `@MappedBy` (JOIN-based), `@OneToMany` (batch loading, no N+1)
+- **Pagination** — `limit` / `offset` on `FindQuery`, standard SQL:2008 syntax ([see User Guide](USERGUIDE.md#pagination))
 - **Multi-database** — MySQL, MariaDB, PostgreSQL, Oracle, each with a dedicated dialect
 
 ## Quick Start
