@@ -248,7 +248,7 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
      * @param nullParam a null parameter to test null handling
      * @return list of users found
      */
-   public List<User> findAllByIdWithNullParam(Long userId, Object nullParam) {
+    public List<User> findAllByIdWithNullParam(Long userId, Object nullParam) {
         String sql = """
                 SELECT id, first_name as "firstName", email
                 FROM users
@@ -335,6 +335,14 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 .select(columns)
                 .leftJoin("group", "createdAt")
                 .whereAndColumnOperator("group.createdAt", ColumnOperator.IS_NOT_NULL));
+    }
+
+    public List<User> findPageByOrderById(int limit, int offset, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .orderByAsc("id")
+                .limit(limit)
+                .offset(offset));
     }
 
 }

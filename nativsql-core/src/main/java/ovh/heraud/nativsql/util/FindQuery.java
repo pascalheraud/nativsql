@@ -32,6 +32,8 @@ public class FindQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, 
     private final OrderBy orderBy = new OrderBy();
     private final List<Association> associations = new ArrayList<>();
     private final List<Join> joins = new ArrayList<>();
+    private Integer limit = null;
+    private Integer offset = null;
 
     /**
      * Creates a new FindQuery for the specified repository.
@@ -51,6 +53,37 @@ public class FindQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, 
     public static <T extends IEntity<ID>, ID> FindQuery<T, ID> of(
             GenericRepository<T, ID> repository) {
         return new FindQuery<>(repository);
+    }
+
+    /**
+     * Limits the number of rows returned.
+     * Generates FETCH FIRST n ROWS ONLY (or FETCH NEXT n ROWS ONLY when combined with offset).
+     *
+     * @param n the maximum number of rows (must be > 0)
+     * @throws NativSQLException if n <= 0
+     */
+    public FindQuery<T, ID> limit(int n) {
+        if (n <= 0) {
+            throw new NativSQLException("limit must be greater than 0");
+        }
+        this.limit = n;
+        return this;
+    }
+
+    /**
+     * Skips the first n rows before returning results.
+     * Generates OFFSET n ROWS.
+     * Must be combined with an ORDER BY for deterministic results.
+     *
+     * @param n the number of rows to skip (must be >= 0)
+     * @throws NativSQLException if n < 0
+     */
+    public FindQuery<T, ID> offset(int n) {
+        if (n < 0) {
+            throw new NativSQLException("offset must be greater than or equal to 0");
+        }
+        this.offset = n;
+        return this;
     }
 
     /**
@@ -534,6 +567,14 @@ public class FindQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, 
         if (!orderBy.isEmpty()) {
             sb.append("\nORDER BY\n");
             orderBy.buildFormatted(sb, identifierConverter);
+        }
+
+        if (offset != null && offset > 0) {
+            sb.append("\nOFFSET ").append(offset).append(" ROWS");
+        }
+        if (limit != null) {
+            String fetchKeyword = (offset != null && offset > 0) ? "NEXT" : "FIRST";
+            sb.append("\nFETCH ").append(fetchKeyword).append(" ").append(limit).append(" ROWS ONLY");
         }
 
         sb.append("\n");

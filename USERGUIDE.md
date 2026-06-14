@@ -589,6 +589,38 @@ For multi-datasource Spring setups, inject the `JdbcTemplate` for each datasourc
 
 ---
 
+## Pagination
+
+Use `limit(int)` and `offset(int)` on `FindQuery` to paginate results:
+
+```java
+List<User> page = userRepository.findAll(
+    FindQuery.of(userRepository)
+        .select("id", "firstName", "email")
+        .orderByAsc("lastName")
+        .limit(10)
+        .offset(20)
+);
+```
+
+Generated SQL (SQL:2008 standard, works on PostgreSQL, H2, Oracle 12c+, SQL Server 2012+):
+
+```sql
+SELECT …
+FROM users
+ORDER BY last_name ASC
+OFFSET 20 ROWS
+FETCH NEXT 10 ROWS ONLY
+```
+
+Rules:
+- `limit(n)` — `n` must be > 0, otherwise throws `NativSQLException`.
+- `offset(n)` — `n` must be >= 0. `offset(0)` is a no-op (no SQL output).
+- When only `limit` is set, generates `FETCH FIRST n ROWS ONLY`.
+- Always combine with `ORDER BY` for deterministic results.
+
+---
+
 ## Logging
 
 NativSQL logs all DB operations via SLF4J at INFO level under `ovh.heraud.nativsql.repository.DbOperationLogger`:

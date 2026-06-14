@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Dot-notation column paths in `whereAnd*` methods of `FindQuery`** — filter on joined table columns without writing raw SQL: `whereAndEquals("group.name", "Admins")` produces `WHERE user_group.name = :groupName`. All existing WHERE methods (`whereAndEquals`, `whereAndIn`, `whereAndOperator`, `whereAndColumnOperator`, `whereAndRange`) accept the `"assoc.column"` form. Column names are camelCase and converted to snake_case automatically. Only one level of nesting is supported; `"a.b.col"` throws `NativSQLException`. See [User Guide](USERGUIDE.md#filtering-on-joined-table-columns) for details.
+- **Pagination on `FindQuery`** — `limit(int)` and `offset(int)` fluent methods for paginating results using SQL:2008 standard syntax (`FETCH FIRST n ROWS ONLY` / `OFFSET m ROWS`), compatible with PostgreSQL, H2, Oracle 12c+, and SQL Server 2012+. See [User Guide](USERGUIDE.md#pagination) for details.
 
 ## [2.5.0] - 2026-06-12
 
