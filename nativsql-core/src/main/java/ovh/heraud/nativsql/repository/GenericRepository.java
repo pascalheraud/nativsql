@@ -29,6 +29,7 @@ import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
 import ovh.heraud.nativsql.util.Association;
+import ovh.heraud.nativsql.util.CountQuery;
 import ovh.heraud.nativsql.util.DeleteQuery;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.Fields;
@@ -457,6 +458,36 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     public void deleteAllByProperty(String property, Object value) {
         deleteAll(newDeleteQuery().whereAndEquals(property, value));
+    }
+
+    /**
+     * Counts the rows matching the given query.
+     * Returns 0 when no rows match — never throws based on the result count.
+     */
+    protected long count(CountQuery<T, ID> query) {
+        String sql = query.buildString(identifierConverter);
+        Map<String, Object> params = convertParamsToSqlValues(query.getParameters());
+        return dbOperationLogger.execute(getClass(), "count", "SELECT", getTableName(), sql, params,
+                () -> jdbcTemplate.queryForObject(sql, params, Long.class));
+    }
+
+    /**
+     * Counts every row in the table (no WHERE conditions).
+     */
+    public long countAll() {
+        return count(newCountQuery());
+    }
+
+    /**
+     * Counts rows where the given property equals the given value.
+     */
+    public final long countByProperty(Getter<T> getter, Object value) {
+        return count(newCountQuery().whereAndEquals(getter, value));
+    }
+
+    /** @see #countByProperty(Getter, Object) */
+    public long countByProperty(String property, Object value) {
+        return count(newCountQuery().whereAndEquals(property, value));
     }
 
     /**
@@ -1156,6 +1187,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     protected DeleteQuery<T, ID> newDeleteQuery() {
         return DeleteQuery.of(this);
+    }
+
+    protected CountQuery<T, ID> newCountQuery() {
+        return CountQuery.of(this);
     }
 
     // ==================== Private Helper Methods ====================
