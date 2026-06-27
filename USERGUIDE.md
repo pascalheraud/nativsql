@@ -212,6 +212,17 @@ List<User> users = userRepository.findAllByProperty("status",
 List<User> users = userRepository.findAllByIds(List.of(1L, 2L, 3L), "id", "firstName");
 ```
 
+### Count
+
+```java
+// Count every row in the table
+long total = userRepository.countAll();
+
+// Count rows by property
+long activeCount = userRepository.countByProperty("status", UserStatus.ACTIVE);
+long activeCount2 = userRepository.countByProperty(User::getStatus, UserStatus.ACTIVE);
+```
+
 **The property list is mandatory for all `find*`, `insert`, and `update` methods** — passing an empty list throws `NativSQLException`. A `null` field value included in the list is written as `NULL`; a null value in a condition generates `IS NULL`.
 
 > **Best practice — keep column lists in the caller, not in the repository.** Repository methods that hard-code a column list decide for every caller which fields are loaded, which can force unnecessary columns to be fetched or require duplicating the method for different use cases. Prefer passing the column list as a parameter so callers can select only what they need:
@@ -370,7 +381,9 @@ Both bounds are required — passing `null` throws `NativSQLException`. Paramete
 
 ### Custom SQL expressions
 
-`whereExpression` is designed for composite types or other non-standard column access. Multiple calls accumulate — each expression is AND-ed with the others:
+`whereExpression` is designed for composite types or other non-standard column access. Multiple calls accumulate — each expression is AND-ed with the others.
+
+> **Important:** `whereExpression` always generates an equality condition (`expression = :paramName`). It does **not** support custom operators. For `<`, `<=`, `>`, `>=`, `<>`, `LIKE` — use `whereAndOperator` instead.
 
 ```java
 // PostgreSQL composite type
