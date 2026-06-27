@@ -345,4 +345,15 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 .offset(offset));
     }
 
+    public long countByStatuses(List<UserStatus> statuses) {
+        return count(newCountQuery()
+                .whereAndIn(User::getStatus, statuses));
+    }
+
+    public long countByEmailAndStatus(String email, UserStatus status) {
+        return count(newCountQuery()
+                .whereAndEquals(User::getEmail, email)
+                .whereAndEquals(User::getStatus, status));
+    }
+
 }
