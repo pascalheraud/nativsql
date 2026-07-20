@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.8.0] - 2026-07-20
 
+### Added
+
+- **`ExistsQuery` builder and `exists()`** — tests whether at least one row matches a set of WHERE conditions using a real dialect-specific `EXISTS` statement (not `count(...) > 0`), so it short-circuits on the first match. Exposed via `exists(ExistsQuery)` and convenience methods `existsAny` / `existsByProperty`. Renamed the internal `AbstractWhereQuery` base class to `WhereQuery` (pure rename, no behavior change) so `FindQuery`, `DeleteQuery`, `CountQuery`, and the new `ExistsQuery` all extend it. See [User Guide](USERGUIDE.md#exists) and [doc/issues/99-exists-query/spec.md](doc/issues/99-exists-query/spec.md) for details.
+
 ### Fixed
 
 - **`findById` / `findAllByIds` now always set the entity id** — even when the `id` column is not explicitly included in the requested properties, since it is already known (it's the lookup criterion itself). See [doc/issues/92-findbyid-sets-id/spec.md](doc/issues/92-findbyid-sets-id/spec.md).

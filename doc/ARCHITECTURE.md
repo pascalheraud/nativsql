@@ -130,21 +130,23 @@ String formatParameter(String paramName, Map<ParamKey, Object> params);
 
 ## Query builders — FindQuery and DeleteQuery
 
-`FindQuery` and `DeleteQuery` are WHERE-clause builders used to construct typed SQL queries without raw string concatenation. Both are created via protected factory methods on `GenericRepository` and accept either string column names or type-safe getter references.
+`FindQuery` and `DeleteQuery` are WHERE-clause builders used to construct typed SQL queries without raw string concatenation. Both are created via protected factory methods on `GenericRepository` and accept either string column names or type-safe getter references. `CountQuery` and `ExistsQuery` are two further sibling builders under the same base class, generating `SELECT COUNT(*) FROM ...` and `SELECT 1 FROM ...` (dialect-wrapped into `EXISTS` by `GenericRepository.exists(...)`) respectively.
 
 ### Class hierarchy
 
 ```
-AbstractWhereQuery<T, ID, Self>   (ovh.heraud.nativsql.util)
-  ├── FindQuery<T, ID>              extends AbstractWhereQuery<T,ID,FindQuery<T,ID>>
-  └── DeleteQuery<T, ID>            extends AbstractWhereQuery<T,ID,DeleteQuery<T,ID>>
+WhereQuery<T, ID, Self>   (ovh.heraud.nativsql.util)
+  ├── FindQuery<T, ID>              extends WhereQuery<T,ID,FindQuery<T,ID>>
+  ├── DeleteQuery<T, ID>            extends WhereQuery<T,ID,DeleteQuery<T,ID>>
+  ├── CountQuery<T, ID>             extends WhereQuery<T,ID,CountQuery<T,ID>>
+  └── ExistsQuery<T, ID>            extends WhereQuery<T,ID,ExistsQuery<T,ID>>
 ```
 
-`AbstractWhereQuery` uses the CRTP pattern (`Self` parameter) so that all fluent WHERE methods return the correct concrete type without casting. It holds the `WhereClause`, `GenericRepository`, and `AnnotationManager` references, and provides all WHERE methods and `getParameters()`.
+`WhereQuery` uses the CRTP pattern (`Self` parameter) so that all fluent WHERE methods return the correct concrete type without casting. It holds the `WhereClause`, `GenericRepository`, and `AnnotationManager` references, and provides all WHERE methods and `getParameters()`.
 
-**`FindQuery<T, ID>`** (`newFindQuery()`) — builds `SELECT` statements. Adds `.select(...)`, `.leftJoin(...)`, `.innerJoin(...)`, `.associate(...)`, `.orderBy(...)` on top of the WHERE methods inherited from `AbstractWhereQuery`. Passed directly to `find()` (single result) or `findAll()` (list).
+**`FindQuery<T, ID>`** (`newFindQuery()`) — builds `SELECT` statements. Adds `.select(...)`, `.leftJoin(...)`, `.innerJoin(...)`, `.associate(...)`, `.orderBy(...)` on top of the WHERE methods inherited from `WhereQuery`. Passed directly to `find()` (single result) or `findAll()` (list).
 
-**`DeleteQuery<T, ID>`** (`newDeleteQuery()`) — builds `DELETE` statements. Inherits all WHERE methods from `AbstractWhereQuery`. Entry points:
+**`DeleteQuery<T, ID>`** (`newDeleteQuery()`) — builds `DELETE` statements. Inherits all WHERE methods from `WhereQuery`. Entry points:
 - `delete(DeleteQuery)` — expects exactly 1 deleted row; throws `NativSQLException` otherwise
 - `deleteAll(DeleteQuery)` — deletes 0 or N rows with no row count validation
 
@@ -193,8 +195,8 @@ public interface JoinResolver {
 
 Called in three places to keep SQL and parameter map consistent:
 - `WhereClause.buildConditionStrings()` — produces `:groupName` in SQL
-- `AbstractWhereQuery.getParameters()` — produces `{"groupName": value}` map key
-- `AbstractWhereQuery.whereAndRange()` — derives `camelBase` for `Low`/`High` suffix params
+- `WhereQuery.getParameters()` — produces `{"groupName": value}` map key
+- `WhereQuery.whereAndRange()` — derives `camelBase` for `Low`/`High` suffix params
 
 ### Operator enums
 

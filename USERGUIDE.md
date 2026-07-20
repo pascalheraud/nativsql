@@ -241,6 +241,26 @@ long activeCount2 = userRepository.countByProperty(User::getStatus, UserStatus.A
 >
 > Hard-coding column lists inside the repository is not forbidden — it is reasonable for queries where the column set is tightly coupled to the query's purpose (e.g. a statistics projection or a join with a fixed shape).
 
+### Exists
+
+```java
+// Test whether the table has any row at all
+boolean anyUser = userRepository.existsAny();
+
+// Test existence by property
+boolean hasActive = userRepository.existsByProperty("status", UserStatus.ACTIVE);
+boolean hasActive2 = userRepository.existsByProperty(User::getStatus, UserStatus.ACTIVE);
+```
+
+`exists()` uses a real SQL `EXISTS` (`SELECT EXISTS(SELECT 1 FROM ... WHERE ...)`), not `count(...) > 0` — it short-circuits on the first matching row instead of counting every match, which matters on large tables. For a custom set of conditions, build an `ExistsQuery` inside the repository (like `FindQuery`/`CountQuery`, `ExistsQuery` must not be exposed publicly — add a named wrapper method):
+
+```java
+public boolean hasValidatedUser() {
+    return exists(newExistsQuery()
+        .whereAndEquals("validated", true));
+}
+```
+
 ---
 
 ## Querying with FindQuery

@@ -4,7 +4,8 @@ import java.util.List;
 import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.oracle.User;
-import ovh.heraud.nativsql.domain.oracle.UserReport;import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.oracle.UserReport;
+import ovh.heraud.nativsql.domain.oracle.UserStatus;import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities using Oracle.
@@ -184,6 +185,30 @@ public class OracleUserRepository extends OracleRepository<User, Long> {
         params.put("userId", userId);
         params.put("nullParam", nullParam); // This is null - tests null handling
         return findAllExternal(sql, params, User.class);
+    }
+
+    /**
+     * Tests whether any user exists with one of the given statuses.
+     *
+     * @param statuses the statuses to filter on
+     * @return true if at least one user matches
+     */
+    public boolean existsByStatuses(List<UserStatus> statuses) {
+        return exists(newExistsQuery()
+                .whereAndIn(User::getStatus, statuses));
+    }
+
+    /**
+     * Tests whether any user exists matching the given email and status.
+     *
+     * @param email  the user email
+     * @param status the user status
+     * @return true if at least one user matches
+     */
+    public boolean existsByEmailAndStatus(String email, UserStatus status) {
+        return exists(newExistsQuery()
+                .whereAndEquals(User::getEmail, email)
+                .whereAndEquals(User::getStatus, status));
     }
 
 }

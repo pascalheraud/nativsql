@@ -274,4 +274,17 @@ public class GenericDialect extends AbstractChainedDialect {
     public <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn) {
         return (ID) (keys.get(idColumn));
     }
+
+    @Override
+    public String buildExistsQuery(String innerSelectOne) {
+        return "SELECT EXISTS(" + innerSelectOne + ")";
+    }
+
+    @Override
+    public boolean extractExistsResult(Object rawResult) {
+        if (rawResult instanceof Boolean booleanResult) {
+            return booleanResult;
+        }
+        return ((Number) rawResult).intValue() != 0;
+    }
 }
