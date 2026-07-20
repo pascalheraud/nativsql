@@ -522,6 +522,65 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
         }
 
         @Test
+        void testFindByIdSetsIdEvenWhenNotRequested() {
+                // Given
+                User user = User.builder()
+                                .firstName("Alice")
+                                .lastName("Martin")
+                                .email("alice.martin@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .address(new Address("1 Rue de Paris", "Paris", "75001", "France"))
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "address");
+
+                // When - id not requested in the column list
+                User found = userRepository.findById(user.getId(), "firstName");
+
+                // Then
+                assertThat(found.getId()).isEqualTo(user.getId());
+                assertThat(found.getFirstName()).isEqualTo("Alice");
+        }
+
+        @Test
+        void testFindAllByIdsSetsIdEvenWhenNotRequested() {
+                // Given
+                User user1 = User.builder()
+                                .firstName("Bob")
+                                .lastName("Dupont")
+                                .email("bob.dupont@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .address(new Address("2 Rue de Lyon", "Lyon", "69000", "France"))
+                                .build();
+                userRepository.insert(user1, "firstName", "lastName", "email", "status", "address");
+
+                User user2 = User.builder()
+                                .firstName("Carla")
+                                .lastName("Nunez")
+                                .email("carla.nunez@example.com")
+                                .status(UserStatus.INACTIVE)
+                                .address(new Address("3 Rue de Nice", "Nice", "06000", "France"))
+                                .build();
+                userRepository.insert(user2, "firstName", "lastName", "email", "status", "address");
+
+                Long userId1 = user1.getId();
+                Long userId2 = user2.getId();
+
+                // When - id not requested in the column list
+                List<User> foundUsers = userRepository.findAllByIds(
+                                List.of(userId1, userId2),
+                                "firstName");
+
+                // Then
+                assertThat(foundUsers).hasSize(2);
+                assertThat(foundUsers)
+                                .extracting(User::getId)
+                                .containsExactlyInAnyOrder(userId1, userId2);
+                assertThat(foundUsers)
+                                .extracting(User::getFirstName)
+                                .containsExactlyInAnyOrder("Bob", "Carla");
+        }
+
+        @Test
         void testFindByExternalId() {
                 // Given - Create a user with external ID
                 UUID externalId = UUID.randomUUID();
