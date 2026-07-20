@@ -208,8 +208,10 @@ User user = userRepository.findByProperty("email", email, "id", "firstName", "em
 List<User> users = userRepository.findAllByProperty("status",
     List.of(UserStatus.ACTIVE, UserStatus.SUSPENDED), "id", "firstName");
 
-// By IDs
-List<User> users = userRepository.findAllByIds(List.of(1L, 2L, 3L), "id", "firstName");
+// By ID(s) — the id is always set on the returned entity/entities,
+// even if "id" is omitted from the requested columns
+User user2 = userRepository.findById(1L, "firstName");
+List<User> users = userRepository.findAllByIds(List.of(1L, 2L, 3L), "firstName");
 ```
 
 ### Count

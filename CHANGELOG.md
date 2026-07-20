@@ -5,6 +5,12 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-07-20
+
+### Fixed
+
+- **`findById` / `findAllByIds` now always set the entity id** — even when the `id` column is not explicitly included in the requested properties, since it is already known (it's the lookup criterion itself). See [doc/issues/92-findbyid-sets-id/spec.md](doc/issues/92-findbyid-sets-id/spec.md).
+
 ## [2.7.0] - 2026-06-27
 
 ### Added

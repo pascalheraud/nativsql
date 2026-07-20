@@ -526,8 +526,23 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
         return find(
                 newFindQuery()
-                        .select(columns)
+                        .select(ensureIdColumnSelected(columns))
                         .whereAndEquals(ID_COLUMN, id));
+    }
+
+    /**
+     * Ensures the id column is part of the given columns, adding it if absent
+     * (case-insensitive comparison against {@link #ID_COLUMN}).
+     */
+    private String[] ensureIdColumnSelected(String[] columns) {
+        for (String column : columns) {
+            if (ID_COLUMN.equalsIgnoreCase(column)) {
+                return columns;
+            }
+        }
+        String[] result = Arrays.copyOf(columns, columns.length + 1);
+        result[columns.length] = ID_COLUMN;
+        return result;
     }
 
     /**
@@ -564,7 +579,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
         return findAll(
                 newFindQuery()
-                        .select(columns)
+                        .select(ensureIdColumnSelected(columns))
                         .whereAndIn(ID_COLUMN, ids));
     }
 
