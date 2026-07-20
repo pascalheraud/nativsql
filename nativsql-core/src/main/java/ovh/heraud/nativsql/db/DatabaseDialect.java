@@ -98,4 +98,16 @@ public interface DatabaseDialect {
          */
             <ID> ID getGeneratedKey(Map<String, Object> keys, String idColumn);
 
+    /**
+     * Wraps an inner "SELECT 1 FROM table [WHERE ...]" fragment into a statement
+     * that returns a single row indicating whether any row matched.
+     */
+    String buildExistsQuery(String innerSelectOne);
+
+    /**
+     * Extracts the boolean result from the raw JDBC scalar returned by the
+     * statement built by buildExistsQuery.
+     */
+    boolean extractExistsResult(Object rawResult);
+
 }

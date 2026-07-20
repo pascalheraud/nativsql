@@ -133,6 +133,22 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
     }
 
     @Override
+    public String buildExistsQuery(String innerSelectOne) {
+        if (nextDialect != null) {
+            return nextDialect.buildExistsQuery(innerSelectOne);
+        }
+        throw new NativSQLException("No dialect found in chain to build exists query");
+    }
+
+    @Override
+    public boolean extractExistsResult(Object rawResult) {
+        if (nextDialect != null) {
+            return nextDialect.extractExistsResult(rawResult);
+        }
+        throw new NativSQLException("No dialect found in chain to extract exists result");
+    }
+
+    @Override
 
     public ITypeMapper<String> getStringMapper() {
         return nextDialect.getStringMapper();

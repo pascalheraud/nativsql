@@ -20,14 +20,14 @@ import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
  * @param <ID>   the entity ID type
  * @param <Self> the concrete subclass type for fluent chaining
  */
-public abstract class AbstractWhereQuery<T extends IEntity<ID>, ID, Self extends AbstractWhereQuery<T, ID, Self>>
+public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQuery<T, ID, Self>>
         implements SQLBuilder {
 
     protected final GenericRepository<T, ID> repository;
     protected final AnnotationManager annotationManager;
     protected final WhereClause whereClause = new WhereClause();
 
-    protected AbstractWhereQuery(GenericRepository<T, ID> repository) {
+    protected WhereQuery(GenericRepository<T, ID> repository) {
         this.repository = repository;
         this.annotationManager = repository.getAnnotationManager();
     }

@@ -19,9 +19,9 @@ import ovh.heraud.nativsql.repository.GenericRepository;
 
 /**
  * Verifies that whereAndEquals and whereAndIn still work correctly on both
- * FindQuery and DeleteQuery after the AbstractWhereQuery refacto.
+ * FindQuery and DeleteQuery after the WhereQuery refacto.
  */
-class AbstractWhereQueryRefactoTest {
+class WhereQueryRefactoTest {
 
     @Mock
     private GenericRepository<TestEntity, Long> mockRepository;

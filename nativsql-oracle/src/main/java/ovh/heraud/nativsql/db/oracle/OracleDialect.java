@@ -64,4 +64,14 @@ public class OracleDialect extends AbstractChainedDialect {
         }
         return (ID) value;
     }
+
+    @Override
+    public String buildExistsQuery(String innerSelectOne) {
+        return "SELECT CASE WHEN EXISTS(" + innerSelectOne + ") THEN 1 ELSE 0 END FROM dual";
+    }
+
+    @Override
+    public boolean extractExistsResult(Object rawResult) {
+        return ((Number) rawResult).intValue() != 0;
+    }
 }

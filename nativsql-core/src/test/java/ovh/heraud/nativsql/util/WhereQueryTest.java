@@ -21,10 +21,10 @@ import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.repository.GenericRepository;
 
 /**
- * Tests for the new WHERE operator methods added to AbstractWhereQuery.
+ * Tests for the new WHERE operator methods added to WhereQuery.
  * Uses FindQuery as the concrete subclass.
  */
-class AbstractWhereQueryTest {
+class WhereQueryTest {
 
     @Mock
     private GenericRepository<TestEntity, Long> mockRepository;

@@ -30,6 +30,7 @@ import ovh.heraud.nativsql.mapper.ITypeMapper;
 import ovh.heraud.nativsql.mapper.RowMapperFactory;
 import ovh.heraud.nativsql.util.Association;
 import ovh.heraud.nativsql.util.CountQuery;
+import ovh.heraud.nativsql.util.ExistsQuery;
 import ovh.heraud.nativsql.util.DeleteQuery;
 import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.Fields;
@@ -488,6 +489,39 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     /** @see #countByProperty(Getter, Object) */
     public long countByProperty(String property, Object value) {
         return count(newCountQuery().whereAndEquals(property, value));
+    }
+
+    /**
+     * Tests whether at least one row matches the given query's WHERE conditions.
+     * Uses a dialect-specific EXISTS statement — short-circuits on the first
+     * match, unlike count().
+     */
+    protected boolean exists(ExistsQuery<T, ID> query) {
+        String innerSql = query.buildString(identifierConverter);
+        String sql = databaseDialect.buildExistsQuery(innerSql);
+        Map<String, Object> params = convertParamsToSqlValues(query.getParameters());
+        Object raw = dbOperationLogger.execute(getClass(), "exists", "SELECT", getTableName(), sql, params,
+                () -> jdbcTemplate.queryForObject(sql, params, Object.class));
+        return databaseDialect.extractExistsResult(raw);
+    }
+
+    /**
+     * Tests whether at least one row exists in the table (no WHERE conditions).
+     */
+    public boolean existsAny() {
+        return exists(newExistsQuery());
+    }
+
+    /**
+     * Tests whether at least one row exists where the given property equals the given value.
+     */
+    public final boolean existsByProperty(Getter<T> getter, Object value) {
+        return exists(newExistsQuery().whereAndEquals(getter, value));
+    }
+
+    /** @see #existsByProperty(Getter, Object) */
+    public boolean existsByProperty(String property, Object value) {
+        return exists(newExistsQuery().whereAndEquals(property, value));
     }
 
     /**
@@ -1206,6 +1240,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     protected CountQuery<T, ID> newCountQuery() {
         return CountQuery.of(this);
+    }
+
+    protected ExistsQuery<T, ID> newExistsQuery() {
+        return ExistsQuery.of(this);
     }
 
     // ==================== Private Helper Methods ====================

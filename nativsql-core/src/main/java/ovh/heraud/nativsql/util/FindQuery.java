@@ -25,7 +25,7 @@ import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
  * @param <T>  the entity type implementing IEntity
  * @param <ID> the entity ID type
  */
-public class FindQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, ID, FindQuery<T, ID>> {
+public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, FindQuery<T, ID>> {
     private static final String INDENT = "    ";
 
     private final List<String> columns = new ArrayList<>();

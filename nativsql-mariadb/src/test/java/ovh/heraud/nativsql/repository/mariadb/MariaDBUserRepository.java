@@ -191,4 +191,28 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
         return findAllExternal(sql, params, User.class);
     }
 
+    /**
+     * Tests whether any user exists with one of the given statuses.
+     *
+     * @param statuses the statuses to filter on
+     * @return true if at least one user matches
+     */
+    public boolean existsByStatuses(List<UserStatus> statuses) {
+        return exists(newExistsQuery()
+                .whereAndIn(User::getStatus, statuses));
+    }
+
+    /**
+     * Tests whether any user exists matching the given email and status.
+     *
+     * @param email  the user email
+     * @param status the user status
+     * @return true if at least one user matches
+     */
+    public boolean existsByEmailAndStatus(String email, UserStatus status) {
+        return exists(newExistsQuery()
+                .whereAndEquals(User::getEmail, email)
+                .whereAndEquals(User::getStatus, status));
+    }
+
 }

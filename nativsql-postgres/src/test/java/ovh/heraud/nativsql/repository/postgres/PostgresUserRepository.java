@@ -356,4 +356,15 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 .whereAndEquals(User::getStatus, status));
     }
 
+    public boolean existsByStatuses(List<UserStatus> statuses) {
+        return exists(newExistsQuery()
+                .whereAndIn(User::getStatus, statuses));
+    }
+
+    public boolean existsByEmailAndStatus(String email, UserStatus status) {
+        return exists(newExistsQuery()
+                .whereAndEquals(User::getEmail, email)
+                .whereAndEquals(User::getStatus, status));
+    }
+
 }

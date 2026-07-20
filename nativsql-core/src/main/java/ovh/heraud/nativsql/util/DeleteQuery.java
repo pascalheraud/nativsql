@@ -4,7 +4,7 @@ import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.GenericRepository;
 
-public class DeleteQuery<T extends IEntity<ID>, ID> extends AbstractWhereQuery<T, ID, DeleteQuery<T, ID>> {
+public class DeleteQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, DeleteQuery<T, ID>> {
 
     private DeleteQuery(GenericRepository<T, ID> repository) {
         super(repository);
