@@ -1223,6 +1223,65 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                 () -> findAllExternal(sql, params, entityClass));
     }
 
+    /**
+     * Finds a single entity using a complex FindQuery builder, mapping the result
+     * into a subtype of the entity (e.g. a "report" class that extends the entity
+     * with extra computed fields via {@link FindQuery#selectExpression}).
+     * Loads associations if specified in the query using batch loading.
+     *
+     * @param <R>         the result type, a subtype of T
+     * @param query       the FindQuery builder with search criteria
+     * @param resultClass the class to map the result into
+     * @return the first matching entity or null if not found
+     */
+    protected <R extends T> R find(FindQuery<T, ID> query, Class<R> resultClass) {
+        // Build SQL query using FindQuery
+        String sql = query.buildString(identifierConverter);
+
+        // Get parameters with SQL conversion
+        Map<String, Object> params = query.getParameters();
+
+        // Execute query with joins for nested object mapping
+        List<R> results = dbOperationLogger.execute(getClass(), "SELECT", getTableName(), sql, params,
+                () -> findAllExternal(sql, params, resultClass));
+
+        R entity = getFirstOrNull(results);
+        if (entity == null) {
+            return null;
+        }
+
+        // Load associations for multiple linked entities using batch loading
+        if (query.hasAssociations()) {
+            loadAssociationsInBatch(List.of(entity), query.getAssociations());
+        }
+
+        return entity;
+    }
+
+    /**
+     * Finds entities using a complex FindQuery builder, mapping each result into
+     * a subtype of the entity (e.g. a "report" class that extends the entity with
+     * extra computed fields via {@link FindQuery#selectExpression}).
+     * Does NOT load associations to avoid N+1 queries.
+     *
+     * @param <R>         the result type, a subtype of T
+     * @param query       the FindQuery builder with search criteria
+     * @param resultClass the class to map each result into
+     * @return the list of matching entities mapped into resultClass
+     */
+    protected <R extends T> List<R> findAll(FindQuery<T, ID> query, Class<R> resultClass) {
+        // Build SQL query using FindQuery
+        String sql = query.buildString(identifierConverter);
+
+        // Get parameters with SQL conversion
+        Map<String, Object> params = query.getParameters();
+
+        // Execute query with joins for nested object mapping (no association loading to
+        // avoid N+1)
+        return dbOperationLogger.execute(getClass(), "SELECT", getTableName(), sql, params,
+                () -> findAllExternal(sql, params, resultClass));
+    }
+
     // ==================== Protected Helper Methods ====================
 
     /**
@@ -1424,7 +1483,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param associations list of associations to load with their column
      *                     configurations
      */
-    private void loadAssociationsInBatch(List<T> entities, List<Association> associations) {
+    private void loadAssociationsInBatch(List<? extends T> entities, List<Association> associations) {
         if (applicationContext == null || entities.isEmpty() || associations.isEmpty()) {
             return;
         }
@@ -1440,7 +1499,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * @param entities    the list of entities to load the association for
      * @param association the association configuration
      */
-    private <SUBT extends IEntity<ID>> void loadAssociationInBatch(List<T> entities,
+    private <SUBT extends IEntity<ID>> void loadAssociationInBatch(List<? extends T> entities,
             Association association) {
         FieldAccessor<List<SUBT>> fieldAccessor = entityFields.get(association.getName());
         OneToManyAssociation associationAnnotation = annotationManager.getOneToManyInfo(fieldAccessor);

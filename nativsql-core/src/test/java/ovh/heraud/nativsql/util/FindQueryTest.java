@@ -71,21 +71,6 @@ class FindQueryTest {
     }
 
     @Test
-    void testSelectWithList() {
-        List<String> columns = Arrays.asList("id", "firstName", "lastName");
-        findQuery.select(columns);
-
-        String sql = findQuery.buildString(identifierConverter);
-        assertThat(sql).isEqualTo("""
-                SELECT
-                    test_entity.id AS "id",
-                    test_entity.first_name AS "firstName",
-                    test_entity.last_name AS "lastName"
-                FROM test_entity
-                """);
-    }
-
-    @Test
     void testSelectAccumulatesColumns() {
         findQuery.select("id", "name")
                 .select("email", "status");
@@ -126,20 +111,6 @@ class FindQueryTest {
     @Test
     void testSelectThrowsWhenColumnsNullVarargs() {
         assertThatThrownBy(() -> findQuery.select((String[]) null))
-                .isInstanceOf(NativSQLException.class)
-                .hasMessage("Column list cannot be empty");
-    }
-
-    @Test
-    void testSelectThrowsWhenListEmpty() {
-        assertThatThrownBy(() -> findQuery.select(List.of()))
-                .isInstanceOf(NativSQLException.class)
-                .hasMessage("Column list cannot be empty");
-    }
-
-    @Test
-    void testSelectThrowsWhenListNull() {
-        assertThatThrownBy(() -> findQuery.select((List<String>) null))
                 .isInstanceOf(NativSQLException.class)
                 .hasMessage("Column list cannot be empty");
     }
@@ -438,33 +409,12 @@ class FindQueryTest {
     }
 
     @Test
-    void testAssociateWithList() {
-        List<String> columns = Arrays.asList("id", "email", "phone");
-        findQuery.select("id")
-                .associate("contacts", columns);
-
-        assertThat(findQuery.getAssociations()).hasSize(1);
-    }
-
-    @Test
     void testMultipleAssociations() {
         findQuery.select("id")
                 .associate("contacts", "id", "email")
                 .associate("orders", "id", "amount");
 
         assertThat(findQuery.getAssociations()).hasSize(2);
-    }
-
-    @Test
-    void testGetAssociationNames() {
-        findQuery.select("id")
-                .associate("contacts", "id", "email")
-                .associate("orders", "id", "amount");
-
-        String[] names = findQuery.getAssociationNames();
-        assertThat(names)
-                .hasSize(2)
-                .containsExactly("contacts", "orders");
     }
 
     @Test
@@ -487,25 +437,6 @@ class FindQueryTest {
                 """);
 
         assertThat(findQuery.hasJoins()).isFalse();
-    }
-
-    @Test
-    void testGetJoinsReturnsCopy() {
-        findQuery.select("id");
-
-        String sql = findQuery.buildString(identifierConverter);
-        assertThat(sql).isEqualTo("""
-                SELECT
-                    test_entity.id AS "id"
-                FROM test_entity
-                """);
-
-        List<Join> joins1 = findQuery.getJoins();
-        List<Join> joins2 = findQuery.getJoins();
-
-        assertThat(joins1)
-                .isNotSameAs(joins2)
-                .isEmpty();
     }
 
     // ==================== Table and Repository ====================
@@ -603,8 +534,6 @@ class FindQueryTest {
                 """);
 
         assertThat(query).isNotNull();
-        assertThat(query.getColumns()).hasSize(3);
-        assertThat(query.getWhereConditions()).hasSize(2);
         assertThat(query.getAssociations()).hasSize(1);
     }
 

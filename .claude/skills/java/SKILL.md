@@ -75,6 +75,86 @@ if (mapper instanceof AbstractTypeMapper<ID> m) { ... }
 
 - Do not annotate primitive types (they cannot be null)
 
+## Repository query encapsulation
+
+`FindQuery`, `DeleteQuery`, `CountQuery`, `ExistsQuery` (and their protected factories
+`newFindQuery()`/`newDeleteQuery()`/`newCountQuery()`/`newExistsQuery()`, and the public static
+`FindQuery.of(repository)`) are repository-internal implementation details, not application-facing
+API. Building and executing one — the WHERE conditions, joins, associations, ordering, limit/offset
+— is always done *inside* a named method on the repository subclass, never by calling code (a
+service, a controller, another repository) that receives or assembles the query object itself.
+
+The one exception is the **column list**: it is still a *parameter* of that named method
+(`String... columns` / `Getter<T>... columns`, or `String[]` when a method needs more than one
+column list — see the ordering rule below), supplied by the caller, exactly like
+`findByProperty`/`findAllByProperty` already do — the repository builds the query around
+caller-supplied columns, it does not decide them. This avoids fetching columns a given caller
+doesn't need. Hard-coding the column list inside the repository is only reasonable when it's
+intrinsic to the query's shape (e.g. `selectExpression(...)`-based statistics/report projections
+where the computed column always accompanies a fixed base-column set).
+
+Never use `List<String>` for a column-list *parameter* on a repository method — a `String[]`
+argument is directly assignable to a `String... columns` parameter, so wrapping it in `List.of(...)`
+before passing it to `FindQuery`/`.select(...)`/`.leftJoin(...)`/`.associate(...)` is unnecessary
+(those `FindQuery` methods themselves only expose `String...`/`Getter<T>...` overloads — the
+`List<String>` overloads were removed as dead API). `List<String>` remains the right type for
+*internal* storage (the `columns` field on `FindQuery`, `Association`, `Join`, etc.) — this rule is
+only about the public parameter shape callers see.
+
+```java
+// Wrong — the query object itself leaks into calling code
+FindQuery<User, Long> query = FindQuery.of(userRepository)
+        .select("id", "firstName", "email")
+        .whereAndEquals("status", UserStatus.ACTIVE);
+List<User> users = userRepository.findAll(query);
+
+// Wrong — encapsulated, but the repository hard-codes the columns for every caller
+public List<User> findActiveUsers() {
+    return findAll(newFindQuery()
+            .select("id", "firstName", "email")
+            .whereAndEquals("status", UserStatus.ACTIVE));
+}
+
+// Right — query construction/execution stays inside the repository,
+// but the caller still picks its own columns
+public List<User> findActiveUsers(String... columns) {
+    return findAll(newFindQuery()
+            .select(columns)
+            .whereAndEquals("status", UserStatus.ACTIVE));
+}
+
+List<User> users = userRepository.findActiveUsers("id", "firstName", "email");
+```
+
+When a method needs several column lists — the repository's own entity plus one or more
+joined/associated entities — the **last parameter is always the `String... columns` varargs for
+the repository's own entity**; every other column list (joined/associated entity) is an earlier
+`String[]` parameter — only the trailing, entity-owning list is a vararg, matching the existing
+`findByProperty(..., OrderBy orderBy, String... columns)`-style ordering:
+
+```java
+public User findByIdWithGroup(Long userId, String[] groupColumns, String... columns) {
+    return find(newFindQuery()
+            .select(columns)
+            .whereAndEquals("id", userId)
+            .leftJoin("group", List.of(groupColumns)));
+}
+```
+
+**Why:** the join/association shape and WHERE conditions are part of the repository's internal
+query-building logic and must not leak — that was explicitly rejected by the user when a generic
+public passthrough appeared during the CountQuery feature (issue #87). The column list is
+different: it doesn't leak SQL shape, and hard-coding it forces every caller to fetch the same
+fixed set of columns, which can mean unnecessary columns are always loaded or the method has to be
+duplicated per use case.
+
+**How to apply:** add a narrowly-scoped public method named after what it returns/does (e.g.
+`findActiveUsers(String... columns)`, `findUserActivityReports()`, `countByStatuses(...)`) that
+builds and executes the query internally, taking the column list as a parameter unless the query
+is a fixed-shape projection. This applies everywhere a query builder appears — production code,
+docs, and tests alike (tests already codify the builder-encapsulation half in
+`.claude/skills/tests/SKILL.md`).
+
 ## Interface design
 
 Do not use `default` methods in interfaces unless explicitly requested. Abstract behavior belongs in abstract classes (`AbstractTypeMapper`, etc.), not in interface defaults.

@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.util;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
@@ -29,6 +30,7 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     private static final String INDENT = "    ";
 
     private final List<String> columns = new ArrayList<>();
+    private final List<ExpressionColumn> expressionColumns = new ArrayList<>();
     private final OrderBy orderBy = new OrderBy();
     private final List<Association> associations = new ArrayList<>();
     private final List<Join> joins = new ArrayList<>();
@@ -96,6 +98,14 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
         if (cols == null || cols.length == 0) {
             throw new NativSQLException("Column list cannot be empty");
         }
+        for (String col : cols) {
+            boolean collidesWithExpression = expressionColumns.stream()
+                    .anyMatch(e -> e.getAlias().equals(col));
+            if (collidesWithExpression) {
+                throw new NativSQLException(
+                        "Column '" + col + "' collides with a selectExpression(...) alias of the same name");
+            }
+        }
         columns.addAll(Arrays.asList(cols));
         return this;
     }
@@ -112,17 +122,75 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds column(s) to the SELECT clause from a list.
+     * Adds a raw SQL expression to the SELECT clause, aliased with {@code AS "alias"}.
+     * The literal token {@code {{table}}}, if present in {@code sqlExpression}, is
+     * substituted with this query's table name when the SQL is built.
      *
-     * @param cols the columns to select (must not be empty)
-     * @throws NativSQLException if cols is null or empty
+     * @param alias         the column alias (must not be null or blank)
+     * @param sqlExpression the raw SQL expression (must not be null or blank)
+     * @throws NativSQLException if alias/sqlExpression is blank, if alias is already
+     *                            used by another expression or by a plain select(...)
+     *                            column
      */
-    public FindQuery<T, ID> select(List<String> cols) {
-        if (cols == null || cols.isEmpty()) {
-            throw new NativSQLException("Column list cannot be empty");
+    public FindQuery<T, ID> selectExpression(String alias, String sqlExpression) {
+        return selectExpression(alias, sqlExpression, Map.of());
+    }
+
+    /**
+     * Adds a raw SQL expression to the SELECT clause, aliased with {@code AS "alias"},
+     * with named parameters merged into the query's parameter map.
+     *
+     * @param alias         the column alias (must not be null or blank)
+     * @param sqlExpression the raw SQL expression (must not be null or blank)
+     * @param params        named parameters referenced by the SQL expression
+     * @throws NativSQLException if alias/sqlExpression is blank, if alias is already
+     *                            used by another expression or by a plain select(...)
+     *                            column
+     */
+    public FindQuery<T, ID> selectExpression(String alias, String sqlExpression, Map<String, Object> params) {
+        if (alias == null || alias.isBlank()) {
+            throw new NativSQLException("Expression alias cannot be null or blank");
         }
-        columns.addAll(cols);
+        if (sqlExpression == null || sqlExpression.isBlank()) {
+            throw new NativSQLException("Expression SQL cannot be null or blank");
+        }
+        boolean duplicateAlias = expressionColumns.stream().anyMatch(e -> e.getAlias().equals(alias));
+        if (duplicateAlias) {
+            throw new NativSQLException("Duplicate expression alias '" + alias + "'");
+        }
+        if (columns.contains(alias)) {
+            throw new NativSQLException(
+                    "Expression alias '" + alias + "' collides with a plain select(...) column of the same name");
+        }
+        expressionColumns.add(new ExpressionColumn(alias, sqlExpression, params == null ? Map.of() : params));
         return this;
+    }
+
+    /**
+     * Adds a raw SQL expression to the SELECT clause using a getter method reference
+     * to derive the alias.
+     *
+     * @param aliasGetter   the getter method reference used only to derive the alias
+     *                      (e.g. ClientReport::getOrderCount)
+     * @param sqlExpression the raw SQL expression (must not be null or blank)
+     */
+    public <R> FindQuery<T, ID> selectExpression(Getter<R> aliasGetter, String sqlExpression) {
+        return selectExpression(ReflectionUtils.getColumnName(aliasGetter), sqlExpression);
+    }
+
+    /**
+     * Adds a raw SQL expression to the SELECT clause using a getter method reference
+     * to derive the alias, with named parameters merged into the query's parameter
+     * map.
+     *
+     * @param aliasGetter   the getter method reference used only to derive the alias
+     *                      (e.g. ClientReport::getOrderCount)
+     * @param sqlExpression the raw SQL expression (must not be null or blank)
+     * @param params        named parameters referenced by the SQL expression
+     */
+    public <R> FindQuery<T, ID> selectExpression(Getter<R> aliasGetter, String sqlExpression,
+            Map<String, Object> params) {
+        return selectExpression(ReflectionUtils.getColumnName(aliasGetter), sqlExpression, params);
     }
 
     /**
@@ -185,17 +253,6 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds an association to load (OneToMany relationship).
-     *
-     * @param associationName the property name of the association
-     * @param columns         the columns to retrieve from the associated entity
-     */
-    public FindQuery<T, ID> associate(String associationName, List<String> columns) {
-        associations.add(new Association(associationName, columns));
-        return this;
-    }
-
-    /**
      * Adds an association to load (OneToMany relationship) using a getter method
      * reference.
      *
@@ -204,18 +261,6 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
      * @param columns the columns to retrieve from the associated entity
      */
     public FindQuery<T, ID> associate(Getter<T> getter, String... columns) {
-        return associate(ReflectionUtils.getColumnName(getter), Arrays.asList(columns));
-    }
-
-    /**
-     * Adds an association to load (OneToMany relationship) using a getter method
-     * reference.
-     *
-     * @param getter  the getter method reference for the association field (e.g.,
-     *                User::getContacts)
-     * @param columns the columns to retrieve from the associated entity
-     */
-    public FindQuery<T, ID> associate(Getter<T> getter, List<String> columns) {
         return associate(ReflectionUtils.getColumnName(getter), columns);
     }
 
@@ -240,26 +285,6 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds a LEFT JOIN for a @MappedBy association (ToOne relationship).
-     * The MappedBy annotation on the field contains the repository of the joined
-     * entity.
-     *
-     * @param associationName the property name of the association field
-     * @param columns         the columns to retrieve from the joined entity
-     */
-    public FindQuery<T, ID> leftJoin(String associationName, List<String> columns) {
-        FieldAccessor<?> fieldAccessor = repository.getEntityFields().get(associationName);
-        MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
-        if (mappedByInfo == null) {
-            throw new NativSQLException(
-                    "Field '" + associationName + "' is not annotated with @MappedBy. Cannot perform join.");
-        }
-        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
-        joins.add(new Join(associationName, columns, true, joinRepository));
-        return this;
-    }
-
-    /**
      * Adds a LEFT JOIN for a @MappedBy association using a getter method reference.
      *
      * @param getter  the getter method reference for the association field (e.g.,
@@ -267,17 +292,6 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
      * @param columns the columns to retrieve from the joined entity
      */
     public FindQuery<T, ID> leftJoin(Getter<T> getter, String... columns) {
-        return leftJoin(ReflectionUtils.getColumnName(getter), columns);
-    }
-
-    /**
-     * Adds a LEFT JOIN for a @MappedBy association using a getter method reference.
-     *
-     * @param getter  the getter method reference for the association field (e.g.,
-     *                User::getGroup)
-     * @param columns the columns to retrieve from the joined entity
-     */
-    public FindQuery<T, ID> leftJoin(Getter<T> getter, List<String> columns) {
         return leftJoin(ReflectionUtils.getColumnName(getter), columns);
     }
 
@@ -302,26 +316,6 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds an INNER JOIN for a @MappedBy association (ToOne relationship).
-     * The MappedBy annotation on the field contains the repository of the joined
-     * entity.
-     *
-     * @param associationName the property name of the association field
-     * @param columns         the columns to retrieve from the joined entity
-     */
-    public FindQuery<T, ID> innerJoin(String associationName, List<String> columns) {
-        FieldAccessor<?> fieldAccessor = repository.getEntityFields().get(associationName);
-        MappedByInfo mappedByInfo = annotationManager.getMappedByInfo(fieldAccessor);
-        if (mappedByInfo == null) {
-            throw new NativSQLException(
-                    "Field '" + associationName + "' is not annotated with @MappedBy. Cannot perform join.");
-        }
-        GenericRepository<?, ?> joinRepository = getRepositoryInstance(mappedByInfo.getRepositoryClass());
-        joins.add(new Join(associationName, columns, false, joinRepository));
-        return this;
-    }
-
-    /**
      * Adds an INNER JOIN for a @MappedBy association using a getter method
      * reference.
      *
@@ -330,18 +324,6 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
      * @param columns the columns to retrieve from the joined entity
      */
     public FindQuery<T, ID> innerJoin(Getter<T> getter, String... columns) {
-        return innerJoin(ReflectionUtils.getColumnName(getter), columns);
-    }
-
-    /**
-     * Adds an INNER JOIN for a @MappedBy association using a getter method
-     * reference.
-     *
-     * @param getter  the getter method reference for the association field (e.g.,
-     *                User::getGroup)
-     * @param columns the columns to retrieve from the joined entity
-     */
-    public FindQuery<T, ID> innerJoin(Getter<T> getter, List<String> columns) {
         return innerJoin(ReflectionUtils.getColumnName(getter), columns);
     }
 
@@ -392,40 +374,10 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Gets the selected columns.
-     */
-    public List<String> getColumns() {
-        return new ArrayList<>(columns);
-    }
-
-    /**
      * Gets the associations to load (OneToMany).
      */
     public List<Association> getAssociations() {
         return new ArrayList<>(associations);
-    }
-
-    /**
-     * Gets the joins (JOINs for @MappedBy associations).
-     */
-    public List<Join> getJoins() {
-        return new ArrayList<>(joins);
-    }
-
-    /**
-     * Gets the WHERE conditions.
-     */
-    public List<Condition> getWhereConditions() {
-        return whereClause.getConditions();
-    }
-
-    /**
-     * Gets an array of association names.
-     */
-    public String[] getAssociationNames() {
-        return associations.stream()
-                .map(Association::getName)
-                .toArray(String[]::new);
     }
 
     /**
@@ -445,6 +397,28 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     @Override
     public void build(StringBuilder sb, IdentifierConverter identifierConverter) {
         buildSql(sb, identifierConverter);
+    }
+
+    /**
+     * Gets the parameters map for the SQL query, merging named parameters from
+     * selectExpression(...) on top of the WHERE-based parameters.
+     *
+     * @return a map of parameter names to values
+     * @throws NativSQLException if an expression parameter name collides with an
+     *                            existing parameter name
+     */
+    @Override
+    public Map<String, Object> getParameters() {
+        Map<String, Object> params = super.getParameters();
+        for (ExpressionColumn ec : expressionColumns) {
+            for (Map.Entry<String, Object> entry : ec.getParams().entrySet()) {
+                if (params.containsKey(entry.getKey())) {
+                    throw new NativSQLException("Duplicate parameter name '" + entry.getKey() + "'");
+                }
+                params.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return params;
     }
 
     /**
@@ -517,6 +491,11 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
             }
         }
 
+        for (ExpressionColumn ec : expressionColumns) {
+            String resolvedSql = ec.getSql().replace("{{table}}", tableName);
+            prefixedColumns.add(String.format("%s AS \"%s\"", resolvedSql, ec.getAlias()));
+        }
+
         return prefixedColumns;
     }
 
@@ -530,6 +509,9 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
      *                            transformation
      */
     private void buildSql(StringBuilder sb, IdentifierConverter identifierConverter) {
+        if (columns.isEmpty() && expressionColumns.isEmpty() && joins.isEmpty()) {
+            throw new NativSQLException("At least one column must be selected");
+        }
         String tableName = repository.getTableName();
         List<String> prefixedColumns = buildPrefixedColumns(identifierConverter, tableName);
 

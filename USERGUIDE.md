@@ -240,6 +240,17 @@ long activeCount2 = userRepository.countByProperty(User::getStatus, UserStatus.A
 > ```
 >
 > Hard-coding column lists inside the repository is not forbidden — it is reasonable for queries where the column set is tightly coupled to the query's purpose (e.g. a statistics projection or a join with a fixed shape).
+>
+> When a method needs several column lists — the repository's own entity plus one or more joined/associated entities — the **last parameter is always the `String... columns` varargs for the repository's own entity**; every other column list (joined/associated entity) is an earlier `String[]` parameter (only the trailing, entity-owning list is a vararg):
+>
+> ```java
+> public User findByIdWithGroup(Long userId, String[] groupColumns, String... columns) {
+>     return find(newFindQuery()
+>         .select(columns)
+>         .whereAndEquals("id", userId)
+>         .leftJoin("group", List.of(groupColumns)));
+> }
+> ```
 
 ### Exists
 
@@ -265,38 +276,51 @@ public boolean hasValidatedUser() {
 
 ## Querying with FindQuery
 
-`FindQuery` is a type-safe builder for SELECT queries.
+`FindQuery` is a type-safe builder for SELECT queries. Like `ExistsQuery`/`DeleteQuery`/`CountQuery`,
+it must never be exposed publicly — `newFindQuery()`, `find(...)`, and `findAll(...)` are `protected`
+and only usable from inside the repository subclass. Build and execute the query behind a named
+wrapper method; the caller only ever sees the method name and its result, never the builder. The
+column list, however, stays a caller-supplied parameter of that method (see the best practice
+above) — it's the query shape (WHERE/JOIN/associations/ordering) that must be encapsulated, not the
+columns:
 
 ```java
 // Simple query with conditions
-List<User> users = userRepository.findAll(
-    userRepository.newFindQuery()
-        .select("id", "firstName", "email")
+public List<User> findActiveUsersInGroup(Long groupId, String... columns) {
+    return findAll(newFindQuery()
+        .select(columns)
         .whereAndEquals("status", UserStatus.ACTIVE)
         .whereAndEquals("groupId", groupId)
-        .orderBy("firstName", "ASC")
-        .build()
-);
+        .orderBy("firstName", "ASC"));
+}
 
 // IN clause
-List<User> users = userRepository.findAll(
-    userRepository.newFindQuery()
-        .select("id", "firstName")
-        .whereAndIn("status", List.of(UserStatus.ACTIVE, UserStatus.SUSPENDED))
-        .build()
-);
+public List<User> findUsersByStatuses(List<UserStatus> statuses, String... columns) {
+    return findAll(newFindQuery()
+        .select(columns)
+        .whereAndIn("status", statuses));
+}
+```
+
+```java
+// Call sites never build the query themselves — they just pick the columns they need
+List<User> users = userRepository.findActiveUsersInGroup(groupId, "id", "firstName", "email");
+List<User> suspended = userRepository.findUsersByStatuses(
+    List.of(UserStatus.ACTIVE, UserStatus.SUSPENDED), "id", "firstName");
 ```
 
 ### JOIN (many-to-one)
 
+The joined entity's columns are a separate `String[]` parameter, with the repository's own
+`String... columns` trailing last (see the multi-column-list ordering rule above):
+
 ```java
-User userWithGroup = userRepository.find(
-    userRepository.newFindQuery()
-        .select("id", "firstName", "email")
+public User findByIdWithGroup(Long userId, String[] groupColumns, String... columns) {
+    return find(newFindQuery()
+        .select(columns)
         .whereAndEquals("id", userId)
-        .leftJoin("group", List.of("id", "name"))  // maps to user.group.id, user.group.name
-        .build()
-);
+        .leftJoin("group", List.of(groupColumns)));  // maps to user.group.<col> for each groupColumns entry
+}
 ```
 
 Requires `@MappedBy` on the domain class — see [Relationships](#relationships).
@@ -307,23 +331,23 @@ Use dot-notation in any `whereAnd*` method to filter on a column of the joined e
 
 ```java
 // Filter on joined column — simple equality
-userRepository.findAll(
-    userRepository.newFindQuery()
-        .select("id", "firstName")
+public List<User> findByGroupName(String groupName, String... columns) {
+    return findAll(newFindQuery()
+        .select(columns)
         .leftJoin("group", "name")
-        .whereAndEquals("group.name", "Admins")  // WHERE user_group.name = :groupName
-);
+        .whereAndEquals("group.name", groupName));  // WHERE user_group.name = :groupName
+}
 
 // Mix main-table and joined-table conditions
-userRepository.findAll(
-    userRepository.newFindQuery()
-        .select("id", "firstName", "status")
+public List<User> findActiveByGroupName(String groupName, String... columns) {
+    return findAll(newFindQuery()
+        .select(columns)
         .leftJoin("group", "name")
         .whereAndEquals("status", UserStatus.ACTIVE)       // WHERE users.status = :status
-        .whereAndEquals("group.name", "Admins")            //   AND user_group.name = :groupName
-);
+        .whereAndEquals("group.name", groupName));         //   AND user_group.name = :groupName
+}
 
-// Other operators work too
+// Other operators work too, inside a repository method
 query.whereAndOperator("group.name", Operator.LIKE, "Admin%")         // user_group.name LIKE :groupName
 query.whereAndColumnOperator("group.deletedAt", ColumnOperator.IS_NULL) // user_group.deleted_at IS NULL
 query.whereAndIn("group.status", List.of("ACTIVE", "PENDING"))        // user_group.status IN (:groupStatus)
@@ -339,16 +363,62 @@ query.whereAndRange("group.age", RangeOperator.BETWEEN, 18, 65)       // user_gr
 ### Association loading (one-to-many)
 
 ```java
-User userWithContacts = userRepository.find(
-    userRepository.newFindQuery()
-        .select("id", "firstName")
+public User findByIdWithContacts(Long userId, String[] contactColumns, String... columns) {
+    return find(newFindQuery()
+        .select(columns)
         .whereAndEquals("id", userId)
-        .associate("contacts", List.of("id", "type", "value"))
-        .build()
-);
+        .associate("contacts", List.of(contactColumns)));
+}
 ```
 
 Executes 2 queries (1 for user + 1 batch for contacts) — no N+1 problem. Requires `@OneToMany` on the domain class.
+
+### Report classes (entity + computed fields)
+
+`selectExpression(alias, sql[, params])` adds a raw SQL expression (optionally a subquery, optionally parameterized) as a SELECT column. Combined with `find(query, resultClass)` / `findAll(query, resultClass)`, this lets a query built against an entity's repository be mapped into a "report" class that **extends the entity**, inheriting all of its fields plus extra computed ones — instead of being restricted to mapping rows back into exactly the entity type.
+
+```java
+public class UserActivityReport extends User {
+    private Long contactCount;
+    // getter/setter
+}
+```
+
+```java
+@Repository
+public class UserRepository extends GenericRepository<User, Long> {
+
+    public List<UserActivityReport> findUserActivityReports(String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .selectExpression("contactCount",
+                        "(SELECT COUNT(*) FROM contact_info c WHERE c.user_id = {{table}}.id)");
+        return findAll(query, UserActivityReport.class);
+    }
+}
+```
+
+```java
+List<UserActivityReport> reports = userRepository.findUserActivityReports("id", "firstName", "email");
+```
+
+```sql
+SELECT
+    users.id AS "id",
+    users.first_name AS "firstName",
+    users.email AS "email",
+    (SELECT COUNT(*) FROM contact_info c WHERE c.user_id = users.id) AS "contactCount"
+FROM users
+```
+
+- The literal token `{{table}}`, if present in the SQL expression, is substituted with the query's own table name — the same value already used to prefix every other column — so a correlated subquery can reference the outer row without hardcoding the table name.
+- A `Getter<R>` overload derives the alias from a method reference (e.g. `.selectExpression(UserActivityReport::getContactCount, "...")`), catching a typo'd field name at compile time.
+- An optional `Map<String, Object>` of named parameters merges into the query's parameter map; a name colliding with a WHERE parameter or another expression throws `NativSQLException`.
+- `find`/`findAll(query, resultClass)` are `protected` overloads of `find(query)`/`findAll(query)`, bounded by `<R extends T>` — checked by the compiler, no runtime reflection. `find(query, resultClass)` still batch-loads `associate(...)` associations; `findAll(query, resultClass)` does not, for the same N+1-avoidance reason as plain `findAll(query)`.
+- `selectExpression` can also be used **alone**, with an alias matching a field the entity already has, to override that field's computed value on a plain `find(query)`/`findAll(query)` (no `resultClass` needed) — e.g. masking a value or computing an "effective" version of a field while keeping the same field name.
+- Calling `select(...)` and `selectExpression(...)` with the same alias/column name throws `NativSQLException` — this only applies when *both* target the same name; using `selectExpression` alone to override an inherited field (previous bullet) is unaffected.
+
+See [doc/issues/98-entity-composition/spec.md](doc/issues/98-entity-composition/spec.md) for the full design rationale.
 
 ---
 
@@ -629,13 +699,18 @@ For multi-datasource Spring setups, inject the `JdbcTemplate` for each datasourc
 Use `limit(int)` and `offset(int)` on `FindQuery` to paginate results:
 
 ```java
-List<User> page = userRepository.findAll(
-    FindQuery.of(userRepository)
-        .select("id", "firstName", "email")
+// inside UserRepository
+public List<User> findPage(int page, int pageSize, String... columns) {
+    return findAll(newFindQuery()
+        .select(columns)
         .orderByAsc("lastName")
-        .limit(10)
-        .offset(20)
-);
+        .limit(pageSize)
+        .offset(page * pageSize));
+}
+```
+
+```java
+List<User> page = userRepository.findPage(2, 10, "id", "firstName", "email");
 ```
 
 Generated SQL (SQL:2008 standard, works on PostgreSQL, H2, Oracle 12c+, SQL Server 2012+):
