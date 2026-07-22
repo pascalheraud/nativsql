@@ -144,7 +144,23 @@ WhereQuery<T, ID, Self>   (ovh.heraud.nativsql.util)
 
 `WhereQuery` uses the CRTP pattern (`Self` parameter) so that all fluent WHERE methods return the correct concrete type without casting. It holds the `WhereClause`, `GenericRepository`, and `AnnotationManager` references, and provides all WHERE methods and `getParameters()`.
 
-**`FindQuery<T, ID>`** (`newFindQuery()`) — builds `SELECT` statements. Adds `.select(...)`, `.leftJoin(...)`, `.innerJoin(...)`, `.associate(...)`, `.orderBy(...)` on top of the WHERE methods inherited from `WhereQuery`. Passed directly to `find()` (single result) or `findAll()` (list).
+**`FindQuery<T, ID>`** (`newFindQuery()`) — builds `SELECT` statements. Adds `.select(...)`, `.selectExpression(...)`, `.leftJoin(...)`, `.innerJoin(...)`, `.associate(...)`, `.orderBy(...)` on top of the WHERE methods inherited from `WhereQuery`. Passed directly to `find()` (single result) or `findAll()` (list) — or to `find(query, resultClass)` / `findAll(query, resultClass)` to map into a subtype `R extends T` (see "Mapping into a subtype" below).
+
+### `selectExpression` — computed SQL-expression columns
+
+`FindQuery.selectExpression(alias, sql[, params])` adds a raw SQL expression to the SELECT clause, stored as an `ExpressionColumn` (`ovh.heraud.nativsql.util`, a `@Data` class with `alias`/`sql`/`params` fields — same one-type-per-file, Lombok-`@Data` convention as sibling `Join`/`Association`) in a dedicated `expressionColumns` list, kept separate from the plain `columns` list. `Getter<R>` overloads derive `alias` via `ReflectionUtils.getColumnName` — `R` is a free type parameter, not tied to `T`, so a getter from a report subtype can be used directly.
+
+- `buildPrefixedColumns` emits each expression as `<resolved-sql> AS "<alias>"`, substituting the literal token `{{table}}` in `sql` with the query's own table name (the same value used to prefix every other column) — this lets a correlated subquery reference the outer row without hardcoding the table name.
+- `select(...)` and `selectExpression(...)` validate against each other: an alias already used by the other throws `NativSQLException`, in both directions (`columns` and `expressionColumns` are checked mutually on every call).
+- `buildSql` throws `NativSQLException` ("At least one column must be selected") if `columns`, `expressionColumns`, and `joins` are all empty.
+- `FindQuery.getParameters()` overrides `WhereQuery.getParameters()` to merge each `ExpressionColumn`'s params on top of the WHERE-based map, throwing `NativSQLException` on a name collision.
+- Row mapping never distinguishes a computed column from a plain one — `GenericRowMapper` only looks at the column label — so `selectExpression(alias, ...)` can be used alone, with `alias` matching a field the mapped class already has, to override that field's value with a computed one (works on a plain `find(query)`/`findAll(query)` too, not just the `resultClass` overloads).
+
+### Mapping into a subtype — `find`/`findAll(query, resultClass)`
+
+`GenericRepository<T, ID>` exposes `protected <R extends T> R find(FindQuery<T, ID> query, Class<R> resultClass)` and `protected <R extends T> List<R> findAll(FindQuery<T, ID> query, Class<R> resultClass)`, mirroring `find(query)`/`findAll(query)` but calling `findAllExternal(sql, params, resultClass)` instead of hardcoding `entityClass`. The `<R extends T>` bound is enforced by the compiler — no runtime reflection check needed, unlike a composition-based design would require. `find(query, resultClass)` still batch-loads associations via `loadAssociationsInBatch` when `query.hasAssociations()` is true; `findAll(query, resultClass)` intentionally does not, for N+1-avoidance parity with `findAll(query)`. Both methods stay `protected`: a `FindQuery` is never exposed publicly — concrete repositories add their own named wrapper method (e.g. `findUserActivityReports()`) that builds the query and calls `findAll(query, SomeReport.class)` internally.
+
+This lets a "report" class that `extends T` (inheriting all of `T`'s fields via `ReflectionUtils.getFields`'s hierarchy walk) be populated with `T`'s own columns plus extra computed fields from `selectExpression(...)`, while still supporting joins and `associate(...)` batch-loading as-is — `loadAssociationsInBatch`'s parameter type is `List<? extends T>` (widened from `List<T>`) specifically to allow this. See [doc/issues/98-entity-composition/spec.md](../doc/issues/98-entity-composition/spec.md) for the full design rationale, including why inheritance was chosen over a composition-based alternative.
 
 **`DeleteQuery<T, ID>`** (`newDeleteQuery()`) — builds `DELETE` statements. Inherits all WHERE methods from `WhereQuery`. Entry points:
 - `delete(DeleteQuery)` — expects exactly 1 deleted row; throws `NativSQLException` otherwise

@@ -8,9 +8,11 @@ import java.util.UUID;
 import org.postgis.Point;
 import ovh.heraud.nativsql.domain.data.IData;
 import ovh.heraud.nativsql.domain.postgres.User;
+import ovh.heraud.nativsql.domain.postgres.UserActivityReport;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
 import ovh.heraud.nativsql.domain.postgres.UserStatus;
 import ovh.heraud.nativsql.util.ColumnOperator;
+import ovh.heraud.nativsql.util.FindQuery;
 import ovh.heraud.nativsql.util.Operator;
 import ovh.heraud.nativsql.util.RangeOperator;
 import org.springframework.stereotype.Repository;
@@ -78,7 +80,7 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 newFindQuery()
                         .select(userColumns)
                         .whereAndEquals("id", userId)
-                        .associate("contacts", List.of(contactColumns)));
+                        .associate("contacts", contactColumns));
     }
 
     /**
@@ -94,7 +96,7 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 newFindQuery()
                         .select(userColumns)
                         .whereAndEquals("id", userId)
-                        .leftJoin("group", List.of(groupColumns)));
+                        .leftJoin("group", groupColumns));
     }
 
     /**
@@ -365,6 +367,60 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
         return exists(newExistsQuery()
                 .whereAndEquals(User::getEmail, email)
                 .whereAndEquals(User::getStatus, status));
+    }
+
+    /**
+     * Finds user activity reports: each user's own fields plus a computed
+     * contact count, mapped into {@link UserActivityReport} (issue #98).
+     *
+     * @param columns the user columns to retrieve
+     */
+    public List<UserActivityReport> findUserActivityReports(String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .selectExpression("contactCount",
+                        "(SELECT COUNT(*) FROM contact_info c WHERE c.user_id = {{table}}.id)");
+        return findAll(query, UserActivityReport.class);
+    }
+
+    /**
+     * Same as {@link #findUserActivityReports(String...)}, combined with a JOIN on the
+     * user's group and batch-loaded contacts (issue #98).
+     *
+     * @param groupColumns   the columns to load for the group
+     * @param contactColumns the columns to load for the contacts association
+     * @param columns        the user columns to retrieve
+     */
+    public List<UserActivityReport> findUserActivityReportsWithGroupAndContacts(
+            String[] groupColumns, String[] contactColumns, String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .leftJoin("group", groupColumns)
+                .selectExpression("contactCount",
+                        "(SELECT COUNT(*) FROM contact_info c WHERE c.user_id = {{table}}.id)")
+                .associate("contacts", contactColumns);
+        return findAll(query, UserActivityReport.class);
+    }
+
+    /**
+     * Singular variant of {@link #findUserActivityReportsWithGroupAndContacts(String[], String[], String...)},
+     * which loads associations (issue #98).
+     *
+     * @param userId         the user ID
+     * @param groupColumns   the columns to load for the group
+     * @param contactColumns the columns to load for the contacts association
+     * @param columns        the user columns to retrieve
+     */
+    public UserActivityReport findUserActivityReportWithGroupAndContacts(
+            Long userId, String[] groupColumns, String[] contactColumns, String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .whereAndEquals("id", userId)
+                .leftJoin("group", groupColumns)
+                .selectExpression("contactCount",
+                        "(SELECT COUNT(*) FROM contact_info c WHERE c.user_id = {{table}}.id)")
+                .associate("contacts", contactColumns);
+        return find(query, UserActivityReport.class);
     }
 
 }

@@ -38,13 +38,9 @@ userRepository.deleteById(userId);
 
 User found = userRepository.findByProperty("email", email, "id", "firstName", "email");
 
-List<User> active = userRepository.findAll(
-    userRepository.newFindQuery()
-        .select("id", "firstName", "email")
-        .whereAndEquals("status", UserStatus.ACTIVE)
-        .orderBy("createdAt", "DESC")
-        .build()
-);
+// Custom queries live behind a named method on the repository — never build
+// FindQuery in calling code (see USERGUIDE.md "Querying with FindQuery")
+List<User> active = userRepository.findActiveUsers();
 ```
 
 ## Supported Databases

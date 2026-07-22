@@ -4,7 +4,10 @@ import java.util.List;
 import java.util.UUID;
 
 import ovh.heraud.nativsql.domain.mysql.User;
-import ovh.heraud.nativsql.domain.mysql.UserReport;import org.springframework.stereotype.Repository;
+import ovh.heraud.nativsql.domain.mysql.UserActivityReport;
+import ovh.heraud.nativsql.domain.mysql.UserReport;
+import ovh.heraud.nativsql.util.FindQuery;
+import org.springframework.stereotype.Repository;
 
 /**
  * Repository for User entities using MySQL.
@@ -71,7 +74,7 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
                 newFindQuery()
                         .select(userColumns)
                         .whereAndEquals("id", userId)
-                        .leftJoin("group", List.of(groupColumns)));
+                        .leftJoin("group", groupColumns));
     }
 
     /**
@@ -174,6 +177,60 @@ public class MySQLUserRepository extends MySQLRepository<User, Long> {
         params.put("userId", userId);
         params.put("nullParam", nullParam); // This is null - tests the bug
         return findAllExternal(sql, params, User.class);
+    }
+
+    /**
+     * Finds user activity reports: each user's own fields plus a computed
+     * contact count, mapped into {@link UserActivityReport} (issue #98).
+     *
+     * @param columns the user columns to retrieve
+     */
+    public List<UserActivityReport> findUserActivityReports(String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .selectExpression("contactCount",
+                        "(SELECT COUNT(*) FROM contact_info c WHERE c.user_id = {{table}}.id)");
+        return findAll(query, UserActivityReport.class);
+    }
+
+    /**
+     * Same as {@link #findUserActivityReports(String...)}, combined with a JOIN on the
+     * user's group and batch-loaded contacts (issue #98).
+     *
+     * @param groupColumns   the columns to load for the group
+     * @param contactColumns the columns to load for the contacts association
+     * @param columns        the user columns to retrieve
+     */
+    public List<UserActivityReport> findUserActivityReportsWithGroupAndContacts(
+            String[] groupColumns, String[] contactColumns, String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .leftJoin("group", groupColumns)
+                .selectExpression("contactCount",
+                        "(SELECT COUNT(*) FROM contact_info c WHERE c.user_id = {{table}}.id)")
+                .associate("contacts", contactColumns);
+        return findAll(query, UserActivityReport.class);
+    }
+
+    /**
+     * Singular variant of {@link #findUserActivityReportsWithGroupAndContacts(String[], String[], String...)},
+     * which loads associations (issue #98).
+     *
+     * @param userId         the user ID
+     * @param groupColumns   the columns to load for the group
+     * @param contactColumns the columns to load for the contacts association
+     * @param columns        the user columns to retrieve
+     */
+    public UserActivityReport findUserActivityReportWithGroupAndContacts(
+            Long userId, String[] groupColumns, String[] contactColumns, String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .whereAndEquals("id", userId)
+                .leftJoin("group", groupColumns)
+                .selectExpression("contactCount",
+                        "(SELECT COUNT(*) FROM contact_info c WHERE c.user_id = {{table}}.id)")
+                .associate("contacts", contactColumns);
+        return find(query, UserActivityReport.class);
     }
 
 }

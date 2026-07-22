@@ -32,3 +32,21 @@ Before implementing or continuing a plan, always:
 2. Ask the user via `AskUserQuestion` which step to start or continue
 
 Never begin implementation without explicit user confirmation.
+
+## Discarding an explored design option
+
+When writing a `spec.md` (or `plan.md`) and an explored design direction is set aside in
+favor of another, move the discarded part into its own file rather than deleting it or
+leaving it mixed into the chosen spec:
+
+- Name the file so its status is obvious from the filename alone, e.g.
+  `spec-<short-description>.rejected.md` (see `doc/issues/98-entity-composition/` for an
+  example). Add a one- or two-line note at the top of that file stating it is a discarded
+  option and, if useful, why.
+- Do **not** reference or link that file's name from the chosen `spec.md`/`plan.md` — no
+  "see spec-x.rejected.md for the alternative". The point of moving it out is to keep it
+  from being read during normal implementation; a link back defeats that. It's fine for the
+  chosen spec to mention *that* an alternative was considered and why it lost (e.g. in a
+  comparison table), just not to name the file it lives in.
+- The discarded file is discoverable by listing the directory if someone deliberately goes
+  looking for it later — that's enough; it doesn't need to be signposted from the main docs.
