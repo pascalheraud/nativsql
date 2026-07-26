@@ -121,6 +121,55 @@ class PostgresWhereJoinedTest extends PostgresRepositoryTest {
     }
 
     @Test
+    void orderByAsc_typed_association_getter_orders_by_joined_group_name() {
+        Long bId = insertGroup("Bravo");
+        Long aId = insertGroup("Alpha");
+        Long cId = insertGroup("Charlie");
+
+        insertUser("Mia",  "mia-joined@example.com",  UserStatus.ACTIVE, bId);
+        insertUser("Noah", "noah-joined@example.com", UserStatus.ACTIVE, aId);
+        insertUser("Olga", "olga-joined@example.com", UserStatus.ACTIVE, cId);
+
+        List<User> result = userRepository.findAllOrderByGroupName(true, "id", "firstName", "email");
+
+        List<String> emails = result.stream().map(User::getEmail).toList();
+        assertThat(emails).containsExactly(
+                "noah-joined@example.com", "mia-joined@example.com", "olga-joined@example.com");
+    }
+
+    @Test
+    void orderByDesc_typed_association_getter_orders_by_joined_group_name() {
+        Long bId = insertGroup("Bravo2");
+        Long aId = insertGroup("Alpha2");
+        Long cId = insertGroup("Charlie2");
+
+        insertUser("Pete", "pete-joined@example.com", UserStatus.ACTIVE, bId);
+        insertUser("Quin", "quin-joined@example.com", UserStatus.ACTIVE, aId);
+        insertUser("Rita", "rita-joined@example.com", UserStatus.ACTIVE, cId);
+
+        List<User> result = userRepository.findAllOrderByGroupName(false, "id", "firstName", "email");
+
+        List<String> emails = result.stream().map(User::getEmail).toList();
+        assertThat(emails).containsExactly(
+                "rita-joined@example.com", "pete-joined@example.com", "quin-joined@example.com");
+    }
+
+    @Test
+    void whereAndEquals_typed_association_getter_returns_matching_users() {
+        Long adminsId = insertGroup("Admins-Typed");
+        Long othersId = insertGroup("Others-Typed");
+
+        insertUser("Sara", "sara-joined@example.com", UserStatus.ACTIVE, adminsId);
+        insertUser("Theo", "theo-joined@example.com", UserStatus.ACTIVE, othersId);
+
+        List<User> result = userRepository.findAllByGroupNameTyped("Admins-Typed", "id", "firstName", "email");
+
+        List<String> emails = result.stream().map(User::getEmail).toList();
+        assertThat(emails).contains("sara-joined@example.com");
+        assertThat(emails).doesNotContain("theo-joined@example.com");
+    }
+
+    @Test
     void camelCase_column_in_dot_path_is_converted_to_snake_case() {
         // group.createdAt must produce "user_group.created_at" in the SQL (snake_case conversion)
         Long adminsId = insertGroup("Admins");

@@ -325,6 +325,12 @@ public User findByIdWithGroup(Long userId, String[] groupColumns, String... colu
 
 Requires `@MappedBy` on the domain class — see [Relationships](#relationships).
 
+`leftJoin`/`innerJoin` also accept a fully-typed form: an association getter (pins the joined entity type `R`) plus target-entity getters, so a getter from an unrelated entity does not compile:
+
+```java
+.leftJoin(User::getGroup, Group::getId, Group::getName, Group::getCreationDate)
+```
+
 ### Filtering on joined table columns
 
 Use dot-notation in any `whereAnd*` method to filter on a column of the joined entity. The segment before the dot is the association name (matching the `leftJoin`/`innerJoin` call); the segment after is the Java field name on the joined entity.
@@ -354,11 +360,36 @@ query.whereAndIn("group.status", List.of("ACTIVE", "PENDING"))        // user_gr
 query.whereAndRange("group.age", RangeOperator.BETWEEN, 18, 65)       // user_group.age BETWEEN :groupAgeLow AND :groupAgeHigh
 ```
 
+Each `whereAnd*` method also accepts a fully-typed form — an association getter plus a target-entity getter — instead of the dot-path string:
+
+```java
+query.leftJoin(User::getGroup, Group::getId, Group::getName)
+     .whereAndEquals(User::getGroup, Group::getName, "Admins");  // WHERE user_group.name = :groupName
+```
+
 **Rules:**
 - Exactly one dot is allowed — `"a.b.col"` throws `NativSQLException`.
 - The association name must match a `leftJoin`/`innerJoin` call earlier in the chain.
 - Column names are camelCase Java field names; `identifierConverter` converts them to snake_case automatically.
 - Parameter names are derived by joining the two segments in camelCase: `"group.name"` → `:groupName`, `"group.deletedAt"` → `:groupDeletedAt`.
+
+### Ordering on joined table columns
+
+`orderByAsc`/`orderByDesc` accept an explicit association reference to target a joined entity's column — disambiguating same-named properties across entities (e.g. `creationDate` on both `User` and `Group`). Two equivalent forms, both requiring the association to be joined earlier in the chain:
+
+```java
+// Fully typed: association getter + target-entity getter (R inferred from the first)
+query.leftJoin(User::getGroup, Group::getId, Group::getName, Group::getCreationDate)
+     .orderByAsc(User::getGroup, Group::getCreationDate);
+// → ORDER BY user_groups.creation_date ASC
+
+// String join name + string column
+query.leftJoin("group", "id", "name", "creationDate")
+     .orderByAsc("group", "creationDate");
+// → ORDER BY user_groups.creation_date ASC
+```
+
+The existing `orderByAsc(String column)` overload also accepts a dot path directly (e.g. `"group.creationDate"`), equivalent to the two-argument string form. `orderByAsc(Getter<T>)` always targets the root entity. An unregistered association name/getter throws `NativSQLException`.
 
 ### Association loading (one-to-many)
 

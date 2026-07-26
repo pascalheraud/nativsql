@@ -12,6 +12,7 @@ All documentation (spec, plan, CHANGELOG, README, ARCHITECTURE, API docs) must b
 Always update documentation when implementing a feature:
 
 - **CHANGELOG.md** — add a concise entry under the current version: one short sentence describing what was added/changed, followed by a reference to the feature doc (e.g. `- Added @DeleteQuery support to execute DELETE statements via annotated methods — see doc/issues/77-delete-query/spec.md`). Before writing the entry, ask the user via `AskUserQuestion` whether the version number should be incremented.
+- **Version bump** — the project version has a single source of truth: `gradle.properties`' `version` property. `build.gradle` reads it via `allprojects { version = project.property('version') }` — never hardcode a version literal in `build.gradle`. When bumping the version, update `gradle.properties` (and the new CHANGELOG.md entry) only; do not add a second version literal anywhere else.
 - **README.md** — update if the feature changes public API, usage, or configuration
 - Any other relevant docs (API docs, migration guides) if they exist
 

@@ -205,13 +205,39 @@ public final class ReflectionUtils {
      * @throws NativSQLException if the method name cannot be extracted
      */
     public static <T> String extractMethodName(Getter<T> getter) {
-        try {
-            Method writeReplace = getter.getClass().getDeclaredMethod("writeReplace");
-            writeReplace.setAccessible(true);
-            Object serializedLambda = writeReplace.invoke(getter);
+        return extractMethodName((Serializable) getter);
+    }
 
-            if (serializedLambda instanceof SerializedLambda lambda) {
-                return lambda.getImplMethodName();
+    /**
+     * Extract the method name from an association getter method reference.
+     * Same extraction logic as {@link #extractMethodName(Getter)}, typed for
+     * {@link AssociationGetter}.
+     *
+     * @param getter the association getter method reference (must be assigned to a
+     *               variable)
+     * @return the method name (e.g., "getGroup")
+     * @throws NativSQLException if the method name cannot be extracted
+     */
+    public static <T, R> String extractMethodName(AssociationGetter<T, R> getter) {
+        return extractMethodName((Serializable) getter);
+    }
+
+    /**
+     * Shared extraction logic for both {@link Getter} and {@link AssociationGetter}
+     * method references.
+     *
+     * @param lambda the method reference (must be assigned to a variable)
+     * @return the method name (e.g., "getEmail", "getId", "isActive")
+     * @throws NativSQLException if the method name cannot be extracted
+     */
+    private static String extractMethodName(Serializable lambda) {
+        try {
+            Method writeReplace = lambda.getClass().getDeclaredMethod("writeReplace");
+            writeReplace.setAccessible(true);
+            Object serializedLambda = writeReplace.invoke(lambda);
+
+            if (serializedLambda instanceof SerializedLambda sl) {
+                return sl.getImplMethodName();
             }
             throw new NativSQLException("Could not extract method name from getter");
         } catch (Exception e) {
@@ -255,6 +281,22 @@ public final class ReflectionUtils {
      * @throws NativSQLException if the column name cannot be determined
      */
     public static <T> String getColumnName(Getter<T> getter) {
+        String methodName = extractMethodName(getter);
+        return convertToColumnName(methodName);
+    }
+
+    /**
+     * Get the database column name from an association getter method reference.
+     * Combines extractMethodName and convertToColumnName in one call.
+     *
+     * Examples:
+     * User::getGroup -> "group"
+     *
+     * @param getter the association getter method reference
+     * @return the database column name
+     * @throws NativSQLException if the column name cannot be determined
+     */
+    public static <T, R> String getColumnName(AssociationGetter<T, R> getter) {
         String methodName = extractMethodName(getter);
         return convertToColumnName(methodName);
     }
@@ -328,5 +370,19 @@ public final class ReflectionUtils {
     @FunctionalInterface
     public interface Getter<T> extends Serializable {
         Object get(T obj);
+    }
+
+    /**
+     * Functional interface for association getter method references.
+     * Unlike {@link Getter}, this is typed to return {@code R}, so the compiler
+     * pins the target entity type at the call site (e.g. {@code User::getGroup}
+     * is assignable to {@code AssociationGetter<User, Group>}).
+     *
+     * @param <T> the type of the object containing the association getter
+     * @param <R> the type returned by the association getter
+     */
+    @FunctionalInterface
+    public interface AssociationGetter<T, R> extends Serializable {
+        R get(T obj);
     }
 }

@@ -11,3 +11,13 @@ You are a senior developer on the NativSQL project, a Java library that maps SQL
 @.claude/skills/java/SKILL.md
 @.claude/skills/tests/SKILL.md
 @.claude/skills/documentation/SKILL.md
+
+## Rule: every feature must include repository tests
+
+Unit tests on `FindQuery`/`WhereClause`/etc. that only assert the generated
+SQL string are not sufficient on their own. Every feature must also add at
+least one repository-level integration test (e.g. under
+`nativsql-postgres/src/test/java/...RepositoryTest.java`, or the equivalent
+MariaDB/MySQL/Oracle module) that exercises the new capability against a
+real database via Testcontainers — not just the SQL builder in isolation.
+Do not report a feature as complete without this.

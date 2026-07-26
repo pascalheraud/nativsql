@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import ovh.heraud.nativsql.db.IdentifierConverter;
+import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 
 /**
@@ -13,6 +14,46 @@ import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
  */
 public class OrderBy implements SQLBuilder {
     private final List<Order> orders = new ArrayList<>();
+    private String tablePrefix = "";
+    private boolean hasJoins = false;
+    private JoinResolver joinResolver = null;
+
+    /**
+     * Sets the table prefix for column names (e.g., "user_table").
+     * Used when there are JOINs to avoid column ambiguity.
+     *
+     * @param tablePrefix the table name to prefix columns with
+     * @return this for method chaining
+     */
+    public OrderBy withTablePrefix(String tablePrefix) {
+        this.tablePrefix = tablePrefix;
+        return this;
+    }
+
+    /**
+     * Sets whether there are JOINs in the query.
+     * When true, columns will be prefixed with the table name.
+     *
+     * @param hasJoins whether the query has JOINs
+     * @return this for method chaining
+     */
+    public OrderBy withJoins(boolean hasJoins) {
+        this.hasJoins = hasJoins;
+        return this;
+    }
+
+    /**
+     * Registers the resolver that translates dot-notation column paths
+     * (e.g. "group.name") to fully-qualified SQL column references.
+     * Must be set before {@link #build} is called when dot-notation columns are used.
+     *
+     * @param resolver the join resolver
+     * @return this for method chaining
+     */
+    public OrderBy withJoinResolver(JoinResolver resolver) {
+        this.joinResolver = resolver;
+        return this;
+    }
 
     /**
      * Adds an ascending order by the specified column.
@@ -132,11 +173,34 @@ public class OrderBy implements SQLBuilder {
     }
 
     /**
+     * Resolves a column name/path to its fully-qualified SQL column reference,
+     * mirroring {@code WhereClause.toDbCol}.
+     *
+     * @param converter the identifier converter for column name transformation
+     * @param column    the column name or dot-notation path
+     * @return the resolved SQL column reference
+     */
+    private String toDbCol(IdentifierConverter converter, String column) {
+        if (column.contains(".")) {
+            if (joinResolver == null) {
+                throw new NativSQLException(
+                        "Dot-notation column paths are not supported in this query type: '" + column + "'");
+            }
+            return joinResolver.resolve(column, converter);
+        }
+        String dbCol = converter.toDB(column);
+        if (hasJoins && !tablePrefix.isEmpty()) {
+            dbCol = tablePrefix + "." + dbCol;
+        }
+        return dbCol;
+    }
+
+    /**
      * Inner class representing a single ORDER BY condition.
      * Implements SQLBuilder to generate its portion of the SQL statement.
      */
-    private static class Order implements SQLBuilder {
-            final String column;
+    private class Order implements SQLBuilder {
+        final String column;
         final boolean isAsc;
 
         Order(String column, boolean isAsc) {
@@ -146,7 +210,7 @@ public class OrderBy implements SQLBuilder {
 
         @Override
         public void build(StringBuilder sb, IdentifierConverter converter) {
-            String columnName = converter.toDB(column);
+            String columnName = toDbCol(converter, column);
             sb.append(columnName).append(" ").append(isAsc ? "ASC" : "DESC");
         }
     }

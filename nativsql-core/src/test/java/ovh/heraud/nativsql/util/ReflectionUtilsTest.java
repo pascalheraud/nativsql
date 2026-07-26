@@ -21,8 +21,10 @@ class ReflectionUtilsTest {
         @Test
         void returns_method_name_for_get_prefix_long_getter() {
             // Given: a method reference on a get-prefixed getter returning Long
+            ReflectionUtils.Getter<TestEntity> getter = TestEntity::getId;
+
             // When: extracting the method name
-            String methodName = ReflectionUtils.extractMethodName(TestEntity::getId);
+            String methodName = ReflectionUtils.extractMethodName(getter);
 
             // Then: the full getter name is returned
             assertThat(methodName).isEqualTo("getId");
@@ -31,8 +33,10 @@ class ReflectionUtilsTest {
         @Test
         void returns_method_name_for_get_prefix_string_getter() {
             // Given: a method reference on a get-prefixed getter returning String
+            ReflectionUtils.Getter<TestEntity> getter = TestEntity::getEmail;
+
             // When: extracting the method name
-            String methodName = ReflectionUtils.extractMethodName(TestEntity::getEmail);
+            String methodName = ReflectionUtils.extractMethodName(getter);
 
             // Then: the full getter name is returned
             assertThat(methodName).isEqualTo("getEmail");
@@ -41,8 +45,10 @@ class ReflectionUtilsTest {
         @Test
         void returns_method_name_for_is_prefix_boolean_getter() {
             // Given: a method reference on an is-prefixed boolean getter
+            ReflectionUtils.Getter<TestEntity> getter = TestEntity::isActive;
+
             // When: extracting the method name
-            String methodName = ReflectionUtils.extractMethodName(TestEntity::isActive);
+            String methodName = ReflectionUtils.extractMethodName(getter);
 
             // Then: the full getter name is returned
             assertThat(methodName).isEqualTo("isActive");
@@ -114,8 +120,10 @@ class ReflectionUtilsTest {
         @Test
         void returns_column_name_from_string_getter_reference() {
             // Given: a method reference on getEmail
+            ReflectionUtils.Getter<TestEntity> getter = TestEntity::getEmail;
+
             // When: resolving the column name directly
-            String columnName = ReflectionUtils.getColumnName(TestEntity::getEmail);
+            String columnName = ReflectionUtils.getColumnName(getter);
 
             // Then
             assertThat(columnName).isEqualTo("email");
@@ -124,8 +132,10 @@ class ReflectionUtilsTest {
         @Test
         void returns_column_name_from_boolean_getter_reference() {
             // Given: a method reference on isActive
+            ReflectionUtils.Getter<TestEntity> getter = TestEntity::isActive;
+
             // When
-            String columnName = ReflectionUtils.getColumnName(TestEntity::isActive);
+            String columnName = ReflectionUtils.getColumnName(getter);
 
             // Then
             assertThat(columnName).isEqualTo("active");
