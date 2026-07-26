@@ -57,6 +57,16 @@ public abstract class BaseRepositoryTest {
     protected abstract JdbcDatabaseContainer<?> createContainer(String schemaHash);
 
     /**
+     * Whether the transaction opened in initializeDatabase() should be rolled back
+     * in cleanup(). Defaults to true (current behavior) — override to return false
+     * when the test needs its data to actually be committed and visible to other
+     * connections (e.g. an application process under test in an e2e scenario).
+     */
+    protected boolean rollbackTransactionAfterEachTest() {
+        return true;
+    }
+
+    /**
      * Initialize database container and DataSource.
      * Called automatically by JUnit @BeforeEach.
      */
@@ -83,9 +93,11 @@ public abstract class BaseRepositoryTest {
 
         setDataSource(createDataSourceFromContainer(container));
 
-        // Create TransactionManager and start transaction for test rollback
-        transactionManager = new DataSourceTransactionManager(dataSource);
-        transaction = transactionManager.getTransaction(new DefaultTransactionDefinition());
+        if (rollbackTransactionAfterEachTest()) {
+            // Create TransactionManager and start transaction for test rollback
+            transactionManager = new DataSourceTransactionManager(dataSource);
+            transaction = transactionManager.getTransaction(new DefaultTransactionDefinition());
+        }
     }
 
     /**

@@ -56,6 +56,7 @@ List<User> active = userRepository.findActiveUsers();
 
 - **[USERGUIDE.md](USERGUIDE.md)** — complete user guide: installation, all features, type mapping reference, FAQ
 - **[doc/ARCHITECTURE.md](doc/ARCHITECTURE.md)** — internals, dialect chain, type system design
+- **[doc/EndToEndTesting.md](doc/EndToEndTesting.md)** — full e2e test setup on top of `BaseRepositoryTest`
 - **[CHANGELOG.md](CHANGELOG.md)** — version history
 
 ## License
