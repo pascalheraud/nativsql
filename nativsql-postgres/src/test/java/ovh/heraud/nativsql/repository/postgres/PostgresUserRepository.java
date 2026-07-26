@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.postgis.Point;
 import ovh.heraud.nativsql.domain.data.IData;
+import ovh.heraud.nativsql.domain.postgres.Group;
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserActivityReport;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
@@ -337,6 +338,37 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
                 .select(columns)
                 .leftJoin("group", "createdAt")
                 .whereAndColumnOperator("group.createdAt", ColumnOperator.IS_NOT_NULL));
+    }
+
+    /**
+     * Finds all users ordered ascending/descending by their joined group's name,
+     * using the typed AssociationGetter overloads (issue #104).
+     *
+     * @param ascending true for ascending order, false for descending
+     * @param columns   the user columns to retrieve
+     */
+    public List<User> findAllOrderByGroupName(boolean ascending, String... columns) {
+        FindQuery<User, Long> query = newFindQuery()
+                .select(columns)
+                .leftJoin(User::getGroup, Group::getName);
+        query = ascending
+                ? query.orderByAsc(User::getGroup, Group::getName)
+                : query.orderByDesc(User::getGroup, Group::getName);
+        return findAll(query);
+    }
+
+    /**
+     * Finds users whose joined group name equals the given value, using the
+     * typed AssociationGetter overload of whereAndEquals (issue #104).
+     *
+     * @param groupName the group name to filter on
+     * @param columns   the user columns to retrieve
+     */
+    public List<User> findAllByGroupNameTyped(String groupName, String... columns) {
+        return findAll(newFindQuery()
+                .select(columns)
+                .leftJoin(User::getGroup, Group::getName)
+                .whereAndEquals(User::getGroup, Group::getName, groupName));
     }
 
     public List<User> findPageByOrderById(int limit, int offset, String... columns) {

@@ -9,6 +9,7 @@ import ovh.heraud.nativsql.db.IdentifierConverter;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.exception.NativSQLException;
 import ovh.heraud.nativsql.repository.GenericRepository;
+import ovh.heraud.nativsql.util.ReflectionUtils.AssociationGetter;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
 
 /**
@@ -194,7 +195,8 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds an ascending order by condition.
+     * Adds an ascending order by condition on root or joined entity.
+     * Prefix with "assoc." to target a joined entity's column (e.g. "group.name").
      */
     public FindQuery<T, ID> orderByAsc(String column) {
         orderBy.asc(column);
@@ -202,7 +204,8 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds an ascending order by condition using a getter method reference.
+     * Adds an ascending order by condition on root entity, using a getter method
+     * reference.
      *
      * @param getter the getter method reference (e.g., User::getFirstName)
      */
@@ -211,7 +214,31 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds a descending order by condition.
+     * Adds an ascending order by condition on joined entity, using an association
+     * getter and a target-entity getter method reference.
+     *
+     * @param assocGetter the association getter method reference (e.g., User::getGroup)
+     * @param getter      the target-entity getter method reference (e.g.,
+     *                    Group::getCreationDate)
+     */
+    public <R> FindQuery<T, ID> orderByAsc(AssociationGetter<T, R> assocGetter, Getter<R> getter) {
+        return orderByAsc(ReflectionUtils.getColumnName(assocGetter), ReflectionUtils.getColumnName(getter));
+    }
+
+    /**
+     * Adds an ascending order by condition on joined entity, using an explicit join
+     * name and column name.
+     *
+     * @param joinName the association name registered via leftJoin/innerJoin
+     * @param column   the column name on the joined entity
+     */
+    public FindQuery<T, ID> orderByAsc(String joinName, String column) {
+        return orderByAsc(joinName + "." + column);
+    }
+
+    /**
+     * Adds a descending order by condition on root or joined entity.
+     * Prefix with "assoc." to target a joined entity's column (e.g. "group.name").
      */
     public FindQuery<T, ID> orderByDesc(String column) {
         orderBy.desc(column);
@@ -219,12 +246,36 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds a descending order by condition using a getter method reference.
+     * Adds a descending order by condition on root entity, using a getter method
+     * reference.
      *
      * @param getter the getter method reference (e.g., User::getFirstName)
      */
     public FindQuery<T, ID> orderByDesc(Getter<T> getter) {
         return orderByDesc(ReflectionUtils.getColumnName(getter));
+    }
+
+    /**
+     * Adds a descending order by condition on joined entity, using an association
+     * getter and a target-entity getter method reference.
+     *
+     * @param assocGetter the association getter method reference (e.g., User::getGroup)
+     * @param getter      the target-entity getter method reference (e.g.,
+     *                    Group::getCreationDate)
+     */
+    public <R> FindQuery<T, ID> orderByDesc(AssociationGetter<T, R> assocGetter, Getter<R> getter) {
+        return orderByDesc(ReflectionUtils.getColumnName(assocGetter), ReflectionUtils.getColumnName(getter));
+    }
+
+    /**
+     * Adds a descending order by condition on joined entity, using an explicit join
+     * name and column name.
+     *
+     * @param joinName the association name registered via leftJoin/innerJoin
+     * @param column   the column name on the joined entity
+     */
+    public FindQuery<T, ID> orderByDesc(String joinName, String column) {
+        return orderByDesc(joinName + "." + column);
     }
 
     /**
@@ -265,7 +316,8 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds a LEFT JOIN for a @MappedBy association (ToOne relationship).
+     * Adds a LEFT JOIN for a @MappedBy association, using the association's raw name
+     * (on root entity) and raw column names (on joined entity).
      * The MappedBy annotation on the field contains the repository of the joined
      * entity.
      *
@@ -285,7 +337,8 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds a LEFT JOIN for a @MappedBy association using a getter method reference.
+     * Adds a LEFT JOIN for a @MappedBy association, using an association getter method
+     * reference (on root entity) and raw column names (on joined entity).
      *
      * @param getter  the getter method reference for the association field (e.g.,
      *                User::getGroup)
@@ -296,7 +349,22 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds an INNER JOIN for a @MappedBy association (ToOne relationship).
+     * Adds a LEFT JOIN for a @MappedBy association, using an association getter method
+     * reference (on root entity) and target-entity getter method references (on
+     * joined entity).
+     *
+     * @param assocGetter   the association getter method reference (e.g., User::getGroup)
+     * @param columnGetters the target-entity getter method references for the columns
+     *                      to retrieve from the joined entity
+     */
+    @SafeVarargs
+    public final <R> FindQuery<T, ID> leftJoin(AssociationGetter<T, R> assocGetter, Getter<R>... columnGetters) {
+        return leftJoin(ReflectionUtils.getColumnName(assocGetter), ReflectionUtils.getColumnNames(columnGetters));
+    }
+
+    /**
+     * Adds an INNER JOIN for a @MappedBy association, using the association's raw name
+     * (on root entity) and raw column names (on joined entity).
      * The MappedBy annotation on the field contains the repository of the joined
      * entity.
      *
@@ -316,8 +384,8 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
     }
 
     /**
-     * Adds an INNER JOIN for a @MappedBy association using a getter method
-     * reference.
+     * Adds an INNER JOIN for a @MappedBy association, using an association getter
+     * method reference (on root entity) and raw column names (on joined entity).
      *
      * @param getter  the getter method reference for the association field (e.g.,
      *                User::getGroup)
@@ -325,6 +393,67 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
      */
     public FindQuery<T, ID> innerJoin(Getter<T> getter, String... columns) {
         return innerJoin(ReflectionUtils.getColumnName(getter), columns);
+    }
+
+    /**
+     * Adds an INNER JOIN for a @MappedBy association, using an association getter
+     * method reference (on root entity) and target-entity getter method references
+     * (on joined entity).
+     *
+     * @param assocGetter   the association getter method reference (e.g., User::getGroup)
+     * @param columnGetters the target-entity getter method references for the columns
+     *                      to retrieve from the joined entity
+     */
+    @SafeVarargs
+    public final <R> FindQuery<T, ID> innerJoin(AssociationGetter<T, R> assocGetter, Getter<R>... columnGetters) {
+        return innerJoin(ReflectionUtils.getColumnName(assocGetter), ReflectionUtils.getColumnNames(columnGetters));
+    }
+
+    /**
+     * Adds a WHERE condition with EQUALS operator on joined entity, using an
+     * association getter and a target-entity getter method reference.
+     */
+    public <R> FindQuery<T, ID> whereAndEquals(AssociationGetter<T, R> assocGetter, Getter<R> getter, Object value) {
+        return whereAndEquals(joinColumnPath(assocGetter, getter), value);
+    }
+
+    /**
+     * Adds a WHERE condition with IN operator on joined entity, using an
+     * association getter and a target-entity getter method reference.
+     */
+    public <R> FindQuery<T, ID> whereAndIn(AssociationGetter<T, R> assocGetter, Getter<R> getter, List<?> values) {
+        return whereAndIn(joinColumnPath(assocGetter, getter), values);
+    }
+
+    /**
+     * Adds a WHERE condition with an explicit operator on joined entity, using an
+     * association getter and a target-entity getter method reference.
+     */
+    public <R> FindQuery<T, ID> whereAndOperator(AssociationGetter<T, R> assocGetter, Getter<R> getter,
+            Operator operator, Object value) {
+        return whereAndOperator(joinColumnPath(assocGetter, getter), operator, value);
+    }
+
+    /**
+     * Adds a column-only WHERE condition (e.g. IS NULL) on joined entity, using an
+     * association getter and a target-entity getter method reference.
+     */
+    public <R> FindQuery<T, ID> whereAndColumnOperator(AssociationGetter<T, R> assocGetter, Getter<R> getter,
+            ColumnOperator operator) {
+        return whereAndColumnOperator(joinColumnPath(assocGetter, getter), operator);
+    }
+
+    /**
+     * Adds a BETWEEN range WHERE condition on joined entity, using an association
+     * getter and a target-entity getter method reference.
+     */
+    public <R> FindQuery<T, ID> whereAndRange(AssociationGetter<T, R> assocGetter, Getter<R> getter,
+            RangeOperator operator, Object low, Object high) {
+        return whereAndRange(joinColumnPath(assocGetter, getter), operator, low, high);
+    }
+
+    private <R> String joinColumnPath(AssociationGetter<T, R> assocGetter, Getter<R> getter) {
+        return ReflectionUtils.getColumnName(assocGetter) + "." + ReflectionUtils.getColumnName(getter);
     }
 
     /**
@@ -546,6 +675,7 @@ public class FindQuery<T extends IEntity<ID>, ID> extends WhereQuery<T, ID, Find
             whereClause.buildFormatted(sb, identifierConverter);
         }
 
+        orderBy.withJoinResolver(this::resolveJoinColumn).withTablePrefix(tableName).withJoins(hasJoins());
         if (!orderBy.isEmpty()) {
             sb.append("\nORDER BY\n");
             orderBy.buildFormatted(sb, identifierConverter);

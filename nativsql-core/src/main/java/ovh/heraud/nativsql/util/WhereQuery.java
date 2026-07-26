@@ -38,7 +38,8 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
     }
 
     /**
-     * Adds a WHERE condition with EQUALS operator (column = value).
+     * Adds a WHERE condition with EQUALS operator on root or joined entity
+     * (column = value).
      */
     public Self whereAndEquals(String column, Object value) {
         guardEncryptedColumn(column);
@@ -47,14 +48,16 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
     }
 
     /**
-     * Adds a WHERE condition with EQUALS operator using a getter method reference.
+     * Adds a WHERE condition with EQUALS operator on root entity, using a getter
+     * method reference.
      */
     public Self whereAndEquals(Getter<T> getter, Object value) {
         return whereAndEquals(ReflectionUtils.getColumnName(getter), value);
     }
 
     /**
-     * Adds a WHERE condition with IN operator (column IN (...)).
+     * Adds a WHERE condition with IN operator on root or joined entity
+     * (column IN (...)).
      */
     public Self whereAndIn(String column, List<?> values) {
         guardEncryptedColumn(column);
@@ -63,7 +66,8 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
     }
 
     /**
-     * Adds a WHERE condition with IN operator using a getter method reference.
+     * Adds a WHERE condition with IN operator on root entity, using a getter
+     * method reference.
      */
     public Self whereAndIn(Getter<T> getter, List<?> values) {
         return whereAndIn(ReflectionUtils.getColumnName(getter), values);
@@ -82,7 +86,7 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
     }
 
     /**
-     * Adds a WHERE condition with an explicit operator.
+     * Adds a WHERE condition with an explicit operator on root or joined entity.
      *
      * @param column   the column name (camelCase)
      * @param operator the comparison operator
@@ -95,14 +99,16 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
     }
 
     /**
-     * Adds a WHERE condition with an explicit operator using a getter method reference.
+     * Adds a WHERE condition with an explicit operator on root entity, using a
+     * getter method reference.
      */
     public Self whereAndOperator(Getter<T> getter, Operator operator, Object value) {
         return whereAndOperator(ReflectionUtils.getColumnName(getter), operator, value);
     }
 
     /**
-     * Adds a column-only WHERE condition (e.g., IS NULL, IS NOT NULL).
+     * Adds a column-only WHERE condition (e.g., IS NULL, IS NOT NULL) on root or
+     * joined entity.
      *
      * @param column   the column name (camelCase)
      * @param operator the column operator
@@ -114,14 +120,15 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
     }
 
     /**
-     * Adds a column-only WHERE condition using a getter method reference.
+     * Adds a column-only WHERE condition on root entity, using a getter method
+     * reference.
      */
     public Self whereAndColumnOperator(Getter<T> getter, ColumnOperator operator) {
         return whereAndColumnOperator(ReflectionUtils.getColumnName(getter), operator);
     }
 
     /**
-     * Adds a BETWEEN range WHERE condition.
+     * Adds a BETWEEN range WHERE condition on root or joined entity.
      *
      * @param column   the column name (camelCase)
      * @param operator the range operator
@@ -142,7 +149,8 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
     }
 
     /**
-     * Adds a BETWEEN range WHERE condition using a getter method reference.
+     * Adds a BETWEEN range WHERE condition on root entity, using a getter method
+     * reference.
      */
     public Self whereAndRange(Getter<T> getter, RangeOperator operator, Object low, Object high) {
         return whereAndRange(ReflectionUtils.getColumnName(getter), operator, low, high);

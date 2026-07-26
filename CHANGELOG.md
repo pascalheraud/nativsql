@@ -5,6 +5,12 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-07-26
+
+### Added
+
+- **Typed `leftJoin`/`innerJoin`, `orderByAsc`/`orderByDesc`, and `whereAnd*` overloads for joined entities** — an association getter + target-entity getter(s) (e.g. `orderByAsc(User::getGroup, Group::getCreationDate)`), or an explicit join name + column string(s) (e.g. `orderByAsc("group", "creationDate")`), to disambiguate ordering/filtering on a joined entity's column when the same property name exists on several entities in the query. See [User Guide](USERGUIDE.md#ordering-on-joined-table-columns) and [doc/issues/104-orderby-joined-columns/spec.md](doc/issues/104-orderby-joined-columns/spec.md) for details.
+
 ## [2.8.0] - 2026-07-20
 
 ### Added
