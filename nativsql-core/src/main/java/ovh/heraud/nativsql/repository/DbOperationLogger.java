@@ -48,6 +48,54 @@ public class DbOperationLogger {
     }
 
     /**
+     * Executes an UPDATE operation with logging, additionally logging at INFO
+     * level any {@code @OnUpdate} field values the framework computed for this
+     * update (visible without enabling DEBUG, unlike the full parameter map).
+     *
+     * @param repositoryClass the repository class
+     * @param table           the table name
+     * @param sql             the UPDATE SQL statement
+     * @param params          the SQL parameters (logged at DEBUG level)
+     * @param onUpdateValues  {@code @OnUpdate}-computed values applied for this
+     *                        update (field name to masked/converted-for-logging
+     *                        value); empty or null if none were auto-applied
+     * @param runnable        the operation to execute
+     * @throws NativSQLException if the operation fails
+     */
+    public void executeUpdate(Class<?> repositoryClass, String table, String sql, Map<String, Object> params,
+            Map<String, Object> onUpdateValues, SqlRunnable runnable) {
+        if (onUpdateValues != null && !onUpdateValues.isEmpty()) {
+            logger.info("DB.ONUPDATE {} - {}.{}", getSimpleClassName(repositoryClass), table, onUpdateValues);
+        }
+        execute(repositoryClass, "update", "UPDATE", table, sql, params, runnable);
+    }
+
+    /**
+     * Executes an INSERT operation with logging, additionally logging at INFO
+     * level any {@code @OnInsert} field values the framework computed for this
+     * insert (visible without enabling DEBUG, unlike the full parameter map).
+     *
+     * @param <T>             the return type (e.g. the generated id)
+     * @param repositoryClass the repository class
+     * @param table           the table name
+     * @param sql             the INSERT SQL statement
+     * @param params          the SQL parameters (logged at DEBUG level)
+     * @param onInsertValues  {@code @OnInsert}-computed values applied for this
+     *                        insert (field name to masked/converted-for-logging
+     *                        value); empty or null if none were auto-applied
+     * @param callable        the operation to execute
+     * @return the result of the operation
+     * @throws NativSQLException if the operation fails
+     */
+    public <T> T executeInsert(Class<?> repositoryClass, String table, String sql, Map<String, Object> params,
+            Map<String, Object> onInsertValues, SqlCallable<T> callable) {
+        if (onInsertValues != null && !onInsertValues.isEmpty()) {
+            logger.info("DB.ONINSERT {} - {}.{}", getSimpleClassName(repositoryClass), table, onInsertValues);
+        }
+        return execute(repositoryClass, "insert", "INSERT", table, sql, params, callable);
+    }
+
+    /**
      * Gets the simple class name from a Class object, handling Spring CGLIB proxies.
      */
     private String getSimpleClassName(Class<?> clazz) {

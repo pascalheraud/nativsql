@@ -1,5 +1,6 @@
 package ovh.heraud.nativsql.repository.postgres;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -127,12 +128,13 @@ public class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
 
             // Then
             List<ILoggingEvent> logs = logAppender.list;
-            assertThat(logs).hasSize(4); // BEGIN (INFO), SQL (DEBUG), PARAMS (DEBUG), END (INFO)
+            assertThat(logs).hasSize(5); // ONINSERT (INFO), BEGIN (INFO), SQL (DEBUG), PARAMS (DEBUG), END (INFO)
 
-            verifyLogEvent(logs, 0, Level.INFO, "DB.BEGIN PostgresUserRepository.insert - INSERT users [test-uuid-insert-1]");
-            verifyLogEvent(logs, 1, Level.DEBUG, "DB.SQL PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - INSERT INTO users (first_name, last_name, email, status, address) VALUES (:firstName, :lastName, :email, (:status)::user_status, (:address)::address_type)");
-            verifyLogEvent(logs, 2, Level.DEBUG, "DB.PARAMS PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - {firstName=Alice, lastName=Wonder, address=(\"123 Main St\",\"Paris\",\"75001\",\"France\"), email=alice@example.com, status=ACTIVE}");
-            verifyLogEvent(logs, 3, Level.INFO, "DB.END PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - 42ms");
+            verifyLogEvent(logs, 0, Level.INFO, "DB.ONINSERT PostgresUserRepository - users.{createdAt=" + user.getCreatedAt() + "}");
+            verifyLogEvent(logs, 1, Level.INFO, "DB.BEGIN PostgresUserRepository.insert - INSERT users [test-uuid-insert-1]");
+            verifyLogEvent(logs, 2, Level.DEBUG, "DB.SQL PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - INSERT INTO users (first_name, last_name, email, status, address, created_at) VALUES (:firstName, :lastName, :email, (:status)::user_status, (:address)::address_type, :createdAt)");
+            verifyLogEvent(logs, 3, Level.DEBUG, "DB.PARAMS PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - {firstName=Alice, lastName=Wonder, createdAt=" + user.getCreatedAt() + ", address=(\"123 Main St\",\"Paris\",\"75001\",\"France\"), email=alice@example.com, status=ACTIVE}");
+            verifyLogEvent(logs, 4, Level.INFO, "DB.END PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - 42ms");
         }
 
         @Test
@@ -156,12 +158,14 @@ public class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
 
             // Then
             List<ILoggingEvent> logs = logAppender.list;
-            assertThat(logs).hasSize(4); // BEGIN (INFO), SQL (DEBUG), PARAMS (DEBUG), END (INFO)
+            assertThat(logs).hasSize(5); // ONUPDATE (INFO), BEGIN (INFO), SQL (DEBUG), PARAMS (DEBUG), END (INFO)
+            Timestamp updateDateTimestamp = Timestamp.from(user.getUpdateDate());
 
-            verifyLogEvent(logs, 0, Level.INFO, "DB.BEGIN PostgresUserRepository.update - UPDATE users [test-uuid-update-1]");
-            verifyLogEvent(logs, 1, Level.DEBUG, "DB.SQL PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - UPDATE users SET first_name = :firstName WHERE id = :id");
-            verifyLogEvent(logs, 2, Level.DEBUG, "DB.PARAMS PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - {firstName=Robert, id=" + user.getId() + "}");
-            verifyLogEvent(logs, 3, Level.INFO, "DB.END PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - 42ms");
+            verifyLogEvent(logs, 0, Level.INFO, "DB.ONUPDATE PostgresUserRepository - users.{updateDate=" + updateDateTimestamp + "}");
+            verifyLogEvent(logs, 1, Level.INFO, "DB.BEGIN PostgresUserRepository.update - UPDATE users [test-uuid-update-1]");
+            verifyLogEvent(logs, 2, Level.DEBUG, "DB.SQL PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - UPDATE users SET first_name = :firstName, update_date = :updateDate WHERE id = :id");
+            verifyLogEvent(logs, 3, Level.DEBUG, "DB.PARAMS PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - {firstName=Robert, updateDate=" + updateDateTimestamp + ", id=" + user.getId() + "}");
+            verifyLogEvent(logs, 4, Level.INFO, "DB.END PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - 42ms");
         }
 
         @Test
@@ -394,10 +398,11 @@ public class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
 
             // Then
             List<ILoggingEvent> logs = logAppender.list;
-            assertThat(logs).hasSize(2); // BEGIN (INFO), END (INFO)
+            assertThat(logs).hasSize(3); // ONINSERT (INFO), BEGIN (INFO), END (INFO)
 
-            verifyLogEvent(logs, 0, Level.INFO, "DB.BEGIN PostgresUserRepository.insert - INSERT users [test-uuid-insert-1]");
-            verifyLogEvent(logs, 1, Level.INFO, "DB.END PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - 42ms");
+            verifyLogEvent(logs, 0, Level.INFO, "DB.ONINSERT PostgresUserRepository - users.{createdAt=" + user.getCreatedAt() + "}");
+            verifyLogEvent(logs, 1, Level.INFO, "DB.BEGIN PostgresUserRepository.insert - INSERT users [test-uuid-insert-1]");
+            verifyLogEvent(logs, 2, Level.INFO, "DB.END PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - 42ms");
         }
 
         @Test
@@ -421,10 +426,11 @@ public class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
 
             // Then
             List<ILoggingEvent> logs = logAppender.list;
-            assertThat(logs).hasSize(2); // BEGIN (INFO), END (INFO)
+            assertThat(logs).hasSize(3); // ONUPDATE (INFO), BEGIN (INFO), END (INFO)
 
-            verifyLogEvent(logs, 0, Level.INFO, "DB.BEGIN PostgresUserRepository.update - UPDATE users [test-uuid-update-1]");
-            verifyLogEvent(logs, 1, Level.INFO, "DB.END PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - 42ms");
+            verifyLogEvent(logs, 0, Level.INFO, "DB.ONUPDATE PostgresUserRepository - users.{updateDate=" + Timestamp.from(user.getUpdateDate()) + "}");
+            verifyLogEvent(logs, 1, Level.INFO, "DB.BEGIN PostgresUserRepository.update - UPDATE users [test-uuid-update-1]");
+            verifyLogEvent(logs, 2, Level.INFO, "DB.END PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - 42ms");
         }
 
         @Test

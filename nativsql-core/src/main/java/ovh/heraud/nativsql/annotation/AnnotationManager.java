@@ -1,8 +1,10 @@
 package ovh.heraud.nativsql.annotation;
 
 import java.lang.annotation.Annotation;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,8 +26,10 @@ import ovh.heraud.nativsql.util.FieldAccessor;
 import ovh.heraud.nativsql.util.Fields;
 import ovh.heraud.nativsql.util.MappedByInfo;
 import ovh.heraud.nativsql.util.OneToManyAssociation;
+import ovh.heraud.nativsql.util.ComputedFieldInfo;
 import ovh.heraud.nativsql.util.ReflectionUtils;
 import ovh.heraud.nativsql.util.TypeInfo;
+import ovh.heraud.nativsql.util.ComputedValueProvider;
 
 /**
  * Centralized component for managing and retrieving annotations from entity
@@ -52,6 +56,8 @@ public class AnnotationManager {
     private final Set<Class<?>> jsonClassCache = Collections.newSetFromMap(new ConcurrentHashMap<>());
     private final Map<Class<?>, CompositeTypeInfo> compositeTypeCache = new ConcurrentHashMap<>();
     private final Map<FieldKey, TypeInfo> typeCache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, List<ComputedFieldInfo>> onUpdateCache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, List<ComputedFieldInfo>> onInsertCache = new ConcurrentHashMap<>();
 
     /**
      * Creates a FieldKey from a FieldAccessor.
@@ -278,6 +284,88 @@ public class AnnotationManager {
             }
         }
         return ReflectionUtils.instantiate(cls, fieldName);
+    }
+
+    /**
+     * Retrieves the {@code @OnUpdate}-annotated fields of an entity class, each
+     * resolved to its {@link ComputedValueProvider} instance (Spring bean first,
+     * then no-arg constructor).
+     * Result is cached for subsequent calls; an empty list means no
+     * {@code @OnUpdate} field is present.
+     *
+     * @param entityClass the entity class to inspect
+     * @return the list of {@link ComputedFieldInfo}, never null, possibly empty
+     */
+    public List<ComputedFieldInfo> getComputedFieldInfos(Class<?> entityClass) {
+        return onUpdateCache.computeIfAbsent(entityClass, cls -> {
+            List<ComputedFieldInfo> infos = new ArrayList<>();
+            for (FieldAccessor<?> fa : ReflectionUtils.getFields(cls).list()) {
+                OnUpdate ann = fa.getAnnotation(OnUpdate.class);
+                if (ann != null) {
+                    ComputedValueProvider<?> provider = (ComputedValueProvider<?>) resolveBean(ann.value(), fa.getName());
+                    infos.add(new ComputedFieldInfo(fa.getName(), provider));
+                }
+            }
+            return infos;
+        });
+    }
+
+    /**
+     * Registers an {@code @OnUpdate} provider programmatically, replacing any
+     * previously registered/discovered provider for that field.
+     *
+     * @param clazz     the class declaring the field
+     * @param fieldName the name of the field
+     * @param provider  the provider to invoke on every update
+     */
+    public void setComputedFieldInfo(Class<?> clazz, String fieldName, ComputedValueProvider<?> provider) {
+        onUpdateCache.compute(clazz, (c, existing) -> {
+            List<ComputedFieldInfo> infos = existing == null ? new ArrayList<>() : new ArrayList<>(existing);
+            infos.removeIf(i -> i.fieldName().equals(fieldName));
+            infos.add(new ComputedFieldInfo(fieldName, provider));
+            return infos;
+        });
+    }
+
+    /**
+     * Retrieves the {@code @OnInsert}-annotated fields of an entity class, each
+     * resolved to its {@link ComputedValueProvider} instance (Spring bean first,
+     * then no-arg constructor).
+     * Result is cached for subsequent calls; an empty list means no
+     * {@code @OnInsert} field is present.
+     *
+     * @param entityClass the entity class to inspect
+     * @return the list of {@link ComputedFieldInfo}, never null, possibly empty
+     */
+    public List<ComputedFieldInfo> getOnInsertFieldInfos(Class<?> entityClass) {
+        return onInsertCache.computeIfAbsent(entityClass, cls -> {
+            List<ComputedFieldInfo> infos = new ArrayList<>();
+            for (FieldAccessor<?> fa : ReflectionUtils.getFields(cls).list()) {
+                OnInsert ann = fa.getAnnotation(OnInsert.class);
+                if (ann != null) {
+                    ComputedValueProvider<?> provider = (ComputedValueProvider<?>) resolveBean(ann.value(), fa.getName());
+                    infos.add(new ComputedFieldInfo(fa.getName(), provider));
+                }
+            }
+            return infos;
+        });
+    }
+
+    /**
+     * Registers an {@code @OnInsert} provider programmatically, replacing any
+     * previously registered/discovered provider for that field.
+     *
+     * @param clazz     the class declaring the field
+     * @param fieldName the name of the field
+     * @param provider  the provider to invoke on every insert
+     */
+    public void setOnInsertFieldInfo(Class<?> clazz, String fieldName, ComputedValueProvider<?> provider) {
+        onInsertCache.compute(clazz, (c, existing) -> {
+            List<ComputedFieldInfo> infos = existing == null ? new ArrayList<>() : new ArrayList<>(existing);
+            infos.removeIf(i -> i.fieldName().equals(fieldName));
+            infos.add(new ComputedFieldInfo(fieldName, provider));
+            return infos;
+        });
     }
 
     /**
@@ -531,5 +619,7 @@ public class AnnotationManager {
         compositeTypeCache.clear();
         typeCache.clear();
         enumSqlTypeCache.clear();
+        onUpdateCache.clear();
+        onInsertCache.clear();
     }
 }

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +38,7 @@ import ovh.heraud.nativsql.util.Fields;
 import ovh.heraud.nativsql.util.FindQuery;
 import ovh.heraud.nativsql.annotation.type.TypeParamKey;
 import ovh.heraud.nativsql.util.OneToManyAssociation;
+import ovh.heraud.nativsql.util.ComputedFieldInfo;
 import ovh.heraud.nativsql.util.OrderBy;
 import ovh.heraud.nativsql.util.ReflectionUtils;
 import ovh.heraud.nativsql.util.ReflectionUtils.Getter;
@@ -191,6 +193,41 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
+     * Computes and applies any {@code @OnInsert}/{@code @OnUpdate} field not already
+     * listed in {@code columns}: invokes its provider, writes the value onto
+     * {@code entity} immediately, and appends the field name to the returned column
+     * list. Shared by {@link #insert(Object, String...)} and
+     * {@link #update(Object, String...)}, which differ only in which computed-field
+     * info list and annotation name they pass in.
+     *
+     * @param entity            the entity to write computed values onto
+     * @param columns           the columns explicitly requested by the caller
+     * @param computedFieldInfos the {@code @OnInsert}/{@code @OnUpdate} fields declared on the entity
+     * @param annotationName    the annotation's simple name, for the null-value exception message
+     * @param appliedFieldNames output: filled with the names of the fields actually auto-applied
+     * @return {@code columns} plus the auto-applied field names
+     * @throws NativSQLException if a provider returns null
+     */
+    private String[] applyComputedFields(T entity, String[] columns, List<ComputedFieldInfo> computedFieldInfos,
+            String annotationName, List<String> appliedFieldNames) {
+        List<String> effectiveColumnsList = new ArrayList<>(Arrays.asList(columns));
+        for (ComputedFieldInfo info : computedFieldInfos) {
+            if (Arrays.stream(columns).noneMatch(c -> info.fieldName().equalsIgnoreCase(c))) {
+                Object value = info.provider().getValue();
+                if (value == null) {
+                    throw new NativSQLException("@" + annotationName + " provider must not return null (field '"
+                            + info.fieldName() + "')");
+                }
+                FieldAccessor<Object> field = entityFields.get(info.fieldName());
+                field.setValue(entity, value);
+                effectiveColumnsList.add(info.fieldName());
+                appliedFieldNames.add(info.fieldName());
+            }
+        }
+        return effectiveColumnsList.toArray(new String[0]);
+    }
+
+    /**
      * Inserts an entity with specified columns using getter method references.
      * Converts getter references to column names and delegates to
      * {@link #insert(Object, String...)}.
@@ -211,6 +248,13 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     /**
      * Inserts an entity with specified columns and populates the generated ID.
      *
+     * <p>
+     * Any {@code @OnInsert}-annotated field not already listed in {@code columns} is
+     * recomputed via its provider and written onto {@code entity} <strong>before</strong>
+     * the SQL statement runs, mirroring {@link #update(Object, String...)}: if the insert
+     * subsequently fails, {@code entity} is left holding the new, uncommitted
+     * {@code @OnInsert} value(s).
+     *
      * @param entity  the entity to insert (will be modified with generated ID)
      * @param columns the property names (camelCase) to insert (must not be empty)
      * @throws NativSQLException if columns array is empty
@@ -219,11 +263,16 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         if (columns == null || columns.length == 0) {
             throw new NativSQLException("Column list cannot be empty");
         }
-        String columnList = SqlUtils.getColumnsList(identifierConverter, columns);
 
-        Map<String, Object> rawParams = extractValues(entity, columns);
+        List<ComputedFieldInfo> onInsertInfos = annotationManager.getOnInsertFieldInfos(entityClass);
+        List<String> onInsertFieldNames = new ArrayList<>();
+        String[] effectiveColumns = applyComputedFields(entity, columns, onInsertInfos, "OnInsert", onInsertFieldNames);
 
-        String paramList = Arrays.stream(columns)
+        String columnList = SqlUtils.getColumnsList(identifierConverter, effectiveColumns);
+
+        Map<String, Object> rawParams = extractValues(entity, effectiveColumns);
+
+        String paramList = Arrays.stream(effectiveColumns)
                 .map(col -> {
                     if (col == null || col.isEmpty()) {
                         throw new NativSQLException("Column name cannot be null or empty");
@@ -238,9 +287,15 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         Map<String, Object> sqlParams = convertParamsToSqlValues(rawParams);
         Map<String, Object> logParams = convertParamsForLogging(rawParams);
+
+        Map<String, Object> onInsertLogValues = new LinkedHashMap<>();
+        for (String fieldName : onInsertFieldNames) {
+            onInsertLogValues.put(fieldName, logParams.get(fieldName));
+        }
+
         // Try to retrieve generated ID using GeneratedKeyHolder for better reliability
-        ID generatedId = dbOperationLogger.execute(getClass(), "insert", "INSERT", getTableName(), sql, logParams,
-                () -> insertWithGeneratedKey(sql, sqlParams));
+        ID generatedId = dbOperationLogger.executeInsert(getClass(), getTableName(), sql, logParams,
+                onInsertLogValues, () -> insertWithGeneratedKey(sql, sqlParams));
 
         entity.setId(generatedId);
     }
@@ -334,6 +389,14 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      * Updates an entity with specified columns (assumes ID column is named "id").
      * Validates that exactly one row is updated.
      *
+     * <p>
+     * Any {@code @OnUpdate}-annotated field not already listed in {@code columns} is
+     * recomputed via its provider and written onto {@code entity} <strong>before</strong>
+     * the SQL statement runs (not after, unlike the row-count/value refresh done for other
+     * operations). This means that if the update subsequently fails (exception, or affected
+     * row count != 1), {@code entity} is left holding the new, uncommitted {@code @OnUpdate}
+     * value(s) rather than the value(s) that existed prior to the call.
+     *
      * @param entity  the entity to update
      * @param columns the property names (camelCase) to update (must not be empty)
      * @throws NativSQLException if columns is empty or if the update doesn't affect
@@ -343,12 +406,17 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         if (columns == null || columns.length == 0) {
             throw new NativSQLException("Column list cannot be empty");
         }
-        Map<String, Object> rawParams = extractValues(entity, columns);
+
+        List<ComputedFieldInfo> onUpdateInfos = annotationManager.getComputedFieldInfos(entityClass);
+        List<String> onUpdateFieldNames = new ArrayList<>();
+        String[] effectiveColumns = applyComputedFields(entity, columns, onUpdateInfos, "OnUpdate", onUpdateFieldNames);
+
+        Map<String, Object> rawParams = extractValues(entity, effectiveColumns);
         FieldAccessor<ID> idField = entityFields.get(ID_COLUMN);
         Object id = idField != null ? idField.getValue(entity) : null;
         rawParams.put(ID_COLUMN, id);
 
-        String setClause = Arrays.stream(columns)
+        String setClause = Arrays.stream(effectiveColumns)
                 .map(col -> {
                     if (col == null || col.isEmpty()) {
                         throw new NativSQLException("Column name cannot be null or empty");
@@ -363,7 +431,13 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
         Map<String, Object> sqlParams = convertParamsToSqlValues(rawParams);
         Map<String, Object> logParams = convertParamsForLogging(rawParams);
-        dbOperationLogger.execute(getClass(), "update", "UPDATE", getTableName(), sql, logParams, () -> {
+
+        Map<String, Object> onUpdateLogValues = new LinkedHashMap<>();
+        for (String fieldName : onUpdateFieldNames) {
+            onUpdateLogValues.put(fieldName, logParams.get(fieldName));
+        }
+
+        dbOperationLogger.executeUpdate(getClass(), getTableName(), sql, logParams, onUpdateLogValues, () -> {
             int rowsUpdated = executeUpdate(sql, sqlParams);
             if (rowsUpdated != 1) {
                 throw new NativSQLException(

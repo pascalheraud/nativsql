@@ -91,6 +91,12 @@ void setDbDataType(Class<?> clazz, String fieldName, DbDataType dataType);
 // Relationship metadata
 MappedByInfo   getMappedByInfo(FieldAccessor<?> fieldAccessor);
 OneToManyAssociation getOneToManyInfo(FieldAccessor<?> fieldAccessor);
+
+// @OnUpdate / @OnInsert metadata (framework-managed computed values, see doc/issues/76-on-update)
+List<ComputedFieldInfo> getComputedFieldInfos(Class<?> entityClass);
+void setComputedFieldInfo(Class<?> clazz, String fieldName, ComputedValueProvider<?> provider);
+List<ComputedFieldInfo> getOnInsertFieldInfos(Class<?> entityClass);
+void setOnInsertFieldInfo(Class<?> clazz, String fieldName, ComputedValueProvider<?> provider);
 ```
 
 ---
