@@ -26,7 +26,8 @@ CREATE TABLE users (
     position GEOMETRY(Point, 4326),
     group_id BIGINT REFERENCES user_group(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_date TIMESTAMPTZ
 );
 
 CREATE TABLE contact_info (

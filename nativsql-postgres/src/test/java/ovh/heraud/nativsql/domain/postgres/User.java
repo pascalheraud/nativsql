@@ -1,5 +1,6 @@
 package ovh.heraud.nativsql.domain.postgres;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -13,11 +14,15 @@ import ovh.heraud.nativsql.annotation.type.Encrypted;
 import ovh.heraud.nativsql.annotation.type.Type;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.MappedBy;
+import ovh.heraud.nativsql.annotation.OnInsert;
+import ovh.heraud.nativsql.annotation.OnUpdate;
 import ovh.heraud.nativsql.crypt.CryptAlgorithm;
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.postgres.PostgresContactInfoRepository;
 import ovh.heraud.nativsql.repository.postgres.PostgresGroupRepository;
+import ovh.heraud.nativsql.util.SystemComputedValueProvider;
+import ovh.heraud.nativsql.util.SystemLocalDateTimeComputedValueProvider;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -49,8 +54,11 @@ public class User implements IEntity<Long> {
     private Long groupId;
     @MappedBy(value = "groupId", repository = PostgresGroupRepository.class)
     private Group group;
+    @OnInsert(SystemLocalDateTimeComputedValueProvider.class)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    @OnUpdate(SystemComputedValueProvider.class)
+    private Instant updateDate;
 
     @OneToMany(
         mappedBy = "userId",

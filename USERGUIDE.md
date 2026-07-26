@@ -174,6 +174,51 @@ userRepository.update(user, "id", "firstName", "email");
 userRepository.update(user, new String[]{"tenantId", "id"}, "firstName", "email");
 ```
 
+#### `@OnUpdate` / `@OnInsert` — framework-managed computed values
+
+A field annotated `@OnUpdate` is recomputed by the framework every time `update(...)` runs on
+the entity, unless the caller already passes that column explicitly. `@OnInsert` is the same
+mechanism for `insert(...)`. Both share the same provider interface, `ComputedValueProvider<T>`:
+
+```java
+public class DateProvider implements ComputedValueProvider<Instant> {
+    @Override
+    public Instant getValue() {
+        return Instant.now();
+    }
+}
+
+public class User implements IEntity<Long> {
+    // ...
+    @OnInsert(DateProvider.class)
+    private Instant creationDate; // set to Instant.now() on every insert(...) call
+    @OnUpdate(DateProvider.class)
+    private Instant updateDate;   // recomputed to Instant.now() on every update(...) call
+}
+
+userRepository.insert(user, "firstName"); // creationDate is set automatically
+userRepository.update(user, "firstName"); // updateDate is set automatically
+
+// Explicit override — the caller's own value is kept (e.g. migrations/backfills)
+user.setUpdateDate(someFixedInstant);
+userRepository.update(user, "firstName", "updateDate");
+```
+
+Neither annotation has a default provider — the field type isn't constrained by the framework
+(timestamp, version counter, audit field, ...), so a provider matching the annotated field's
+type must always be specified explicitly. The mechanism is not date-specific — supply any
+`ComputedValueProvider<T>` for other use cases (a version counter, an audit user id, ...):
+
+```java
+public class Document implements IEntity<Long> {
+    @OnUpdate(VersionIncrementProvider.class)
+    private Integer version; // boxed type required — the framework doesn't map primitives
+}
+```
+
+`@OnInsert` is only computed on `insert()`, and `@OnUpdate` only on `update()` — each is
+independent of the other operation.
+
 ### Delete
 
 ```java

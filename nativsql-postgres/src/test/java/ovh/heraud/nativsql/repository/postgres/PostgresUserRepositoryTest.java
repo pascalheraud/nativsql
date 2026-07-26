@@ -1,6 +1,9 @@
 package ovh.heraud.nativsql.repository.postgres;
 
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
 
@@ -1039,5 +1042,106 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 // Then
                 User deleted = userRepository.findByEmail("deleteenc@example.com", "id");
                 assertThat(deleted).isNull();
+        }
+
+        @Test
+        void testOnUpdateAutoAppliesUpdateDate() {
+                // Given - a user inserted without updateDate seeded (insert() is not touched by @OnUpdate)
+                User user = User.builder()
+                                .firstName("Grace")
+                                .lastName("Hopper")
+                                .email("onupdate-auto@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                User afterInsert = userRepository.findByEmail("onupdate-auto@example.com", "id", "updateDate");
+                assertThat(afterInsert.getUpdateDate()).isNull();
+
+                // When - updating an unrelated column, without requesting updateDate
+                afterInsert.setFirstName("Grace-Updated");
+                userRepository.update(afterInsert, "firstName");
+
+                // Then - the entity's in-memory field was refreshed by the framework
+                assertThat(afterInsert.getUpdateDate()).isNotNull();
+                assertThat(afterInsert.getUpdateDate()).isCloseTo(Instant.now(), within(5, ChronoUnit.SECONDS));
+
+                // And - the persisted value matches what was written back onto the entity
+                User reloaded = userRepository.findByEmail("onupdate-auto@example.com", "id", "firstName",
+                                "updateDate");
+                assertThat(reloaded.getFirstName()).isEqualTo("Grace-Updated");
+                assertThat(reloaded.getUpdateDate()).isCloseTo(Instant.now(), within(5, ChronoUnit.SECONDS));
+        }
+
+        @Test
+        void testOnUpdateExplicitOverrideKeepsCallerValue() {
+                // Given - a user inserted without updateDate
+                User user = User.builder()
+                                .firstName("Ada")
+                                .lastName("Lovelace")
+                                .email("onupdate-override@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                User found = userRepository.findByEmail("onupdate-override@example.com", "id");
+
+                // When - the caller sets updateDate explicitly and requests it in the column list
+                Instant fixedInstant = Instant.parse("2020-01-01T00:00:00Z");
+                found.setFirstName("Ada-Updated");
+                found.setUpdateDate(fixedInstant);
+                userRepository.update(found, "firstName", "updateDate");
+
+                // Then - the caller's own value is kept, not overridden by the provider
+                assertThat(found.getUpdateDate()).isEqualTo(fixedInstant);
+
+                User reloaded = userRepository.findByEmail("onupdate-override@example.com", "id", "firstName",
+                                "updateDate");
+                assertThat(reloaded.getFirstName()).isEqualTo("Ada-Updated");
+                assertThat(reloaded.getUpdateDate()).isEqualTo(fixedInstant);
+        }
+
+        @Test
+        void testOnInsertAutoAppliesCreatedAt() {
+                // Given - a user inserted without createdAt requested by the caller
+                User user = User.builder()
+                                .firstName("Katherine")
+                                .lastName("Johnson")
+                                .email("oninsert-auto@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status");
+
+                // Then - the entity's in-memory field was populated by the framework
+                assertThat(user.getCreatedAt()).isNotNull();
+                assertThat(user.getCreatedAt()).isCloseTo(LocalDateTime.now(), within(5, ChronoUnit.SECONDS));
+
+                // And - the persisted value matches what was written back onto the entity
+                User reloaded = userRepository.findByEmail("oninsert-auto@example.com", "id", "createdAt");
+                assertThat(reloaded.getCreatedAt()).isCloseTo(LocalDateTime.now(), within(5, ChronoUnit.SECONDS));
+        }
+
+        @Test
+        void testOnInsertExplicitOverrideKeepsCallerValue() {
+                // Given - the caller sets createdAt explicitly and requests it in the column list
+                LocalDateTime fixedDateTime = LocalDateTime.parse("2020-01-01T00:00:00");
+                User user = User.builder()
+                                .firstName("Margaret")
+                                .lastName("Hamilton")
+                                .email("oninsert-override@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .createdAt(fixedDateTime)
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "createdAt");
+
+                // Then - the caller's own value is kept, not overridden by the provider
+                assertThat(user.getCreatedAt()).isEqualTo(fixedDateTime);
+
+                User reloaded = userRepository.findByEmail("oninsert-override@example.com", "id", "createdAt");
+                assertThat(reloaded.getCreatedAt()).isEqualTo(fixedDateTime);
         }
 }

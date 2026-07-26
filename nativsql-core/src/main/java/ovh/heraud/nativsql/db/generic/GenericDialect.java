@@ -153,6 +153,8 @@ public class GenericDialect extends AbstractChainedDialect {
             return (ITypeMapper<T>) getLocalDateMapper();
         if (targetType == LocalDateTime.class)
             return (ITypeMapper<T>) getLocalDateTimeMapper();
+        if (targetType == java.time.Instant.class)
+            return (ITypeMapper<T>) getInstantMapper();
         if (targetType == byte[].class)
             return (ITypeMapper<T>) getByteArrayMapper();
         if (isJdbcType(targetType))
@@ -247,6 +249,15 @@ public class GenericDialect extends AbstractChainedDialect {
     @Override
     public ITypeMapper<LocalDateTime> getLocalDateTimeMapper() {
         return new LocalDateTimeTypeMapper();
+    }
+
+    /**
+     * Gets the TypeMapper for {@link java.time.Instant} fields. Not part of
+     * {@link DatabaseDialect} — no dialect currently needs to override it, unlike
+     * {@link #getLocalDateTimeMapper()} etc.
+     */
+    public ITypeMapper<java.time.Instant> getInstantMapper() {
+        return new ovh.heraud.nativsql.db.generic.mapper.InstantTypeMapper();
     }
 
     @Override
