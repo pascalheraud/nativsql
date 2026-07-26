@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Typed `leftJoin`/`innerJoin`, `orderByAsc`/`orderByDesc`, and `whereAnd*` overloads for joined entities** — an association getter + target-entity getter(s) (e.g. `orderByAsc(User::getGroup, Group::getCreationDate)`), or an explicit join name + column string(s) (e.g. `orderByAsc("group", "creationDate")`), to disambiguate ordering/filtering on a joined entity's column when the same property name exists on several entities in the query. See [User Guide](USERGUIDE.md#ordering-on-joined-table-columns) and [doc/issues/104-orderby-joined-columns/spec.md](doc/issues/104-orderby-joined-columns/spec.md) for details.
+- **`BaseRepositoryTest.rollbackTransactionAfterEachTest()`** — new overridable extension point (default `true`, preserving existing behavior) letting a test subclass opt out of the automatic per-test transaction rollback, so data seeded via the Testcontainers-backed `DataSource` is actually committed and visible to other connections — needed when the test drives a separately-running application process (e.g. an e2e scenario) rather than only the test's own connection. See [User Guide](USERGUIDE.md#testing) and [doc/issues/100-e2e-container-transaction-config/spec.md](doc/issues/100-e2e-container-transaction-config/spec.md) for details.
 
 ## [2.8.0] - 2026-07-20
 

@@ -14,7 +14,8 @@
 10. [Encryption](#encryption)
 11. [Multiple databases](#multiple-databases)
 12. [Logging](#logging)
-13. [FAQ](#faq)
+13. [Testing](#testing)
+14. [FAQ](#faq)
 
 ---
 
@@ -779,6 +780,57 @@ Enable in `application.properties`:
 ```properties
 logging.level.ovh.heraud.nativsql=DEBUG
 ```
+
+---
+
+## Testing
+
+Repository integration tests and e2e tests both build on `BaseRepositoryTest` (published in each
+dialect module's `testFixtures`), which spins up a cached Testcontainers database container and
+applies a schema script — see `PostgresBaseRepositoryTest`, `MySQLBaseRepositoryTest`,
+`MariaDBBaseRepositoryTest`, `OracleBaseRepositoryTest`.
+
+### Repository integration tests (default: rollback after each test)
+
+Extend the dialect-specific base class and provide the schema script; every test method runs
+inside a transaction that's rolled back automatically, so tests never leak data into each other:
+
+```java
+public abstract class OrderRepositoryTest extends PostgresBaseRepositoryTest {
+    @Override
+    protected String getScriptPath() {
+        return "db/schema-test.sql";
+    }
+}
+```
+
+### E2E tests (opt out of rollback)
+
+An e2e scenario drives a real application process (or container) with its **own** JDBC
+connection(s) to the same database. Data inserted through `BaseRepositoryTest`'s wrapping
+transaction is invisible to those connections until commit — so by default, nothing seeded this
+way can ever be observed by the app under test. Override `rollbackTransactionAfterEachTest()` to
+`false` to have seeded data actually committed:
+
+```java
+public abstract class OrderE2ERepositoryTest extends PostgresBaseRepositoryTest {
+    @Override
+    protected String getScriptPath() {
+        return "db/schema-test.sql";
+    }
+
+    @Override
+    protected boolean rollbackTransactionAfterEachTest() {
+        return false;
+    }
+}
+```
+
+When rollback is disabled, nothing cleans up data between tests automatically anymore — that
+becomes the project's own responsibility (typically a delete+reseed test-data builder called at
+the start of each scenario). See [doc/EndToEndTesting.md](doc/EndToEndTesting.md) for a full,
+worked e2e setup built on this opt-out (a shared environment singleton starting the container and
+the application under test, and a JUnit base class scenario tests extend).
 
 ---
 
