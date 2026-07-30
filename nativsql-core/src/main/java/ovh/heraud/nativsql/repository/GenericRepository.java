@@ -2,6 +2,7 @@ package ovh.heraud.nativsql.repository;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -1470,18 +1471,18 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     private Map<String, Object> convertParamsToSqlValues(Map<String, Object> params) {
         Map<String, Object> converted = new HashMap<>();
         for (Map.Entry<String, Object> entry : params.entrySet()) {
-            if (entry.getValue() instanceof List<?> list) {
+            FieldAccessor<Object> declaredField = entityFields.getOrNull(entry.getKey());
+            boolean isCollectionTypedColumn = declaredField != null
+                    && Collection.class.isAssignableFrom(declaredField.getType());
+            if (entry.getValue() instanceof List<?> list && !isCollectionTypedColumn) {
                 List<Object> convertedList = convertListParams((List<Object>) list);
                 converted.put(entry.getKey(), convertedList);
             } else {
                 if (entry.getValue() == null) {
                     converted.put(entry.getKey(), null);
                 } else {
-                    FieldAccessor<Object> field = entityFields.getOrNull(entry.getKey());
-
-                    if (field == null) {
-                        field = new FieldAccessor<Object>(entry.getValue().getClass());
-                    }
+                    FieldAccessor<Object> field = declaredField != null ? declaredField
+                            : new FieldAccessor<Object>(entry.getValue().getClass());
                     TypeInfo typeInfo = annotationManager.getTypeInfo(field);
                     converted.put(entry.getKey(), convertToSqlValue(entry.getValue(), field, typeInfo));
                 }

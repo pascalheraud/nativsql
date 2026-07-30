@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.domain.postgres;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.postgis.Point;
@@ -17,6 +18,7 @@ import ovh.heraud.nativsql.annotation.MappedBy;
 import ovh.heraud.nativsql.annotation.OnInsert;
 import ovh.heraud.nativsql.annotation.OnUpdate;
 import ovh.heraud.nativsql.crypt.CryptAlgorithm;
+import ovh.heraud.nativsql.annotation.Json;
 import ovh.heraud.nativsql.annotation.OneToMany;
 import ovh.heraud.nativsql.domain.IEntity;
 import ovh.heraud.nativsql.repository.postgres.PostgresContactInfoRepository;
@@ -50,6 +52,22 @@ public class User implements IEntity<Long> {
     @Type(DbDataType.BIG_INTEGER)
     private Integer age;
     private Preferences preferences;
+    @Json
+    private List<Long> tagIds;
+    @Json
+    private Set<Long> tagIdSet;
+    @Json
+    private Long[] tagIdArray;
+    @Json
+    private List<UUID> externalTagIds;
+    @Json
+    private List<String> tagLabels;
+    @Json
+    private List<Double> tagScores;
+    @Json
+    private List<Boolean> tagFlags;
+    @Json
+    private List<Preferences> preferencesHistory;
     private Point position;
     private Long groupId;
     @MappedBy(value = "groupId", repository = PostgresGroupRepository.class)

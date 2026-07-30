@@ -43,6 +43,7 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
      */
     public Self whereAndEquals(String column, Object value) {
         guardEncryptedColumn(column);
+        guardJsonColumn(column);
         whereClause.add(column, Operator.EQUALS, value);
         return self();
     }
@@ -61,6 +62,7 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
      */
     public Self whereAndIn(String column, List<?> values) {
         guardEncryptedColumn(column);
+        guardJsonColumn(column);
         whereClause.add(column, Operator.IN, values);
         return self();
     }
@@ -94,6 +96,7 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
      */
     public Self whereAndOperator(String column, Operator operator, Object value) {
         guardEncryptedColumn(column);
+        guardJsonColumn(column);
         whereClause.add(column, operator, value);
         return self();
     }
@@ -115,6 +118,7 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
      */
     public Self whereAndColumnOperator(String column, ColumnOperator operator) {
         guardEncryptedColumn(column);
+        guardJsonColumn(column);
         whereClause.addColumnOperator(column, operator);
         return self();
     }
@@ -143,6 +147,7 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
             throw new NativSQLException("Range high value cannot be null for column '" + column + "'");
         }
         guardEncryptedColumn(column);
+        guardJsonColumn(column);
         String camelBase = SqlUtils.columnPathToParamName(column);
         whereClause.addRangeOperator(column, operator, camelBase + "Low", low, camelBase + "High", high);
         return self();
@@ -206,6 +211,25 @@ public abstract class WhereQuery<T extends IEntity<ID>, ID, Self extends WhereQu
                 throw new NativSQLException("Column '" + column
                         + "' uses a non-deterministic algorithm and cannot be used in a WHERE equality check");
             }
+        }
+    }
+
+    private void guardJsonColumn(String column) {
+        if (column.contains(".")) {
+            return; // joined entity column — JSON guard does not apply
+        }
+        Fields entityFields = repository.getEntityFields();
+        if (entityFields == null) {
+            return;
+        }
+        FieldAccessor<?> field = entityFields.getOrNull(column);
+        if (field == null) {
+            return;
+        }
+        TypeInfo typeInfo = annotationManager.getTypeInfo(field);
+        if (Boolean.TRUE.equals(typeInfo.getParam(TypeParamKey.JSON))) {
+            throw new NativSQLException("Column '" + column
+                    + "' is a JSON column and cannot be used in a standard WHERE condition; use whereExpression(...) with a JSON-specific SQL expression instead");
         }
     }
 }

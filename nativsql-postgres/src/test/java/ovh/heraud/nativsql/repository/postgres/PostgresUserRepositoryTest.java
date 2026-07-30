@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
@@ -19,8 +20,10 @@ import ovh.heraud.nativsql.domain.postgres.Preferences;
 import ovh.heraud.nativsql.domain.postgres.User;
 import ovh.heraud.nativsql.domain.postgres.UserReport;
 import ovh.heraud.nativsql.domain.postgres.UserStatus;
+import ovh.heraud.nativsql.exception.NativSQLException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
 /**
@@ -70,6 +73,152 @@ class PostgresUserRepositoryTest extends PostgresRepositoryTest {
                 assertThat(found.getPreferences()).isNotNull();
                 assertThat(found.getPreferences().getTheme()).isEqualTo("dark");
                 assertThat(found.getPosition().toString()).isEqualTo("SRID=4326;POINT(4 45)");
+        }
+
+        @Test
+        void testInsertUserWithJsonListField() {
+                // Given - a list of ids stored as JSON via @Json
+                User user = User.builder()
+                                .firstName("Carol")
+                                .lastName("Danvers")
+                                .email("carol@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .tagIds(List.of(1L, 2L, 3L))
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "tagIds");
+
+                // Then
+                User found = userRepository.findByEmail("carol@example.com", "id", "tagIds");
+                assertThat(found).isNotNull();
+                assertThat(found.getTagIds()).containsExactly(1L, 2L, 3L);
+        }
+
+        @Test
+        void testInsertUserWithJsonSetAndArrayFields() {
+                // Given - other ordered/unordered collection shapes stored as JSON
+                User user = User.builder()
+                                .firstName("Frank")
+                                .lastName("Ocean")
+                                .email("frank@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .tagIdSet(Set.of(1L, 2L, 3L))
+                                .tagIdArray(new Long[] { 4L, 5L, 6L })
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "tagIdSet", "tagIdArray");
+
+                // Then
+                User found = userRepository.findByEmail("frank@example.com", "id", "tagIdSet", "tagIdArray");
+                assertThat(found).isNotNull();
+                assertThat(found.getTagIdSet()).containsExactlyInAnyOrder(1L, 2L, 3L);
+                assertThat(found.getTagIdArray()).containsExactly(4L, 5L, 6L);
+        }
+
+        @Test
+        void testInsertUserWithJsonListOfUuidAndPojoFields() {
+                // Given - other element types supported by @Json: UUID and a nested POJO
+                UUID tag1 = UUID.randomUUID();
+                UUID tag2 = UUID.randomUUID();
+                User user = User.builder()
+                                .firstName("Grace")
+                                .lastName("Hopper")
+                                .email("grace@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .externalTagIds(List.of(tag1, tag2))
+                                .preferencesHistory(List.of(
+                                                Preferences.builder().language("fr").theme("dark")
+                                                                .notifications(true).build(),
+                                                Preferences.builder().language("en").theme("light")
+                                                                .notifications(false).build()))
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "externalTagIds",
+                                "preferencesHistory");
+
+                // Then
+                User found = userRepository.findByEmail("grace@example.com", "id", "externalTagIds",
+                                "preferencesHistory");
+                assertThat(found).isNotNull();
+                assertThat(found.getExternalTagIds()).containsExactly(tag1, tag2);
+                assertThat(found.getPreferencesHistory()).hasSize(2);
+                assertThat(found.getPreferencesHistory().get(0).getTheme()).isEqualTo("dark");
+                assertThat(found.getPreferencesHistory().get(1).getTheme()).isEqualTo("light");
+        }
+
+        @Test
+        void testInsertUserWithJsonListOfStringDoubleAndBooleanFields() {
+                // Given - other primitive element types supported by @Json
+                User user = User.builder()
+                                .firstName("Ivy")
+                                .lastName("Turing")
+                                .email("ivy@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .tagLabels(List.of("vip", "beta-tester"))
+                                .tagScores(List.of(1.5, 2.75, 3.0))
+                                .tagFlags(List.of(true, false, true))
+                                .build();
+
+                // When
+                userRepository.insert(user, "firstName", "lastName", "email", "status", "tagLabels", "tagScores",
+                                "tagFlags");
+
+                // Then
+                User found = userRepository.findByEmail("ivy@example.com", "id", "tagLabels", "tagScores",
+                                "tagFlags");
+                assertThat(found).isNotNull();
+                assertThat(found.getTagLabels()).containsExactly("vip", "beta-tester");
+                assertThat(found.getTagScores()).containsExactly(1.5, 2.75, 3.0);
+                assertThat(found.getTagFlags()).containsExactly(true, false, true);
+        }
+
+        @Test
+        void testInsertUserWithEmptyAndNullJsonListField() {
+                // Given - an empty list and a null list
+                User emptyListUser = User.builder()
+                                .firstName("Dan")
+                                .lastName("Empty")
+                                .email("dan-empty@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .tagIds(List.of())
+                                .build();
+                User nullListUser = User.builder()
+                                .firstName("Eve")
+                                .lastName("Null")
+                                .email("eve-null@example.com")
+                                .status(UserStatus.ACTIVE)
+                                .tagIds(null)
+                                .build();
+
+                // When
+                userRepository.insert(emptyListUser, "firstName", "lastName", "email", "status", "tagIds");
+                userRepository.insert(nullListUser, "firstName", "lastName", "email", "status", "tagIds");
+
+                // Then
+                User foundEmpty = userRepository.findByEmail("dan-empty@example.com", "id", "tagIds");
+                assertThat(foundEmpty.getTagIds()).isEmpty();
+
+                User foundNull = userRepository.findByEmail("eve-null@example.com", "id", "tagIds");
+                assertThat(foundNull.getTagIds()).isNull();
+        }
+
+        @Test
+        void testWhereAndEqualsOnJsonColumnIsRejected() {
+                assertThatThrownBy(() -> userRepository.findByTagIdsEquals(1L, "id", "tagIds"))
+                                .isInstanceOf(NativSQLException.class)
+                                .hasMessageContaining("tagIds")
+                                .hasMessageContaining("JSON");
+        }
+
+        @Test
+        void testWhereAndInOnJsonColumnIsRejected() {
+                assertThatThrownBy(() -> userRepository.findByTagIdsIn(List.of(1L, 2L), "id", "tagIds"))
+                                .isInstanceOf(NativSQLException.class)
+                                .hasMessageContaining("tagIds")
+                                .hasMessageContaining("JSON");
         }
 
         @Test
