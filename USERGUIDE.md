@@ -675,6 +675,18 @@ Option 3 — programmatic registration:
 annotationManager.setJsonInfo(Address.class);
 ```
 
+`@Json` also works on a collection- or array-typed field, e.g. a list of ids:
+```java
+@Json
+private List<Long> tagIds;
+@Json
+private Set<Long> tagIdSet;
+@Json
+private Long[] tagIdArray;
+```
+
+A `@Json` column cannot be used in a standard `whereAnd*`/`whereAndRange` condition — `WhereQuery` rejects it with a `NativSQLException` since a JSON blob has no meaningful `=`/`IN`/range comparison. Use `whereExpression(...)` with a dialect-specific JSON expression (e.g. PostgreSQL's `->`/`@>` operators) if you need to filter on JSON content.
+
 ### Composite types (PostgreSQL only)
 
 A composite type maps a Java POJO to a PostgreSQL composite type (`CREATE TYPE address_type AS (...)`). The value is serialized as `(field1,field2,...)` and cast with `::type_name`.

@@ -69,6 +69,40 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
     }
 
     /**
+     * Attempts to find users by an equality condition on the JSON-mapped
+     * {@code tagIds} column — used to verify that standard WHERE conditions on a
+     * {@code @Json} column are rejected.
+     *
+     * @param value   the value to compare {@code tagIds} against
+     * @param columns the property names (camelCase) to retrieve
+     * @return list of matching users (never actually reached; the query builder
+     *         throws before execution)
+     */
+    public List<User> findByTagIdsEquals(Object value, String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals("tagIds", value));
+    }
+
+    /**
+     * Attempts to find users by an IN condition on the JSON-mapped
+     * {@code tagIds} column — used to verify that standard WHERE conditions on a
+     * {@code @Json} column are rejected.
+     *
+     * @param values  the values to compare {@code tagIds} against
+     * @param columns the property names (camelCase) to retrieve
+     * @return list of matching users (never actually reached; the query builder
+     *         throws before execution)
+     */
+    public List<User> findByTagIdsIn(List<?> values, String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndIn("tagIds", values));
+    }
+
+    /**
      * Finds a user by ID and loads their contact information.
      *
      * @param userId         the user ID

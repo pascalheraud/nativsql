@@ -5,6 +5,16 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] - 2026-07-30
+
+### Added
+
+- **`@Json` on collection- or array-typed fields** — a field like `@Json private List<Long> tagIds;` (or `Set<Long>`, `Long[]`, etc.) is now correctly serialized/deserialized as a single JSON/JSONB value, instead of `List`-typed fields being mistakenly expanded as a multi-value SQL parameter on insert/update. `Set`/array fields were already unaffected. See [doc/issues/109-json-array-ids/spec.md](doc/issues/109-json-array-ids/spec.md).
+
+### Fixed
+
+- **`whereAnd*`/`whereAndRange` on a `@Json` column now rejected** — a JSON blob has no meaningful `=`/`IN`/range comparison, so `WhereQuery` throws a `NativSQLException` instead of silently generating a bogus or misleading query. Use `whereExpression(...)` with a dialect-specific JSON expression instead. See [doc/issues/109-json-array-ids/spec.md](doc/issues/109-json-array-ids/spec.md).
+
 ## [2.9.0] - 2026-07-26
 
 ### Added
