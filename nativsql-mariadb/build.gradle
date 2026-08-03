@@ -23,7 +23,7 @@ dependencies {
     testImplementation project(':nativsql-test-commons')
 
     // MariaDB JDBC Driver (NOT mysql-connector-j)
-    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.9'
+    implementation 'org.mariadb.jdbc:mariadb-java-client:3.5.10'
 
     // Spring Boot test dependencies
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
