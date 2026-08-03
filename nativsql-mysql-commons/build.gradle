@@ -9,7 +9,7 @@ dependencies {
     implementation project(':nativsql-core')
 
     // Annotations
-    implementation 'org.jspecify:jspecify:1.0.0'
+    implementation 'org.jspecify:jspecify:1.0.1'
 
     // PostGIS (for MySQL PostGIS support)
     implementation 'net.postgis:postgis-jdbc:2.5.1'
