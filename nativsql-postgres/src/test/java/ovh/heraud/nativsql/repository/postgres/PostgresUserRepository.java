@@ -3,6 +3,7 @@ package ovh.heraud.nativsql.repository.postgres;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.postgis.Point;
@@ -43,6 +44,17 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
      */
     public User findByEmail(String email, String... columns) {
         return findByProperty("email", email, columns);
+    }
+
+    /**
+     * Finds a user by email with specified columns.
+     *
+     * @param email   the user email
+     * @param columns the property names (camelCase) to retrieve
+     * @return an {@link Optional} containing the user, or empty if not found
+     */
+    public Optional<User> findOptionalByEmail(String email, String... columns) {
+        return findOptionalByProperty("email", email, columns);
     }
 
     /**

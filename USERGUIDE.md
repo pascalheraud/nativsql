@@ -258,7 +258,15 @@ List<User> users = userRepository.findAllByProperty("status",
 // even if "id" is omitted from the requested columns
 User user2 = userRepository.findById(1L, "firstName");
 List<User> users = userRepository.findAllByIds(List.of(1L, 2L, 3L), "firstName");
+
+// Optional-returning variants — same lookup, wrapped as Optional<T> instead of nullable T
+Optional<User> maybeUser = userRepository.findOptionalById(1L, "firstName");
 ```
+
+Every nullable single-result find method (`findById`, `findByProperty`,
+`findByPropertyExpression`, `find(FindQuery)`) has an `Optional<T>`-returning twin named
+`findOptional...` — e.g. `findOptionalById`, `findOptionalByProperty`. Use whichever fits your
+null-handling style; both call the exact same query/mapping code path.
 
 ### Count
 
