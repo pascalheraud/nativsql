@@ -126,7 +126,8 @@ public class GenericDialect extends AbstractChainedDialect {
      * Extracted to a helper so it can be reused when building encrypted mappers.
      */
     @SuppressWarnings("unchecked")
-    protected <T> ITypeMapper<T> getMapperForType(Class<T> targetType) {
+    @Override
+    public <T> ITypeMapper<T> getMapperForType(Class<T> targetType) {
         if (targetType == UUID.class)
             return (ITypeMapper<T>) getUUIDMapper();
         if (targetType == Long.class)

@@ -5,11 +5,13 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.11.0] - 2026-07-31
+## [2.11.0] - 2026-08-03
 
 ### Added
 
 - **`findOptional*` methods** — an `Optional<T>`-returning twin for every existing nullable single-result find method (`findOptionalById`, `findOptionalByProperty`, `findOptionalByPropertyExpression`, `findOptional(FindQuery)`, `findOptional(FindQuery, Class<R>)`), each a thin `Optional.ofNullable(...)` wrapper around the existing method — no behavior change to any existing `find*` method. See [doc/issues/105-find-optional/spec.md](doc/issues/105-find-optional/spec.md).
+
+- **`findExternal`/`findAllExternal` now support a base/scalar result class (`Long`, `String`, `Integer`, ...) for single-column queries** — e.g. `findExternal("select count(*) from users", Long.class)` now maps the one column directly to the target type instead of failing with a confusing reflection error. If the query returns more than one column with a scalar result class, a clear `NativSQLException` is raised instead. See [doc/issues/111-bug-findexternal-methods-cannot-return-a-base-type-like-string/spec.md](doc/issues/111-bug-findexternal-methods-cannot-return-a-base-type-like-string/spec.md).
 
 ## [2.10.0] - 2026-07-30
 
