@@ -264,6 +264,34 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
         return findExternal(sql, UserReport.class);
     }
 
+    /**
+     * Returns the id of the most recently created user, via a scalar
+     * (single-column) {@code findExternal} query — an aggregation
+     * {@code CountQuery}/{@code FindQuery} can't express, mapping the result
+     * directly to {@link Long} (issue #111).
+     */
+    public Long findMostRecentUserId() {
+        return findExternal("select id from users order by created_at desc limit 1", Long.class);
+    }
+
+    /**
+     * Returns the distinct email domains in use, via a scalar (single-column)
+     * {@code findAllExternal} query, mapping each row directly to
+     * {@link String} (issue #111).
+     */
+    public List<String> findDistinctEmailDomains() {
+        return findAllExternal(
+                "select distinct split_part(email, '@', 2) from users order by 1", String.class);
+    }
+
+    /**
+     * Deliberately returns 2 columns with a scalar result class, to exercise the
+     * ambiguous-column error path (issue #111).
+     */
+    public Long findFirstUserIdAndEmail() {
+        return findExternal("select id, email from users order by id limit 1", Long.class);
+    }
+
     public <T> IData<T> getValue(Class<? extends IData<T>> clazz) {
         String tableName = getTableNameForDataType(clazz);
         return findExternal("select data from " + tableName + " limit 1", clazz);

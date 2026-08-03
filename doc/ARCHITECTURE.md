@@ -244,6 +244,14 @@ Called in three places to keep SQL and parameter map consistent:
 2. For each column, looks up the `TypeInfo` via `AnnotationManager`
 3. Calls `ITypeMapper.fromValue(raw, params)` to convert to Java
 
+`RowMapperFactory.getRowMapper(resultClass, dialect, identifierConverter)` — used by
+`findExternal`/`findAllExternal` and the `find`/`findAll(query, resultClass)` overloads — picks
+between two `RowMapper` implementations based on `dialect.getMapperForType(resultClass)`:
+- non-null (a base/JDBC scalar type like `Long`, `String`, `UUID`, ...) → `ScalarRowMapper`, which
+  requires the query to return exactly one column and maps it directly via the dialect's scalar
+  `ITypeMapper`, throwing a `NativSQLException` otherwise
+- `null` (an entity/bean type) → `GenericRowMapper`, the existing bean-introspection path
+
 ---
 
 ## Logging

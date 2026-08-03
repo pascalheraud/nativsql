@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Component;
 import ovh.heraud.nativsql.annotation.AnnotationManager;
 import ovh.heraud.nativsql.db.DatabaseDialect;
@@ -16,13 +17,15 @@ import ovh.heraud.nativsql.util.ReflectionUtils;
 import ovh.heraud.nativsql.util.TypeInfo;
 
 /**
- * Factory for creating and caching GenericRowMapper instances.
+ * Factory for creating and caching RowMapper instances.
  * Performs class introspection once per type and caches the result.
+ * Produces a {@link ScalarRowMapper} for base/JDBC scalar types (single-column
+ * queries) and a {@link GenericRowMapper} for entity/bean types.
  */
 @Component
 public class RowMapperFactory {
 
-    private final Map<Class<?>, GenericRowMapper<?>> cache = new ConcurrentHashMap<>();
+    private final Map<Class<?>, RowMapper<?>> cache = new ConcurrentHashMap<>();
 
     @Autowired
     private AnnotationManager annotationManager;
@@ -40,15 +43,35 @@ public class RowMapperFactory {
      *                            transformation
      * @return a GenericRowMapper for the class
      */
-    public <T> GenericRowMapper<T> getRowMapper(Class<T> clazz, DatabaseDialect dialect,
+    public <T> RowMapper<T> getRowMapper(Class<T> clazz, DatabaseDialect dialect,
             IdentifierConverter identifierConverter) {
         @SuppressWarnings("unchecked")
-        GenericRowMapper<T> cached = (GenericRowMapper<T>) cache.get(clazz);
+        RowMapper<T> cached = (RowMapper<T>) cache.get(clazz);
         if (cached != null) {
             return cached;
         }
+        ITypeMapper<T> scalarMapper = dialect.getMapperForType(clazz);
+        RowMapper<T> mapper = scalarMapper != null
+                ? new ScalarRowMapper<>(clazz, scalarMapper)
+                : createRowMapper(clazz, dialect, identifierConverter);
+        cache.put(clazz, mapper);
+        return mapper;
+    }
+
+    /**
+     * Gets or creates a GenericRowMapper for the specified bean/entity class,
+     * bypassing the scalar-type check. Used for joined sub-properties, whose
+     * declared field type is by construction never a base type (fields with a
+     * dialect-mappable type never reach the joined-property branch).
+     */
+    @SuppressWarnings("unchecked")
+    private <T> GenericRowMapper<T> getBeanRowMapper(Class<T> clazz, DatabaseDialect dialect,
+            IdentifierConverter identifierConverter) {
+        RowMapper<?> cached = cache.get(clazz);
+        if (cached instanceof GenericRowMapper<?> genericCached) {
+            return (GenericRowMapper<T>) genericCached;
+        }
         GenericRowMapper<T> mapper = createRowMapper(clazz, dialect, identifierConverter);
-        mapper.toString();
         cache.put(clazz, mapper);
         return mapper;
     }
@@ -79,7 +102,7 @@ public class RowMapperFactory {
                     // Simple type without a mapper → likely a joined property
                     // Will be discovered by RowMapper at runtime by checking if the ResultSet
                     // contains columns with the property name prefix (e.g., "group.id")
-                    GenericRowMapper<?> delegateMapper = getRowMapper(fieldAccessor.getType(), dialect,
+                    GenericRowMapper<?> delegateMapper = getBeanRowMapper(fieldAccessor.getType(), dialect,
                             identifierConverter);
                     subProperties.put(fieldAccessor.getName(),
                             new JoinedPropertyMetadata(fieldAccessor, delegateMapper));

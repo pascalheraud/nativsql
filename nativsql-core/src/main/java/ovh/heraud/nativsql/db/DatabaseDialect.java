@@ -89,6 +89,17 @@ public interface DatabaseDialect {
         <T> ITypeMapper<T> getDefaultMapper();
 
         /**
+         * Returns the scalar TypeMapper for a base/JDBC type (String, Long, Integer,
+         * UUID, LocalDate, ...), or null if the type is not a base type (i.e. it's an
+         * entity/bean whose fields should be introspected instead).
+         *
+         * @param targetType the Java type to check
+         * @return a TypeMapper for the type, or null if it's not a base type
+         * @param <T> the type
+         */
+        <T> ITypeMapper<T> getMapperForType(Class<T> targetType);
+
+        /**
          * Extracts the generated key from the database after an insert operation.
          *
          * @param <ID>

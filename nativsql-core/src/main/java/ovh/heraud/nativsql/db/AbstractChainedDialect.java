@@ -149,6 +149,14 @@ public abstract class AbstractChainedDialect implements DatabaseDialect {
     }
 
     @Override
+    public <T> ITypeMapper<T> getMapperForType(Class<T> targetType) {
+        if (nextDialect != null) {
+            return nextDialect.getMapperForType(targetType);
+        }
+        throw new NativSQLException("No dialect found in chain to get mapper for type");
+    }
+
+    @Override
 
     public ITypeMapper<String> getStringMapper() {
         return nextDialect.getStringMapper();
