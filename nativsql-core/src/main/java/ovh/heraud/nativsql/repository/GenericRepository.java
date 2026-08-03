@@ -8,6 +8,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -640,6 +641,37 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
+     * Finds an entity by ID with specified columns using getter method references
+     * (assumes ID column is named "id").
+     * Converts getter references to column names and delegates to
+     * {@link #findOptionalById(Object, String...)}.
+     *
+     * @param id      the ID value
+     * @param getters the getter method references (e.g., User::getEmail,
+     *                User::getId) — must not be empty
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @throws NativSQLException if getters array is empty
+     * @see #findOptionalById(Object, String...)
+     */
+    @SafeVarargs
+    public final Optional<T> findOptionalById(Object id, Getter<T>... getters) {
+        return Optional.ofNullable(findById(id, getters));
+    }
+
+    /**
+     * Finds an entity by ID with specified columns (assumes ID column is named
+     * "id").
+     *
+     * @param id      the ID value
+     * @param columns the property names (camelCase) to retrieve (must not be empty)
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @throws NativSQLException if columns is empty
+     */
+    public Optional<T> findOptionalById(Object id, String... columns) {
+        return Optional.ofNullable(findById(id, columns));
+    }
+
+    /**
      * Ensures the id column is part of the given columns, adding it if absent
      * (case-insensitive comparison against {@link #ID_COLUMN}).
      */
@@ -769,6 +801,75 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
         return findByPropertyExpression(identifierConverter.toDB(property), property, value,
                 columns);
+    }
+
+    /**
+     * Finds an entity by a property value with specified columns using getter
+     * method references for both the filter property and the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findOptionalByProperty(String, Object, String...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getEmail)
+     * @param value          the value to search for
+     * @param columns        the property names (camelCase) to retrieve (must not be
+     *                       empty)
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @see #findOptionalByProperty(String, Object, String...)
+     */
+    protected final Optional<T> findOptionalByProperty(Getter<T> propertyGetter, Object value, String... columns) {
+        return Optional.ofNullable(findByProperty(propertyGetter, value, columns));
+    }
+
+    /**
+     * Finds an entity by a property value using getter method references for both
+     * the filter property and the selected columns.
+     * Converts the property getter to a property name and delegates to
+     * {@link #findOptionalByProperty(String, Object, Getter...)}.
+     *
+     * @param propertyGetter the getter method reference identifying the property to
+     *                       filter by (e.g., User::getEmail)
+     * @param value          the value to search for
+     * @param getters        the getter method references for selected columns
+     *                       (e.g., User::getId, User::getEmail)
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @see #findOptionalByProperty(String, Object, Getter...)
+     */
+    @SafeVarargs
+    protected final Optional<T> findOptionalByProperty(Getter<T> propertyGetter, Object value, Getter<T>... getters) {
+        return Optional.ofNullable(findByProperty(propertyGetter, value, getters));
+    }
+
+    /**
+     * Finds an entity by a property value with specified columns using getter
+     * method references.
+     * Converts getter references to column names and delegates to
+     * {@link #findOptionalByProperty(String, Object, String...)}.
+     *
+     * @param property the property name (camelCase) to filter by
+     * @param value    the value to search for
+     * @param getters  the getter method references (e.g., User::getEmail,
+     *                 User::getId)
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @see #findOptionalByProperty(String, Object, String...)
+     */
+    @SafeVarargs
+    protected final Optional<T> findOptionalByProperty(String property, Object value, Getter<T>... getters) {
+        return Optional.ofNullable(findByProperty(property, value, getters));
+    }
+
+    /**
+     * Finds an entity by a property value with specified columns.
+     *
+     * @param property the property name (camelCase) to filter by
+     * @param value    the value to search for
+     * @param columns  the property names (camelCase) to retrieve (must not be
+     *                 empty)
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @throws NativSQLException if columns is empty
+     */
+    protected Optional<T> findOptionalByProperty(String property, Object value, String... columns) {
+        return Optional.ofNullable(findByProperty(property, value, columns));
     }
 
     /**
@@ -1121,6 +1222,46 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
+     * Finds an entity by a property expression with specified columns using getter
+     * method references.
+     * Allows using database expressions like (address).city for composite types.
+     * Converts getter references to column names and delegates to
+     * {@link #findOptionalByPropertyExpression(String, String, Object, String...)}.
+     *
+     * @param propertyExpression the SQL expression to filter by (e.g.,
+     *                           "(address).city")
+     * @param paramName          the parameter name to use in the query
+     * @param value              the value to search for
+     * @param getters            the getter method references (e.g., User::getEmail,
+     *                           User::getId)
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @see #findOptionalByPropertyExpression(String, String, Object, String...)
+     */
+    @SafeVarargs
+    protected final Optional<T> findOptionalByPropertyExpression(String propertyExpression, String paramName, Object value,
+            Getter<T>... getters) {
+        return Optional.ofNullable(findByPropertyExpression(propertyExpression, paramName, value, getters));
+    }
+
+    /**
+     * Finds an entity by a property expression with specified columns.
+     * Allows using database expressions like (address).city for composite types.
+     *
+     * @param propertyExpression the SQL expression to filter by (e.g.,
+     *                           "(address).city")
+     * @param paramName          the parameter name to use in the query
+     * @param value              the value to search for
+     * @param columns            the property names (camelCase) to retrieve (must
+     *                           not be empty)
+     * @return an {@link Optional} containing the entity, or empty if not found
+     * @throws NativSQLException if columns is empty
+     */
+    protected Optional<T> findOptionalByPropertyExpression(String propertyExpression, String paramName, Object value,
+            String... columns) {
+        return Optional.ofNullable(findByPropertyExpression(propertyExpression, paramName, value, columns));
+    }
+
+    /**
      * Finds all entities by a property expression with specified columns using
      * getter method references.
      * Allows using database expressions like (address).city for composite types.
@@ -1282,6 +1423,18 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
     }
 
     /**
+     * Finds a single entity using a complex FindQuery builder.
+     * Loads associations if specified in the query using batch loading.
+     *
+     * @param query the FindQuery builder with search criteria
+     * @return an {@link Optional} containing the first matching entity, or empty if
+     *         not found
+     */
+    protected Optional<T> findOptional(FindQuery<T, ID> query) {
+        return Optional.ofNullable(find(query));
+    }
+
+    /**
      * Finds entities using a complex FindQuery builder.
      * Does NOT load associations to avoid N+1 queries.
      */
@@ -1331,6 +1484,22 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
         }
 
         return entity;
+    }
+
+    /**
+     * Finds a single entity using a complex FindQuery builder, mapping the result
+     * into a subtype of the entity (e.g. a "report" class that extends the entity
+     * with extra computed fields via {@link FindQuery#selectExpression}).
+     * Loads associations if specified in the query using batch loading.
+     *
+     * @param <R>         the result type, a subtype of T
+     * @param query       the FindQuery builder with search criteria
+     * @param resultClass the class to map the result into
+     * @return an {@link Optional} containing the first matching entity, or empty if
+     *         not found
+     */
+    protected <R extends T> Optional<R> findOptional(FindQuery<T, ID> query, Class<R> resultClass) {
+        return Optional.ofNullable(find(query, resultClass));
     }
 
     /**
