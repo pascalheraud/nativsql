@@ -66,4 +66,23 @@ public class PostgresContactInfoRepository extends PostgresRepository<ContactInf
                         .whereAndEquals("contactType", contactType)
                         .whereAndEquals("isPrimary", true));
     }
+
+    /**
+     * Finds contacts for a user filtered by the {@code isPrimary} boolean
+     * column, including {@code null} — exercises {@code PostgresBooleanTypeMapper}'s
+     * generated {@code ::boolean} cast for a generated-query WHERE condition
+     * (issue #118).
+     *
+     * @param userId    the user ID
+     * @param isPrimary the value to compare {@code isPrimary} against, may be null
+     * @param columns   the property names (camelCase) to retrieve
+     * @return list of matching contacts
+     */
+    public List<ContactInfo> findByUserIdAndIsPrimary(Long userId, Boolean isPrimary, String... columns) {
+        return findAll(
+                newFindQuery()
+                        .select(columns)
+                        .whereAndEquals("userId", userId)
+                        .whereAndEquals("isPrimary", isPrimary));
+    }
 }

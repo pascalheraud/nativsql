@@ -5,6 +5,12 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.0] - 2026-08-08
+
+### Fixed
+
+- **PostgreSQL "could not determine data type of parameter" for ambiguous bind parameters** — every generated-query placeholder for a PostgreSQL-mapped type (`Boolean`, `UUID`, `String`, numeric types, dates/times, `byte[]`, JSON, enums, composite types, PostGIS `Point`) is now emitted with an explicit `::type` cast (e.g. `(:estValide)::boolean`), so PostgreSQL always knows the parameter's type regardless of the surrounding SQL syntax. `findExternal`/`findAllExternal` hand-written queries are covered too, via a new cached SQL rewrite (`NamedParamSqlCaster`) that injects the same casts around `:paramName` tokens found in the raw SQL text — resolving the parameter's type from a matching entity field, the runtime value's class, or (for `null` values with no matching field) an explicit `NullableParam.of(type)` wrapper. List-valued parameters (`WHERE id IN (:ids)`) are never cast, to avoid corrupting JDBC's own list expansion. Other dialects (MariaDB, Oracle) are unaffected. See [doc/issues/118-postgres-boolean-parameter-cast/spec.md](doc/issues/118-postgres-boolean-parameter-cast/spec.md).
+
 ## [2.11.0] - 2026-08-03
 
 ### Added

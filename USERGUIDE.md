@@ -15,7 +15,8 @@
 11. [Multiple databases](#multiple-databases)
 12. [Logging](#logging)
 13. [Testing](#testing)
-14. [FAQ](#faq)
+14. [Claude users](#claude-users)
+15. [FAQ](#faq)
 
 ---
 
@@ -505,6 +506,40 @@ FROM users
 
 See [doc/issues/98-entity-composition/spec.md](doc/issues/98-entity-composition/spec.md) for the full design rationale.
 
+### Raw SQL queries (`findExternal`/`findAllExternal`)
+
+`findExternal(sql, resultClass)`/`findAllExternal(sql, params, resultClass)` run a hand-written SQL string with named `:param` placeholders, mapping rows (or a single scalar column) into any class — not limited to the repository's own entity type:
+
+```java
+public UserReport getUsersReport() {
+    return findExternal("SELECT COUNT(*) AS \"totalUsers\" FROM users", UserReport.class);
+}
+
+public List<User> findAllByCity(String city) {
+    return findAllExternal(
+            "SELECT * FROM users WHERE (address).city = :city",
+            Map.of("city", city), User.class);
+}
+```
+
+On PostgreSQL, a bind parameter used **without** being compared to a typed column (e.g. `WHERE :flag`, `WHERE :flag IS NULL OR NOT :flag`) fails with `could not determine data type of parameter` unless NativSQL can figure out the parameter's type well enough to inject a cast. It resolves the type, per parameter name, in this order:
+
+1. A matching field on the repository's entity type (e.g. `:status` when the entity has a `status` field) — works automatically, including for `null`.
+2. The runtime class of a non-`null` value passed for that parameter.
+3. `NullableParam.of(SomeType.class)` — used **instead of** a plain `null` value, for a parameter with no matching entity field that can legitimately be `null` in an ambiguous position:
+
+```java
+import ovh.heraud.nativsql.repository.NullableParam;
+
+public List<User> findAllByActiveFlag(Boolean active) {
+    String sql = "SELECT * FROM users WHERE :active IS NULL OR status = (CASE WHEN :active THEN 'ACTIVE' ELSE 'INACTIVE' END)";
+    Object param = active == null ? NullableParam.of(Boolean.class) : active;
+    return findAllExternal(sql, Map.of("active", param), User.class);
+}
+```
+
+A parameter that is `null`, has no matching entity field, and isn't wrapped in `NullableParam` gets no cast — same as today, not a regression. The rewrite is cached per distinct SQL string, computed from the first call's parameter shapes, so wrap consistently on **every** call for a given query, not just the first.
+
 ---
 
 ## WHERE operators reference
@@ -896,6 +931,20 @@ becomes the project's own responsibility (typically a delete+reseed test-data bu
 the start of each scenario). See [doc/EndToEndTesting.md](doc/EndToEndTesting.md) for a full,
 worked e2e setup built on this opt-out (a shared environment singleton starting the container and
 the application under test, and a JUnit base class scenario tests extend).
+
+---
+
+## Claude users
+
+If your project uses NativSQL and [Claude Code](https://claude.com/claude-code), copy this repo's
+[`src/claude/nativsql-usage/SKILL.md`](src/claude/nativsql-usage/SKILL.md) into your own project at
+`.claude/skills/nativsql-usage/SKILL.md`. It summarizes the repository/query-builder API and
+conventions (CRUD, `FindQuery`, WHERE operators, relationships, annotations) so Claude can write
+NativSQL repository code correctly without re-reading this whole guide or the library source on
+every task.
+
+The skill is a condensed reference, not a replacement for this guide — when NativSQL is upgraded in
+a consuming project, re-copy the file to pick up any API changes.
 
 ---
 

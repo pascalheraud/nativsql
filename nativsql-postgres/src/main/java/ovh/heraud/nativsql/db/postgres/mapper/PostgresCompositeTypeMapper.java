@@ -98,7 +98,7 @@ public class PostgresCompositeTypeMapper<T> extends AbstractTypeMapper<T> {
     @Override
     public String formatParameter(String paramName, Map<ParamKey, Object> params) {
         String sqlTypeName = (String) params.get(TypeParamKey.SQL_TYPE);
-        return "(:" + paramName + ")::" + sqlTypeName;
+        return PostgresParameterCasts.cast(paramName, sqlTypeName);
     }
 
     private String quoteCompositeValue(Object value) {

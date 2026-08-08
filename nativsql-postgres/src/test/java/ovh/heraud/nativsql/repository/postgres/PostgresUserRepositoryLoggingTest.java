@@ -132,7 +132,7 @@ public class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
 
             verifyLogEvent(logs, 0, Level.INFO, "DB.ONINSERT PostgresUserRepository - users.{createdAt=" + user.getCreatedAt() + "}");
             verifyLogEvent(logs, 1, Level.INFO, "DB.BEGIN PostgresUserRepository.insert - INSERT users [test-uuid-insert-1]");
-            verifyLogEvent(logs, 2, Level.DEBUG, "DB.SQL PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - INSERT INTO users (first_name, last_name, email, status, address, created_at) VALUES (:firstName, :lastName, :email, (:status)::user_status, (:address)::address_type, :createdAt)");
+            verifyLogEvent(logs, 2, Level.DEBUG, "DB.SQL PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - INSERT INTO users (first_name, last_name, email, status, address, created_at) VALUES ((:firstName)::text, (:lastName)::text, (:email)::text, (:status)::user_status, (:address)::address_type, (:createdAt)::timestamp)");
             verifyLogEvent(logs, 3, Level.DEBUG, "DB.PARAMS PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - {firstName=Alice, lastName=Wonder, createdAt=" + user.getCreatedAt() + ", address=(\"123 Main St\",\"Paris\",\"75001\",\"France\"), email=alice@example.com, status=ACTIVE}");
             verifyLogEvent(logs, 4, Level.INFO, "DB.END PostgresUserRepository.insert - INSERT users [test-uuid-insert-1] - 42ms");
         }
@@ -163,7 +163,7 @@ public class PostgresUserRepositoryLoggingTest extends PostgresRepositoryTest {
 
             verifyLogEvent(logs, 0, Level.INFO, "DB.ONUPDATE PostgresUserRepository - users.{updateDate=" + updateDateTimestamp + "}");
             verifyLogEvent(logs, 1, Level.INFO, "DB.BEGIN PostgresUserRepository.update - UPDATE users [test-uuid-update-1]");
-            verifyLogEvent(logs, 2, Level.DEBUG, "DB.SQL PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - UPDATE users SET first_name = :firstName, update_date = :updateDate WHERE id = :id");
+            verifyLogEvent(logs, 2, Level.DEBUG, "DB.SQL PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - UPDATE users SET first_name = (:firstName)::text, update_date = (:updateDate)::timestamptz WHERE id = :id");
             verifyLogEvent(logs, 3, Level.DEBUG, "DB.PARAMS PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - {firstName=Robert, updateDate=" + updateDateTimestamp + ", id=" + user.getId() + "}");
             verifyLogEvent(logs, 4, Level.INFO, "DB.END PostgresUserRepository.update - UPDATE users [test-uuid-update-1] - 42ms");
         }

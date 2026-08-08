@@ -9,6 +9,7 @@ import org.postgis.Point;
 import ovh.heraud.nativsql.annotation.DbDataType;
 import ovh.heraud.nativsql.annotation.type.ParamKey;
 import ovh.heraud.nativsql.annotation.type.TypeParamKey;
+import ovh.heraud.nativsql.db.postgres.mapper.PostgresParameterCasts;
 import ovh.heraud.nativsql.exception.ConversionException;
 import ovh.heraud.nativsql.mapper.AbstractTypeMapper;
 
@@ -47,6 +48,6 @@ public class PostgresPointTypeMapper extends AbstractTypeMapper<Point> {
 
     @Override
     public String formatParameter(String paramName, Map<ParamKey, Object> params) {
-        return "(:" + paramName + ")::geometry";
+        return PostgresParameterCasts.cast(paramName, "geometry");
     }
 }

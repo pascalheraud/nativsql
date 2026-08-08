@@ -60,6 +60,14 @@ List<User> active = userRepository.findActiveUsers();
 - **[doc/EndToEndTesting.md](doc/EndToEndTesting.md)** — full e2e test setup on top of `BaseRepositoryTest`
 - **[CHANGELOG.md](CHANGELOG.md)** — version history
 
+## Claude users
+
+Projects that use NativSQL and work with [Claude Code](https://claude.com/claude-code) can copy
+[`src/claude/nativsql-usage/SKILL.md`](src/claude/nativsql-usage/SKILL.md) from this repo into
+`.claude/skills/nativsql-usage/SKILL.md` in their own project. It teaches Claude the NativSQL API
+(repository conventions, query builder, annotations) so it can write correct repository code
+without re-deriving it from source each time. See [USERGUIDE.md](USERGUIDE.md#claude-users) for details.
+
 ## License
 
 GNU General Public License v3 (GPL-3.0)

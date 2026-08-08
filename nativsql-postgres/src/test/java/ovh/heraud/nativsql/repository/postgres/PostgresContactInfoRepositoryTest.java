@@ -169,6 +169,51 @@ class PostgresContactInfoRepositoryTest  extends PostgresRepositoryTest{
     }
 
     @Test
+    void findByUserIdAndIsPrimary_executes_for_null_true_and_false_boolean_values() {
+        // Given: a null-, true- and false-valued isPrimary contact for the same user
+        Long testUserId = createTestUser();
+
+        ContactInfo unset = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.EMAIL)
+                .contactValue("john@unset.com")
+                .build();
+        ContactInfo primary = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.PHONE)
+                .contactValue("+33612345678")
+                .isPrimary(true)
+                .build();
+        ContactInfo secondary = ContactInfo.builder()
+                .userId(testUserId)
+                .contactType(ContactType.LINKEDIN)
+                .contactValue("linkedin.com/in/johndoe")
+                .isPrimary(false)
+                .build();
+
+        // "isPrimary" must be listed explicitly, or the schema's DEFAULT false kicks in
+        // instead of storing an actual NULL
+        contactInfoRepository.insert(unset, "userId", "contactType", "contactValue", "isPrimary");
+        contactInfoRepository.insert(primary, "userId", "contactType", "contactValue", "isPrimary");
+        contactInfoRepository.insert(secondary, "userId", "contactType", "contactValue", "isPrimary");
+
+        // When: filtering by isPrimary = null, true, and false — the (:isPrimary)::boolean cast
+        // must let PostgreSQL determine the parameter's type in every case
+        List<ContactInfo> nullResult = contactInfoRepository.findByUserIdAndIsPrimary(testUserId, null,
+                "id", "contactValue", "isPrimary");
+        List<ContactInfo> trueResult = contactInfoRepository.findByUserIdAndIsPrimary(testUserId, true,
+                "id", "contactValue", "isPrimary");
+        List<ContactInfo> falseResult = contactInfoRepository.findByUserIdAndIsPrimary(testUserId, false,
+                "id", "contactValue", "isPrimary");
+
+        // Then: no PSQLException in any case; "isPrimary = NULL" matches no row (standard SQL
+        // null semantics), true/false match their respective contact
+        assertThat(nullResult).isEmpty();
+        assertThat(trueResult).extracting(ContactInfo::getContactValue).containsExactly("+33612345678");
+        assertThat(falseResult).extracting(ContactInfo::getContactValue).containsExactly("linkedin.com/in/johndoe");
+    }
+
+    @Test
     void testDeleteContact() {
         // Given
         Long testUserId = createTestUser();
