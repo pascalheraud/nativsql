@@ -38,10 +38,6 @@ public class PostgresUUIDTypeMapper extends UUIDTypeMapper {
 
     @Override
     public String formatParameter(String paramName, Map<ParamKey, Object> params) {
-        DbDataType dataType = (DbDataType) params.get(TypeParamKey.DB_DATA_TYPE);
-        if (dataType == null || dataType == DbDataType.UUID || dataType == DbDataType.IDENTITY) {
-            return "(:" + paramName + ")::uuid";
-        }
-        return ":" + paramName;
+        return PostgresParameterCasts.castForType(paramName, params, "uuid");
     }
 }

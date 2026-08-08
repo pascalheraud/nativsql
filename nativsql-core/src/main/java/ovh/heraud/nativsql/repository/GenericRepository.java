@@ -81,6 +81,8 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
 
     private Fields entityFields;
 
+    private final NamedParamSqlCaster namedParamSqlCaster = new NamedParamSqlCaster();
+
     protected String tableName;
 
     private DataSource dataSource;
@@ -1647,7 +1649,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                 List<Object> convertedList = convertListParams((List<Object>) list);
                 converted.put(entry.getKey(), convertedList);
             } else {
-                if (entry.getValue() == null) {
+                if (entry.getValue() == null || entry.getValue() instanceof NullableParam) {
                     converted.put(entry.getKey(), null);
                 } else {
                     FieldAccessor<Object> field = declaredField != null ? declaredField
@@ -1881,8 +1883,10 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
      */
     protected <EXT> List<EXT> findAllExternal(String sql, Map<String, Object> params,
             Class<EXT> resultClass) {
+        String castSql = namedParamSqlCaster.castNamedParameters(sql, params, entityFields, databaseDialect,
+                annotationManager);
         Map<String, Object> convertedParams = convertParamsToSqlValues(params);
-        return jdbcTemplate.query(sql, convertedParams,
+        return jdbcTemplate.query(castSql, convertedParams,
                 rowMapperFactory.getRowMapper(resultClass, databaseDialect, identifierConverter));
     }
 

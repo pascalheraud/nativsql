@@ -56,6 +56,6 @@ public class PostgresEnumMapper<E extends Enum<E>> extends AbstractTypeMapper<E>
     @Override
     public String formatParameter(String paramName, Map<ParamKey, Object> params) {
         String sqlTypeName = (String) params.get(TypeParamKey.SQL_TYPE);
-        return "(:" + paramName + ")::" + sqlTypeName;
+        return PostgresParameterCasts.cast(paramName, sqlTypeName);
     }
 }

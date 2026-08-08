@@ -36,4 +36,9 @@ public class PostgresStringTypeMapper extends StringTypeMapper {
         }
         return super.toDatabaseValue(value, params);
     }
+
+    @Override
+    public String formatParameter(String paramName, Map<ParamKey, Object> params) {
+        return PostgresParameterCasts.castForType(paramName, params, "text");
+    }
 }

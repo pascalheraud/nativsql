@@ -65,4 +65,9 @@ public class PostgreJSONTypeMapper<T> extends AbstractTypeMapper<T> {
             throw new NativSQLException("Failed to convert to JSONB", e);
         }
     }
+
+    @Override
+    public String formatParameter(String paramName, Map<ParamKey, Object> params) {
+        return PostgresParameterCasts.cast(paramName, "jsonb");
+    }
 }

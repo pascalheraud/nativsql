@@ -1,0 +1,131 @@
+# Test data for NamedParamSqlCasterEngineQueriesTest (issue #118).
+#
+# Each block below is one test case, separated by a blank line:
+#   DESC: short description (also used as the JUnit display name)
+#   IN:   input SQL passed to castNamedParameters, with ":active" bound to
+#         TestEntity's Boolean "active" field (so it always gets cast) and
+#         ":other" left unbound (so it is never rewritten)
+#   OUT:  expected SQL after casting
+#
+# Lines starting with "#" outside a block, and blank lines between blocks,
+# are ignored by the parser.
+
+DESC: postgresql double-quoted identifier and native "::" cast side by side
+IN: select * from "user" where "created_at"::date = :other and active = :active
+OUT: select * from "user" where "created_at"::date = :other and active = (:active)::boolean
+
+DESC: postgresql dollar-quoted-looking text kept as a plain string literal
+IN: select * from t where label = 'price is $$ not a param' and active = :active
+OUT: select * from t where label = 'price is $$ not a param' and active = (:active)::boolean
+
+DESC: mysql/mariadb backtick-quoted identifiers
+IN: select * from `user_table` where `active` = :active and `other_col` = :other
+OUT: select * from `user_table` where `active` = (:active)::boolean and `other_col` = :other
+
+DESC: mariadb optimizer hint block comment
+IN: select /*! STRAIGHT_JOIN */ * from t where active = :active
+OUT: select /*! STRAIGHT_JOIN */ * from t where active = (:active)::boolean
+
+DESC: oracle double-quoted identifier with rownum
+IN: select * from "USER" where rownum = 1 and "ACTIVE" = :active or flag = :other
+OUT: select * from "USER" where rownum = 1 and "ACTIVE" = (:active)::boolean or flag = :other
+
+DESC: oracle doubled single-quote string escape does not confuse the scanner
+IN: select * from t where label = 'it''s :active fake' and active = :active
+OUT: select * from t where label = 'it''s :active fake' and active = (:active)::boolean
+
+DESC: line comment mentioning a param name is left untouched when unmatched
+IN: select * from t where active = :active -- see :other for context
+OUT: select * from t where active = (:active)::boolean -- see :other for context
+
+DESC: CTE (with clause) followed by a join in the main query
+IN: with recent as (select id from t where active = :active) select u.id from "user" u join recent r on r.id = u.id where u.flag = :other
+OUT: with recent as (select id from t where active = (:active)::boolean) select u.id from "user" u join recent r on r.id = u.id where u.flag = :other
+
+DESC: join, group by and having together
+IN: select u.id, count(*) from "user" u join t on t.user_id = u.id where u.active = :active group by u.id having count(*) > 1
+OUT: select u.id, count(*) from "user" u join t on t.user_id = u.id where u.active = (:active)::boolean group by u.id having count(*) > 1
+
+DESC: order by with a limit/offset
+IN: select * from t where active = :active order by created_at desc limit :other
+OUT: select * from t where active = (:active)::boolean order by created_at desc limit :other
+
+DESC: correlated subquery with exists
+IN: select * from "user" u where u.active = :active and exists (select 1 from t where t.user_id = u.id and t.flag = :other)
+OUT: select * from "user" u where u.active = (:active)::boolean and exists (select 1 from t where t.user_id = u.id and t.flag = :other)
+
+DESC: in-clause subquery
+IN: select * from t where active = :active and user_id in (select id from "user" where flag = :other)
+OUT: select * from t where active = (:active)::boolean and user_id in (select id from "user" where flag = :other)
+
+DESC: union of two selects
+IN: select id from t where active = :active union select id from t2 where flag = :other
+OUT: select id from t where active = (:active)::boolean union select id from t2 where flag = :other
+
+DESC: case-when expression in the select list
+IN: select case when active = :active then 'yes' else 'no' end as label from t where flag = :other
+OUT: select case when active = (:active)::boolean then 'yes' else 'no' end as label from t where flag = :other
+
+DESC: window function with partition by and order by
+IN: select id, row_number() over (partition by user_id order by created_at) as rn from t where active = :active and flag = :other
+OUT: select id, row_number() over (partition by user_id order by created_at) as rn from t where active = (:active)::boolean and flag = :other
+
+DESC: insert statement
+IN: insert into t (id, active) values (:other, :active)
+OUT: insert into t (id, active) values (:other, (:active)::boolean)
+
+DESC: update statement
+IN: update t set active = :active, flag = :other where id = 1
+OUT: update t set active = (:active)::boolean, flag = :other where id = 1
+
+DESC: delete statement
+IN: delete from t where active = :active and flag = :other
+OUT: delete from t where active = (:active)::boolean and flag = :other
+
+DESC: recursive CTE
+IN: with recursive tree as (select id from t where active = :active union all select c.id from t c join tree p on c.parent_id = p.id) select * from tree where flag = :other
+OUT: with recursive tree as (select id from t where active = (:active)::boolean union all select c.id from t c join tree p on c.parent_id = p.id) select * from tree where flag = :other
+
+DESC: lateral join subquery
+IN: select u.id, s.val from "user" u, lateral (select val from t where t.user_id = u.id and t.active = :active) s where u.flag = :other
+OUT: select u.id, s.val from "user" u, lateral (select val from t where t.user_id = u.id and t.active = (:active)::boolean) s where u.flag = :other
+
+DESC: aggregate filter clause
+IN: select count(*) filter (where active = :active) from t where flag = :other
+OUT: select count(*) filter (where active = (:active)::boolean) from t where flag = :other
+
+DESC: postgresql jsonb operators next to a colon-shaped json key in a string literal
+IN: select * from t where data->>'active' = :other and active = :active and data @> '{"active":true}'
+OUT: select * from t where data->>'active' = :other and active = (:active)::boolean and data @> '{"active":true}'
+
+DESC: array constructor
+IN: select * from t where active = :active and tags = array[:other]
+OUT: select * from t where active = (:active)::boolean and tags = array[:other]
+
+DESC: params packed tightly against commas and parentheses, no surrounding spaces
+IN: select coalesce(:active,:other) from t
+OUT: select coalesce((:active)::boolean,:other) from t
+
+DESC: ilike pattern match
+IN: select * from t where name ilike :other and active = :active
+OUT: select * from t where name ilike :other and active = (:active)::boolean
+
+DESC: unterminated block comment at the end of the query does not crash the scanner
+IN: select * from t where active = :active /* trailing comment without end
+OUT: select * from t where active = (:active)::boolean /* trailing comment without end
+
+DESC: postgresql array slice colons (digit-bounded, never a valid param name start) are left alone
+IN: select tags[2:4] as slice, tags[:3] as head, tags[3:] as tail from t where active = :active
+OUT: select tags[2:4] as slice, tags[:3] as head, tags[3:] as tail from t where active = (:active)::boolean
+
+DESC: an explicit "::" cast already written directly on the bound param itself is not doubled up
+IN: select * from t where :active::boolean = true and flag = :other
+OUT: select * from t where :active::boolean = true and flag = :other
+
+DESC: an existing "::" cast to a different type than the resolved one is still trusted as-is
+IN: select * from t where :active::text = 'true' and flag = :other
+OUT: select * from t where :active::text = 'true' and flag = :other
+
+DESC: standard CAST(:name AS type) is not detected like "::" is, so it gets nested (harmless but redundant)
+IN: select * from t where cast(:active as boolean) = true and flag = :other
+OUT: select * from t where cast((:active)::boolean as boolean) = true and flag = :other

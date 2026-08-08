@@ -337,6 +337,34 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
         return findAllExternal(sql, params, User.class);
     }
 
+    /**
+     * Finds users by their {@code status == ACTIVE} flag via a hand-written,
+     * ambiguous boolean predicate — {@code :filterActive IS NULL}/{@code NOT
+     * :filterActive} give PostgreSQL nothing to infer the parameter's type
+     * from unless {@code ovh.heraud.nativsql.repository.NamedParamSqlCaster}
+     * injects a cast. {@code filterActive} has no matching {@link User} field,
+     * so callers must wrap {@code null} in
+     * {@code ovh.heraud.nativsql.repository.NullableParam#of(Class)} (issue
+     * #118).
+     *
+     * @param filterActive the value to filter {@code status = 'ACTIVE'} by, or
+     *                      {@code NullableParam.of(Boolean.class)}/{@code null} to
+     *                      return every user regardless of status
+     * @return list of matching users
+     */
+    public List<User> findAllByActiveFlagAmbiguous(Object filterActive) {
+        String sql = """
+                SELECT id, first_name as "firstName", email, status
+                FROM users
+                WHERE :filterActive IS NULL
+                    OR (:filterActive AND status = 'ACTIVE')
+                    OR (NOT :filterActive AND status <> 'ACTIVE')
+                    """;
+        Map<String, Object> params = new HashMap<>();
+        params.put("filterActive", filterActive);
+        return findAllExternal(sql, params, User.class);
+    }
+
     public void deleteByEmailAndStatus(String email, UserStatus status) {
         delete(newDeleteQuery()
                 .whereAndEquals(User::getEmail, email)
