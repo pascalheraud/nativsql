@@ -12,6 +12,7 @@ import ovh.heraud.nativsql.domain.mariadb.Preferences;
 import ovh.heraud.nativsql.domain.mariadb.User;
 import ovh.heraud.nativsql.domain.mariadb.UserReport;
 import ovh.heraud.nativsql.domain.mariadb.UserStatus;
+import ovh.heraud.nativsql.repository.NullableParam;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
@@ -545,6 +546,40 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
                 assertThat(results).isNotNull().isNotEmpty();
                 assertThat(results.get(0).getId()).isEqualTo(userId);
                 assertThat(results.get(0).getEmail()).isEqualTo("nullparam@example.com");
+        }
+
+        @Test
+        void findAllByActiveFlagAmbiguous_nullableParam_behaves_like_plain_null_on_mariadb() {
+                // Given: an ACTIVE and an INACTIVE user
+                User active = User.builder().firstName("Active").email("active-flag@example.com")
+                                .status(UserStatus.ACTIVE).build();
+                User inactive = User.builder().firstName("Inactive").email("inactive-flag@example.com")
+                                .status(UserStatus.INACTIVE).build();
+                userRepository.insert(active, "firstName", "email", "status");
+                userRepository.insert(inactive, "firstName", "email", "status");
+
+                // When: filtering with a plain null, NullableParam.of(Boolean.class), true, and
+                // false — MariaDB's generic mappers are untouched by the PostgreSQL casting fix,
+                // so NullableParam must be a pure no-op, behaving exactly like a plain null
+                List<User> plainNullResult = userRepository.findAllByActiveFlagAmbiguous(null);
+                List<User> nullableParamResult = userRepository
+                                .findAllByActiveFlagAmbiguous(NullableParam.of(Boolean.class));
+                List<User> trueResult = userRepository.findAllByActiveFlagAmbiguous(true);
+                List<User> falseResult = userRepository.findAllByActiveFlagAmbiguous(false);
+
+                // Then: no exception in any case; NullableParam and plain null return the exact
+                // same rows (every user), true/false filter to their matching status
+                assertThat(plainNullResult).extracting(User::getEmail)
+                                .containsExactlyInAnyOrderElementsOf(
+                                                nullableParamResult.stream().map(User::getEmail).toList());
+                assertThat(plainNullResult).extracting(User::getEmail)
+                                .contains("active-flag@example.com", "inactive-flag@example.com");
+                assertThat(trueResult).extracting(User::getEmail)
+                                .contains("active-flag@example.com")
+                                .doesNotContain("inactive-flag@example.com");
+                assertThat(falseResult).extracting(User::getEmail)
+                                .contains("inactive-flag@example.com")
+                                .doesNotContain("active-flag@example.com");
         }
 
         @Test
