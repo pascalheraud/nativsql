@@ -5,6 +5,12 @@ All notable changes to NativSQL will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.12.2] - 2026-08-09
+
+### Fixed
+
+- **`NullableParam` now also accepts a non-null value** — `NullableParam.of(Class, Object)` replaces the old type-only `NullableParam.of(Class)` factory: the wrapped value's type is still caught for the PostgreSQL cast, but if the value is non-null it is now actually bound and used instead of being discarded as `null`. See [doc/issues/120-nullable-param-non-null-value/spec.md](doc/issues/120-nullable-param-non-null-value/spec.md).
+
 ## [2.12.0] - 2026-08-08
 
 ### Fixed

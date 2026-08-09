@@ -558,12 +558,12 @@ class MariaDBUserRepositoryTest extends MariaDBRepositoryTest {
                 userRepository.insert(active, "firstName", "email", "status");
                 userRepository.insert(inactive, "firstName", "email", "status");
 
-                // When: filtering with a plain null, NullableParam.of(Boolean.class), true, and
+                // When: filtering with a plain null, NullableParam.of(Boolean.class, null), true, and
                 // false — MariaDB's generic mappers are untouched by the PostgreSQL casting fix,
                 // so NullableParam must be a pure no-op, behaving exactly like a plain null
                 List<User> plainNullResult = userRepository.findAllByActiveFlagAmbiguous(null);
                 List<User> nullableParamResult = userRepository
-                                .findAllByActiveFlagAmbiguous(NullableParam.of(Boolean.class));
+                                .findAllByActiveFlagAmbiguous(NullableParam.of(Boolean.class, null));
                 List<User> trueResult = userRepository.findAllByActiveFlagAmbiguous(true);
                 List<User> falseResult = userRepository.findAllByActiveFlagAmbiguous(false);
 
