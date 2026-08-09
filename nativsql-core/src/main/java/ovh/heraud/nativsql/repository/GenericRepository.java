@@ -1648,8 +1648,17 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
             if (entry.getValue() instanceof List<?> list && !isCollectionTypedColumn) {
                 List<Object> convertedList = convertListParams((List<Object>) list);
                 converted.put(entry.getKey(), convertedList);
+            } else if (entry.getValue() instanceof NullableParam nullableParam) {
+                if (nullableParam.hasValue()) {
+                    FieldAccessor<Object> field = declaredField != null ? declaredField
+                            : new FieldAccessor<Object>(nullableParam.getType());
+                    TypeInfo typeInfo = annotationManager.getTypeInfo(field);
+                    converted.put(entry.getKey(), convertToSqlValue(nullableParam.getValue(), field, typeInfo));
+                } else {
+                    converted.put(entry.getKey(), null);
+                }
             } else {
-                if (entry.getValue() == null || entry.getValue() instanceof NullableParam) {
+                if (entry.getValue() == null) {
                     converted.put(entry.getKey(), null);
                 } else {
                     FieldAccessor<Object> field = declaredField != null ? declaredField

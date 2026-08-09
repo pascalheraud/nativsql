@@ -48,6 +48,26 @@ class PostgresFindExternalBooleanCastTest extends PostgresRepositoryTest {
                 .doesNotContain("active-flag@example.com");
     }
 
+    @Test
+    void findAllByActiveFlagAmbiguous_nullableParam_with_non_null_value_uses_the_value() {
+        // Given: one ACTIVE and one INACTIVE user
+        insertUser("Active", "active-flag-nonnull@example.com", UserStatus.ACTIVE);
+        insertUser("Inactive", "inactive-flag-nonnull@example.com", UserStatus.INACTIVE);
+
+        // When: wrapping a non-null boolean in NullableParam — the type must still be
+        // caught for the cast, and the actual (non-null) value must be used (issue #120)
+        List<User> trueResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(true));
+        List<User> falseResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(false));
+
+        // Then: no PSQLException, and each call filters as if the plain boolean was passed
+        assertThat(trueResult).extracting(User::getEmail)
+                .contains("active-flag-nonnull@example.com")
+                .doesNotContain("inactive-flag-nonnull@example.com");
+        assertThat(falseResult).extracting(User::getEmail)
+                .contains("inactive-flag-nonnull@example.com")
+                .doesNotContain("active-flag-nonnull@example.com");
+    }
+
     private void insertUser(String firstName, String email, UserStatus status) {
         User user = User.builder()
                 .firstName(firstName)
