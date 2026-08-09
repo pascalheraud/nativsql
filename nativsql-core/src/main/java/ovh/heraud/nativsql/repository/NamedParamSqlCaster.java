@@ -48,9 +48,10 @@ import ovh.heraud.nativsql.util.TypeInfo;
  * Results are cached by the raw SQL string: the SQL text of a
  * {@code findExternal}/{@code findAllExternal} call is a source-level
  * constant, so the scan only needs to run once per distinct query. Callers
- * must wrap a nullable, unmapped parameter in {@link NullableParam}
- * consistently on every call for a given query, since only the first call's
- * {@code params} shape is used to build the cached rewrite.
+ * must wrap an unmapped parameter (whether its value is {@code null} or not)
+ * in {@link NullableParam} consistently on every call for a given query,
+ * since only the first call's {@code params} shape is used to build the
+ * cached rewrite.
  */
 class NamedParamSqlCaster {
 

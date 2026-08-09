@@ -170,6 +170,17 @@ class NamedParamSqlCasterTest {
     }
 
     @Test
+    void castsUnmatchedNonNullParameterWrappedInNullableParam() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("filterFlag", NullableParam.of(true));
+
+        String result = caster.castNamedParameters("select * from t where :filterFlag", params, entityFields,
+                dialect, annotationManager);
+
+        assertThat(result).isEqualTo("select * from t where (:filterFlag)::boolean");
+    }
+
+    @Test
     void doesNotCastUnmatchedPlainNullParameter() {
         Map<String, Object> params = new HashMap<>();
         params.put("filterFlag", null);
