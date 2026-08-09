@@ -343,13 +343,13 @@ public class PostgresUserRepository extends PostgresRepository<User, Long> {
      * :filterActive} give PostgreSQL nothing to infer the parameter's type
      * from unless {@code ovh.heraud.nativsql.repository.NamedParamSqlCaster}
      * injects a cast. {@code filterActive} has no matching {@link User} field,
-     * so callers must wrap {@code null} in
-     * {@code ovh.heraud.nativsql.repository.NullableParam#of(Class)} (issue
-     * #118).
+     * so callers must wrap {@code null} (or a real value) in
+     * {@code ovh.heraud.nativsql.repository.NullableParam#of(Class, Object)}
+     * (issues #118, #120).
      *
      * @param filterActive the value to filter {@code status = 'ACTIVE'} by, or
-     *                      {@code NullableParam.of(Boolean.class)}/{@code null} to
-     *                      return every user regardless of status
+     *                      {@code NullableParam.of(Boolean.class, null)}/{@code null}
+     *                      to return every user regardless of status
      * @return list of matching users
      */
     public List<User> findAllByActiveFlagAmbiguous(Object filterActive) {

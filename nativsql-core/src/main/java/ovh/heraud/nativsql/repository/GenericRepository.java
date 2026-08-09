@@ -1649,7 +1649,7 @@ public abstract class GenericRepository<T extends IEntity<ID>, ID> {
                 List<Object> convertedList = convertListParams((List<Object>) list);
                 converted.put(entry.getKey(), convertedList);
             } else if (entry.getValue() instanceof NullableParam nullableParam) {
-                if (nullableParam.hasValue()) {
+                if (nullableParam.getValue() != null) {
                     FieldAccessor<Object> field = declaredField != null ? declaredField
                             : new FieldAccessor<Object>(nullableParam.getType());
                     TypeInfo typeInfo = annotationManager.getTypeInfo(field);

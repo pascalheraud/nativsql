@@ -161,7 +161,7 @@ class NamedParamSqlCasterTest {
     @Test
     void castsUnmatchedNullParameterWrappedInNullableParam() {
         Map<String, Object> params = new HashMap<>();
-        params.put("filterFlag", NullableParam.of(Boolean.class));
+        params.put("filterFlag", NullableParam.of(Boolean.class, null));
 
         String result = caster.castNamedParameters("select * from t where :filterFlag", params, entityFields,
                 dialect, annotationManager);
@@ -172,7 +172,7 @@ class NamedParamSqlCasterTest {
     @Test
     void castsUnmatchedNonNullParameterWrappedInNullableParam() {
         Map<String, Object> params = new HashMap<>();
-        params.put("filterFlag", NullableParam.of(true));
+        params.put("filterFlag", NullableParam.of(Boolean.class, true));
 
         String result = caster.castNamedParameters("select * from t where :filterFlag", params, entityFields,
                 dialect, annotationManager);

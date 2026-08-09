@@ -202,12 +202,12 @@ public class MariaDBUserRepository extends MariaDBRepository<User, Long> {
      * {@code ovh.heraud.nativsql.repository.NullableParam} is a no-op on
      * MariaDB: no cast is injected (MariaDB's generic mappers are untouched by
      * the PostgreSQL casting fix), and passing
-     * {@code NullableParam.of(Boolean.class)} behaves exactly like passing a
+     * {@code NullableParam.of(Boolean.class, null)} behaves exactly like passing a
      * plain {@code null} (issue #118).
      *
      * @param filterActive the value to filter {@code status = 'ACTIVE'} by, a
      *                      plain {@code null}, or
-     *                      {@code NullableParam.of(Boolean.class)}, to return
+     *                      {@code NullableParam.of(Boolean.class, null)}, to return
      *                      every user regardless of status
      * @return list of matching users
      */

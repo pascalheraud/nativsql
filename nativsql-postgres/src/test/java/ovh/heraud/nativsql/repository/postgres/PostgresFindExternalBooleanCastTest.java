@@ -33,7 +33,7 @@ class PostgresFindExternalBooleanCastTest extends PostgresRepositoryTest {
 
         // When: filtering with a null (via NullableParam), true, and false value —
         // each exercises the ambiguous ":filterActive IS NULL"/"NOT :filterActive" predicate
-        List<User> nullResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(Boolean.class));
+        List<User> nullResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(Boolean.class, null));
         List<User> trueResult = userRepository.findAllByActiveFlagAmbiguous(true);
         List<User> falseResult = userRepository.findAllByActiveFlagAmbiguous(false);
 
@@ -56,8 +56,8 @@ class PostgresFindExternalBooleanCastTest extends PostgresRepositoryTest {
 
         // When: wrapping a non-null boolean in NullableParam — the type must still be
         // caught for the cast, and the actual (non-null) value must be used (issue #120)
-        List<User> trueResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(true));
-        List<User> falseResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(false));
+        List<User> trueResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(Boolean.class, true));
+        List<User> falseResult = userRepository.findAllByActiveFlagAmbiguous(NullableParam.of(Boolean.class, false));
 
         // Then: no PSQLException, and each call filters as if the plain boolean was passed
         assertThat(trueResult).extracting(User::getEmail)
